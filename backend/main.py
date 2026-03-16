@@ -6,13 +6,13 @@ Author: 飞书百万（AI助手）
 """
 
 import logging
+import os
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
 import uvicorn
-from pathlib import Path
 
 from core.config import settings
 from api import auth, query
@@ -37,19 +37,30 @@ async def lifespan(app: FastAPI):
     logger.info(f"🚀 {settings.APP_NAME} v{settings.APP_VERSION} 启动中...")
     logger.info(f"📡 服务地址: http://{settings.HOST}:{settings.PORT}")
     
+    # 初始化数据库
+    from models.session import init_db
+    init_db()
+    logger.info("✅ 数据库初始化完成")
+    
     # 检查依赖
-    from db.connector import check_dependencies
-    missing = check_dependencies()
-    if missing:
-        logger.warning(f"⚠️ 缺少数据库驱动: {', '.join(missing)}")
-    else:
-        logger.info("✅ 所有数据库驱动已安装")
+    try:
+        from db.connector import check_dependencies
+        missing = check_dependencies()
+        if missing:
+            logger.warning(f"⚠️ 缺少数据库驱动: {', '.join(missing)}")
+        else:
+            logger.info("✅ 所有数据库驱动已安装")
+    except Exception as e:
+        logger.warning(f"⚠️ 数据库驱动检查失败: {e}")
     
     yield
     
     # 关闭时
-    from db.connection_manager import connection_manager
-    connection_manager.stop()
+    try:
+        from db.connection_manager import connection_manager
+        connection_manager.stop()
+    except:
+        pass
     logger.info("👋 服务已关闭")
 
 

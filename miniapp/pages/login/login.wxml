@@ -1,0 +1,84 @@
+<!-- pages/login/login.wxml -->
+<view class="container">
+  
+  <!-- 背景装饰 -->
+  <view class="bg-decoration">
+    <view class="bg-circle bg-circle-1"></view>
+    <view class="bg-circle bg-circle-2"></view>
+    <view class="bg-circle bg-circle-3"></view>
+  </view>
+
+  <!-- Logo区域 -->
+  <view class="logo-area">
+    <view class="logo-container">
+      <text class="logo-icon">🔍</text>
+    </view>
+    <text class="logo-title">多源数据查询</text>
+    <text class="logo-subtitle">专业 · 高效 · 安全</text>
+  </view>
+
+  <!-- 登录表单 -->
+  <view class="login-form glass-card">
+    <view class="form-title">用户登录</view>
+    
+    <!-- 手机号输入 -->
+    <view class="form-item">
+      <view class="input-icon">📱</view>
+      <input 
+        class="input-field" 
+        type="number" 
+        maxlength="11"
+        placeholder="请输入手机号" 
+        placeholder-class="placeholder"
+        bindinput="onPhoneInput"
+        value="{{phone}}"
+      />
+    </view>
+
+    <!-- 密码输入 -->
+    <view class="form-item">
+      <view class="input-icon">🔒</view>
+      <input 
+        class="input-field" 
+        type="{{showPassword ? 'text' : 'password'}}" 
+        maxlength="20"
+        placeholder="请输入密码" 
+        placeholder-class="placeholder"
+        bindinput="onPasswordInput"
+        value="{{password}}"
+      />
+      <view class="show-password" bindtap="togglePassword">
+        <text>{{showPassword ? '🙈' : '🙉'}}</text>
+      </view>
+    </view>
+
+    <!-- 提示信息 -->
+    <view class="login-hint">
+      <text>提示: 首次登录请使用管理员分配的账号密码</text>
+    </view>
+
+    <!-- 登录按钮 -->
+    <button 
+      class="login-btn" 
+      bindtap="doLogin"
+      loading="{{loading}}"
+      disabled="{{loading}}"
+    >
+      <text wx:if="{{!loading}}">登 录</text>
+      <text wx:else>登录中...</text>
+    </button>
+
+    <!-- 其他选项 -->
+    <view class="other-options">
+      <text class="forgot-link" bindtap="onForgotPassword">忘记密码？</text>
+      <text class="divider">|</text>
+      <text class="help-link" bindtap="onContactAdmin">联系管理员</text>
+    </view>
+  </view>
+
+  <!-- 版权信息 -->
+  <view class="copyright">
+    <text>© 2026 多源数据查询系统</text>
+  </view>
+
+</view>

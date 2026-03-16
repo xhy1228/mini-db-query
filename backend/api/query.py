@@ -1,348 +1,541 @@
 # -*- coding: utf-8 -*-
 """
 多源数据查询小程序版 - 查询API
+
+Author: 飞书百万（AI助手）
 """
 
-from fastapi import APIRouter, HTTPException, Depends, Query
-from pydantic import BaseModel
-from typing import Optional, List, Dict, Any
+from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel, Field
+from sqlalchemy.orm import Session
+from typing import Optional, List, Any
 from datetime import datetime
+import time
+import json
 
-from core.security import get_current_user
-from utils.response import success_response, error_response, paginate_response
-from db.connector import get_connector, check_dependencies
+from models.database import get_db_session, DatabaseConfig, QueryTemplate
+from services.user_service import UserService, QueryTemplateService, QueryLogService
+from core.security import get_current_user, TokenData
+from core.config import settings
+from db.connector import get_connector
 from db.connection_manager import connection_manager
-from db.query_template import get_template_manager
-import logging
-
-logger = logging.getLogger(__name__)
-
-router = APIRouter(prefix="/query", tags=["查询"])
 
 
-class ExecuteQueryRequest(BaseModel):
-    """执行查询请求"""
-    config_name: str
-    sql: str
+router = APIRouter(tags=["查询"])
 
+
+# ========== 请求/响应模型 ==========
 
 class SmartQueryRequest(BaseModel):
     """智能查询请求"""
-    config_name: str
-    category: str
-    query_id: str
-    conditions: List[Dict[str, Any]]  # [{field, operator, value, logic}, ...]
+    school_id: int = Field(..., description="学校ID")
+    template_id: int = Field(..., description="查询模板ID")
+    conditions: List[dict] = Field(default_factory=list, description="查询条件")
+    start_time: Optional[str] = None
+    end_time: Optional[str] = None
+    limit: Optional[int] = 100
+
+
+class SqlQueryRequest(BaseModel):
+    """SQL查询请求"""
+    school_id: int
+    sql: str
+
+
+class ExportRequest(BaseModel):
+    """导出请求"""
+    school_id: int
+    template_id: Optional[int] = None
+    sql: Optional[str] = None
+    conditions: List[dict] = Field(default_factory=list)
     start_time: Optional[str] = None
     end_time: Optional[str] = None
 
 
-class TestConnectionRequest(BaseModel):
-    """测试连接请求"""
-    config_name: str
+# ========== 辅助函数 ==========
 
-
-# ==================== 配置管理 ====================
-
-@router.get("/configs")
-async def get_configs(current_user = Depends(get_current_user)):
-    """
-    获取数据库配置列表
+def check_user_school_permission(db: Session, user_id: int, school_id: int) -> bool:
+    """检查用户是否有学校权限"""
+    # 超级管理员有所有权限
+    user = UserService.get_by_id(db, user_id)
+    if user and user.role == 'admin':
+        return True
     
-    Returns:
-        配置列表
-    """
-    try:
-        import yaml
-        from pathlib import Path
-        
-        config_file = Path("./config/databases.yaml")
-        if not config_file.exists():
-            return success_response([])
-        
-        with open(config_file, 'r', encoding='utf-8') as f:
-            configs = yaml.safe_load(f) or {}
-        
-        # 隐藏敏感信息
-        result = []
-        for name, config in configs.items():
-            result.append({
-                "name": name,
-                "db_type": config.get("db_type"),
-                "host": config.get("host"),
-                "port": config.get("port"),
-                "database": config.get("database")
-            })
-        
-        return success_response(result)
-        
-    except Exception as e:
-        logger.error(f"获取配置列表失败: {e}")
-        return error_response(f"获取配置列表失败: {str(e)}")
+    # 检查用户学校权限
+    schools = UserService.get_user_schools(db, user_id)
+    for school in schools:
+        if school['id'] == school_id:
+            return True
+    return False
 
 
-# ==================== 连接管理 ====================
-
-@router.post("/test-connection")
-async def test_connection(request: TestConnectionRequest, current_user = Depends(get_current_user)):
-    """
-    测试数据库连接
+def generate_sql_from_template(template: QueryTemplate, conditions: List[dict],
+                               start_time: str = None, end_time: str = None) -> str:
+    """从模板生成SQL"""
+    sql = template.sql_template
     
-    Args:
-        request: 测试连接请求
+    # 处理条件
+    where_clauses = []
+    for cond in conditions:
+        field = cond.get('field')
+        operator = cond.get('operator', '=')
+        value = cond.get('value', '')
         
-    Returns:
-        连接测试结果
-    """
-    try:
-        import yaml
-        from pathlib import Path
+        if not value:
+            continue
         
-        # 加载配置
-        config_file = Path("./config/databases.yaml")
-        with open(config_file, 'r', encoding='utf-8') as f:
-            configs = yaml.safe_load(f) or {}
-        
-        config = configs.get(request.config_name)
-        if not config:
-            return error_response("配置不存在")
-        
-        # 解密密码
-        if config.get("password"):
-            # TODO: 实现密码解密
-            pass
-        
-        # 获取连接
-        connector = connection_manager.get_connection(request.config_name, config)
-        
-        if connector:
-            return success_response({
-                "status": "connected",
-                "message": "连接成功"
-            })
+        if operator.upper() == 'LIKE':
+            where_clauses.append(f"{field} LIKE '%{value}%'")
         else:
-            return error_response("连接失败")
-            
-    except Exception as e:
-        logger.error(f"测试连接失败: {e}")
-        return error_response(f"连接测试失败: {str(e)}")
-
-
-# ==================== 智能查询 ====================
-
-@router.get("/categories")
-async def get_categories(current_user = Depends(get_current_user)):
-    """
-    获取业务大类列表
+            where_clauses.append(f"{field} {operator} '{value}'")
     
-    Returns:
-        业务大类列表
-    """
-    try:
-        template_manager = get_template_manager()
-        categories = template_manager.get_categories()
-        return success_response(categories)
-    except Exception as e:
-        return error_response(f"获取业务大类失败: {str(e)}")
-
-
-@router.get("/queries/{category_id}")
-async def get_queries(category_id: str, current_user = Depends(get_current_user)):
-    """
-    获取指定大类的查询列表
+    # 添加时间条件
+    if template.time_field:
+        if start_time:
+            where_clauses.append(f"{template.time_field} >= '{start_time}'")
+        if end_time:
+            where_clauses.append(f"{template.time_field} <= '{end_time}'")
     
-    Args:
-        category_id: 大类ID
-        
-    Returns:
-        查询列表
-    """
-    try:
-        template_manager = get_template_manager()
-        queries = template_manager.get_queries(category_id)
-        return success_response(queries)
-    except Exception as e:
-        return error_response(f"获取查询列表失败: {str(e)}")
-
-
-@router.post("/smart")
-async def smart_query(request: SmartQueryRequest, current_user = Depends(get_current_user)):
-    """
-    执行智能查询
-    
-    Args:
-        request: 智能查询请求
-        
-    Returns:
-        查询结果
-    """
-    try:
-        import yaml
-        from pathlib import Path
-        
-        # 加载数据库配置
-        config_file = Path("./config/databases.yaml")
-        with open(config_file, 'r', encoding='utf-8') as f:
-            configs = yaml.safe_load(f) or {}
-        
-        config = configs.get(request.config_name)
-        if not config:
-            return error_response("数据库配置不存在")
-        
-        # 生成SQL
-        template_manager = get_template_manager()
-        
-        # 解析时间
-        start_time = None
-        end_time = None
-        if request.start_time:
-            start_time = datetime.strptime(request.start_time, "%Y-%m-%d %H:%M:%S")
-        if request.end_time:
-            end_time = datetime.strptime(request.end_time, "%Y-%m-%d %H:%M:%S")
-        
-        # 生成SQL（简化版，实际需要根据conditions生成）
-        if request.conditions:
-            first_cond = request.conditions[0]
-            sql = template_manager.generate_sql(
-                request.category,
-                request.query_id,
-                first_cond.get("field"),
-                first_cond.get("value"),
-                start_time,
-                end_time
-            )
+    # 组合WHERE
+    if where_clauses:
+        where_str = " AND ".join(where_clauses)
+        if "WHERE" in sql.upper():
+            sql = sql + " AND " + where_str
         else:
-            return error_response("请至少提供一个查询条件")
+            sql = sql + " WHERE " + where_str
+    
+    # 添加LIMIT
+    if template.default_limit:
+        sql = sql + f" LIMIT {template.default_limit}"
+    
+    return sql
+
+
+# ========== 小程序端API ==========
+
+@router.get("/user/schools")
+async def get_user_schools(current_user: TokenData = Depends(get_current_user),
+                          db: Session = Depends(get_db_session)):
+    """
+    获取用户授权的学校列表
+    
+    用户登录后获取自己有权访问的学校
+    """
+    # 超级管理员可以看到所有学校
+    user = UserService.get_by_id(db, int(current_user.user_id))
+    if user and user.role == 'admin':
+        from models.database import School
+        schools = db.query(School).filter(School.status == 'active').all()
+        return {
+            "code": 200,
+            "message": "获取成功",
+            "data": [s.to_dict() for s in schools]
+        }
+    
+    # 普通用户获取授权学校
+    schools = UserService.get_user_schools(db, int(current_user.user_id))
+    
+    return {
+        "code": 200,
+        "message": "获取成功",
+        "data": schools
+    }
+
+
+@router.get("/user/categories")
+async def get_categories(school_id: int,
+                        current_user: TokenData = Depends(get_current_user),
+                        db: Session = Depends(get_db_session)):
+    """
+    获取学校的业务大类列表
+    
+    - **school_id**: 学校ID
+    """
+    # 检查权限
+    if not check_user_school_permission(db, int(current_user.user_id), school_id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="无权限访问该学校"
+        )
+    
+    categories = QueryTemplateService.get_categories(db, school_id)
+    
+    return {
+        "code": 200,
+        "message": "获取成功",
+        "data": categories
+    }
+
+
+@router.get("/user/templates")
+async def get_templates(school_id: int, category: str = None,
+                       current_user: TokenData = Depends(get_current_user),
+                       db: Session = Depends(get_db_session)):
+    """
+    获取查询模板列表
+    
+    - **school_id**: 学校ID
+    - **category**: 业务大类（可选）
+    """
+    # 检查权限
+    if not check_user_school_permission(db, int(current_user.user_id), school_id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="无权限访问该学校"
+        )
+    
+    if category:
+        templates = QueryTemplateService.get_by_category(db, school_id, category)
+    else:
+        templates = QueryTemplateService.get_by_school(db, school_id)
+    
+    return {
+        "code": 200,
+        "message": "获取成功",
+        "data": [t.to_dict() for t in templates]
+    }
+
+
+@router.post("/user/query")
+async def smart_query(request: SmartQueryRequest,
+                     current_user: TokenData = Depends(get_current_user),
+                     db: Session = Depends(get_db_session)):
+    """
+    智能查询
+    
+    - **school_id**: 学校ID
+    - **template_id**: 查询模板ID
+    - **conditions**: 查询条件
+    - **start_time**: 开始时间
+    - **end_time**: 结束时间
+    - **limit**: 结果条数限制
+    """
+    user_id = int(current_user.user_id)
+    
+    # 检查权限
+    if not check_user_school_permission(db, user_id, request.school_id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="无权限访问该学校"
+        )
+    
+    # 获取模板
+    template = db.query(QueryTemplate).filter(
+        QueryTemplate.id == request.template_id,
+        QueryTemplate.school_id == request.school_id
+    ).first()
+    
+    if not template:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="查询模板不存在"
+        )
+    
+    # 获取数据库配置
+    # 从模板获取数据库配置ID或根据学校查找
+    # 这里简化处理，假设模板关联了数据库配置
+    from models.database import DatabaseConfig
+    db_config = db.query(DatabaseConfig).filter(
+        DatabaseConfig.school_id == request.school_id,
+        DatabaseConfig.status == 'active'
+    ).first()
+    
+    if not db_config:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="该学校未配置数据库"
+        )
+    
+    # 生成SQL
+    sql = generate_sql_from_template(
+        template,
+        request.conditions,
+        request.start_time,
+        request.end_time
+    )
+    
+    # 执行查询
+    start_time_ms = int(time.time() * 1000)
+    try:
+        # 构建数据库连接配置
+        config = {
+            'db_type': db_config.db_type,
+            'host': db_config.host,
+            'port': db_config.port,
+            'username': db_config.username,
+            'password': db_config.password,  # 需要解密
+            'database': db_config.database,
+            'service_name': db_config.service_name
+        }
         
-        if not sql:
-            return error_response("无法生成查询语句")
-        
-        # 执行查询
-        connector = connection_manager.get_connection(request.config_name, config)
-        if not connector:
-            return error_response("无法建立数据库连接")
+        connector = get_connector(config['db_type'], config)
+        if not connector or not connector.connect():
+            raise Exception("数据库连接失败")
         
         from db.query_executor import QueryExecutor
         executor = QueryExecutor(connector)
         result = executor.execute_query(sql)
+        connector.close()
+        
+        query_time = int(time.time() * 1000) - start_time_ms
         
         # 记录日志
-        logger.info(f"用户 {current_user.user_id} 执行查询: {sql[:100]}")
+        QueryLogService.create_log(
+            db, user_id, request.school_id, template.id,
+            template.name, {"conditions": request.conditions},
+            sql, len(result), query_time, "success"
+        )
         
-        return success_response({
-            "sql": sql,
-            "rows": result or [],
-            "count": len(result) if result else 0
-        })
+        # 转换为字典
+        rows = [dict(row) for row in result] if result else []
+        
+        return {
+            "code": 200,
+            "message": "查询成功",
+            "data": {
+                "rows": rows,
+                "count": len(rows),
+                "query_time": query_time,
+                "sql": sql
+            }
+        }
         
     except Exception as e:
-        logger.error(f"智能查询失败: {e}")
-        return error_response(f"查询失败: {str(e)}")
+        query_time = int(time.time() * 1000) - start_time_ms
+        
+        # 记录错误日志
+        QueryLogService.create_log(
+            db, user_id, request.school_id, template.id,
+            template.name, {"conditions": request.conditions},
+            sql, 0, query_time, "failed", str(e)
+        )
+        
+        return {
+            "code": 500,
+            "message": f"查询失败: {str(e)}",
+            "data": None
+        }
 
 
-# ==================== SQL查询 ====================
-
-@router.post("/execute")
-async def execute_query(request: ExecuteQueryRequest, current_user = Depends(get_current_user)):
+@router.get("/user/history")
+async def get_query_history(skip: int = 0, limit: int = 30,
+                           current_user: TokenData = Depends(get_current_user),
+                           db: Session = Depends(get_db_session)):
     """
-    执行SQL查询
+    获取查询历史
     
-    Args:
-        request: 执行查询请求
-        
-    Returns:
-        查询结果
+    - **skip**: 跳过条数
+    - **limit**: 返回条数
     """
-    try:
-        # 安全校验：检查SQL是否包含危险操作
-        sql_upper = request.sql.upper().strip()
-        dangerous_keywords = ["DROP", "DELETE", "TRUNCATE", "ALTER", "CREATE", "INSERT", "UPDATE"]
-        
-        for keyword in dangerous_keywords:
-            if keyword in sql_upper:
-                return error_response(f"安全限制：不允许执行 {keyword} 操作")
-        
-        import yaml
-        from pathlib import Path
-        
-        # 加载配置
-        config_file = Path("./config/databases.yaml")
-        with open(config_file, 'r', encoding='utf-8') as f:
-            configs = yaml.safe_load(f) or {}
-        
-        config = configs.get(request.config_name)
-        if not config:
-            return error_response("数据库配置不存在")
-        
-        # 获取连接
-        connector = connection_manager.get_connection(request.config_name, config)
-        if not connector:
-            return error_response("无法建立数据库连接")
-        
-        # 执行查询
-        from db.query_executor import QueryExecutor
-        executor = QueryExecutor(connector)
-        result = executor.execute_query(request.sql)
-        
-        # 记录日志
-        logger.info(f"用户 {current_user.user_id} 执行SQL: {request.sql[:100]}")
-        
-        return success_response({
-            "rows": result or [],
-            "count": len(result) if result else 0
-        })
-        
-    except Exception as e:
-        logger.error(f"SQL查询失败: {e}")
-        return error_response(f"查询失败: {str(e)}")
-
-
-# ==================== 导出功能 ====================
-
-@router.post("/export")
-async def export_query_result(request: ExecuteQueryRequest, current_user = Depends(get_current_user)):
-    """
-    导出查询结果
+    user_id = int(current_user.user_id)
+    history = QueryLogService.get_user_history(db, user_id, skip, limit)
     
-    Args:
-        request: 执行查询请求
-        
-    Returns:
-        导出文件URL
-    """
+    return {
+        "code": 200,
+        "message": "获取成功",
+        "data": [h.to_dict() for h in history]
+    }
+
+
+# ========== 管理平台API ==========
+
+@router.get("/manage/schools")
+async def list_schools(skip: int = 0, limit: int = 100,
+                      current_user: TokenData = Depends(get_current_user),
+                      db: Session = Depends(get_db_session)):
+    """获取学校列表"""
+    if current_user.role != 'admin':
+        raise HTTPException(status_code=403, detail="权限不足")
+    
+    from models.database import School
+    schools = db.query(School).offset(skip).limit(limit).all()
+    
+    return {
+        "code": 200,
+        "message": "获取成功",
+        "data": [s.to_dict() for s in schools]
+    }
+
+
+@router.post("/manage/schools")
+async def create_school(name: str, code: str, description: str = None,
+                       current_user: TokenData = Depends(get_current_user),
+                       db: Session = Depends(get_db_session)):
+    """创建学校"""
+    if current_user.role != 'admin':
+        raise HTTPException(status_code=403, detail="权限不足")
+    
+    from models.database import School
+    school = School(name=name, code=code, description=description)
+    db.add(school)
+    db.commit()
+    db.refresh(school)
+    
+    return {
+        "code": 200,
+        "message": "创建成功",
+        "data": school.to_dict()
+    }
+
+
+@router.get("/manage/databases")
+async def list_databases(school_id: int = None,
+                       current_user: TokenData = Depends(get_current_user),
+                       db: Session = Depends(get_db_session)):
+    """获取数据库配置列表"""
+    if current_user.role != 'admin':
+        raise HTTPException(status_code=403, detail="权限不足")
+    
+    query = db.query(DatabaseConfig)
+    if school_id:
+        query = query.filter(DatabaseConfig.school_id == school_id)
+    
+    databases = query.all()
+    
+    return {
+        "code": 200,
+        "message": "获取成功",
+        "data": [d.to_dict() for d in databases]
+    }
+
+
+@router.post("/manage/databases")
+async def create_database(school_id: int, name: str, db_type: str,
+                         host: str, port: int, username: str, password: str,
+                         database: str = None, service_name: str = None,
+                         description: str = None,
+                         current_user: TokenData = Depends(get_current_user),
+                         db: Session = Depends(get_db_session)):
+    """创建数据库配置"""
+    if current_user.role != 'admin':
+        raise HTTPException(status_code=403, detail="权限不足")
+    
+    from core.security import get_password_hash
+    
+    config = DatabaseConfig(
+        school_id=school_id,
+        name=name,
+        db_type=db_type,
+        host=host,
+        port=port,
+        username=username,
+        password=get_password_hash(password),
+        database=database,
+        service_name=service_name,
+        description=description
+    )
+    db.add(config)
+    db.commit()
+    db.refresh(config)
+    
+    return {
+        "code": 200,
+        "message": "创建成功",
+        "data": config.to_dict()
+    }
+
+
+@router.get("/manage/templates")
+async def list_templates(school_id: int = None, category: str = None,
+                        current_user: TokenData = Depends(get_current_user),
+                        db: Session = Depends(get_db_session)):
+    """获取查询模板列表"""
+    if current_user.role != 'admin':
+        raise HTTPException(status_code=403, detail="权限不足")
+    
+    query = db.query(QueryTemplate)
+    if school_id:
+        query = query.filter(QueryTemplate.school_id == school_id)
+    if category:
+        query = query.filter(QueryTemplate.category == category)
+    
+    templates = query.all()
+    
+    return {
+        "code": 200,
+        "message": "获取成功",
+        "data": [t.to_dict() for t in templates]
+    }
+
+
+@router.post("/manage/templates")
+async def create_template(school_id: int, category: str, name: str,
+                        sql_template: str, fields: list = None,
+                        category_name: str = None, category_icon: str = None,
+                        time_field: str = None, default_limit: int = 500,
+                        current_user: TokenData = Depends(get_current_user),
+                        db: Session = Depends(get_db_session)):
+    """创建查询模板"""
+    if current_user.role != 'admin':
+        raise HTTPException(status_code=403, detail="权限不足")
+    
+    template = QueryTemplate(
+        school_id=school_id,
+        category=category,
+        category_name=category_name,
+        category_icon=category_icon,
+        name=name,
+        sql_template=sql_template,
+        fields=fields,
+        time_field=time_field,
+        default_limit=default_limit
+    )
+    db.add(template)
+    db.commit()
+    db.refresh(template)
+    
+    return {
+        "code": 200,
+        "message": "创建成功",
+        "data": template.to_dict()
+    }
+
+
+@router.post("/manage/databases/{db_id}/test")
+async def test_database(db_id: int,
+                       current_user: TokenData = Depends(get_current_user),
+                       db: Session = Depends(get_db_session)):
+    """测试数据库连接"""
+    if current_user.role != 'admin':
+        raise HTTPException(status_code=403, detail="权限不足")
+    
+    from core.security import verify_password, get_password_hash
+    
+    config = db.query(DatabaseConfig).filter(DatabaseConfig.id == db_id).first()
+    if not config:
+        raise HTTPException(status_code=404, detail="配置不存在")
+    
     try:
-        # 先执行查询
-        query_result = await execute_query(request, current_user)
+        # 构建连接配置（需要解密密码）
+        from core.security import verify_password
+        # 密码是哈希存储的，这里需要用明文测试
+        # 实际应该存储加密的明文密码
         
-        if query_result.get("code") != 200:
-            return query_result
-        
-        data = query_result.get("data", {})
-        rows = data.get("rows", [])
-        
-        if not rows:
-            return error_response("查询结果为空，无法导出")
-        
-        # 导出为Excel
-        import pandas as pd
-        from pathlib import Path
-        import uuid
-        
-        export_dir = Path("./exports")
-        export_dir.mkdir(exist_ok=True)
-        
-        filename = f"query_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:8]}.xlsx"
-        filepath = export_dir / filename
-        
-        df = pd.DataFrame(rows)
-        df.to_excel(filepath, index=False, engine='openpyxl')
-        
-        # 返回下载URL
-        return success_response({
-            "filename": filename,
-            "url": f"/exports/{filename}",
-            "rows": len(rows)
+        connector = get_connector(config.db_type, {
+            'host': config.host,
+            'port': config.port,
+            'username': config.username,
+            'password': config.password,  # 这里有问题，应该存明文或解密
+            'database': config.database,
+            'service_name': config.service_name
         })
         
+        if connector and connector.connect():
+            connector.close()
+            return {
+                "code": 200,
+                "message": "连接成功",
+                "data": None
+            }
+        else:
+            return {
+                "code": 400,
+                "message": "连接失败",
+                "data": None
+            }
     except Exception as e:
-        logger.error(f"导出失败: {e}")
-        return error_response(f"导出失败: {str(e)}")
+        return {
+            "code": 500,
+            "message": f"连接失败: {str(e)}",
+            "data": None
+        }

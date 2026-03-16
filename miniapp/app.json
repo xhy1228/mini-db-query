@@ -1,20 +1,23 @@
 {
   "pages": [
+    "pages/login/login",
     "pages/index/index",
     "pages/query/query",
     "pages/history/history",
     "pages/profile/profile"
   ],
   "window": {
-    "backgroundTextStyle": "light",
+    "backgroundTextStyle": "dark",
     "navigationBarBackgroundColor": "#1890ff",
     "navigationBarTitleText": "多源数据查询",
-    "navigationBarTextStyle": "white"
+    "navigationBarTextStyle": "white",
+    "backgroundColor": "#0a1628"
   },
   "tabBar": {
     "color": "#999999",
     "selectedColor": "#1890ff",
-    "backgroundColor": "#ffffff",
+    "backgroundColor": "#0a1628",
+    "borderStyle": "white",
     "list": [
       {
         "pagePath": "pages/index/index",
