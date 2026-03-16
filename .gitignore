@@ -19,24 +19,52 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+
+# Virtual Environment
 venv/
-venv-*/
+ENV/
+env/
+.venv/
 
 # IDE
-.vscode/
 .idea/
+.vscode/
 *.swp
+*.swo
+*~
 
-# 环境配置
+# Environment
 .env
 .env.local
+.env.*.local
 
-# 数据和日志
-data/
+# Logs
 logs/
+*.log
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Exports
 exports/
 uploads/
 
+# Config (keep example)
+backend/config/databases.yaml
+!backend/config/databases.yaml.example
+
+# Node
+node_modules/
+
+# macOS
+.DS_Store
+
 # Windows
-*.log
 Thumbs.db
+desktop.ini
+
+# Temp
+*.tmp
+*.temp

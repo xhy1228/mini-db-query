@@ -1,47 +1,150 @@
 <!-- pages/index/index.wxml -->
 <view class="container">
-  <!-- 欢迎区域 -->
+
+  <!-- 顶部装饰背景 -->
+  <view class="header-bg">
+    <view class="bg-circle bg-circle-1"></view>
+    <view class="bg-circle bg-circle-2"></view>
+    <view class="bg-circle bg-circle-3"></view>
+    <view class="bg-line"></view>
+  </view>
+
+  <!-- 头部区域 -->
   <view class="header">
-    <text class="welcome">欢迎使用多源数据查询</text>
-    <text class="subtitle">支持MySQL、Oracle、SQL Server等多种数据库</text>
+    <view class="header-content">
+      <view class="logo-area">
+        <view class="logo-icon">
+          <text>🔍</text>
+        </view>
+        <view class="logo-text">
+          <text class="logo-title">多源数据查询</text>
+          <text class="logo-subtitle">智能 · 高效 · 安全</text>
+        </view>
+      </view>
+      
+      <view class="version-badge">
+        <text>v1.0.0</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 快捷入口 -->
+  <view class="section quick-section">
+    <view class="section-header">
+      <view class="section-title">
+        <text class="title-icon">⚡</text>
+        <text>快捷入口</text>
+      </view>
+    </view>
+    <view class="quick-grid">
+      <view 
+        class="quick-item glass-card" 
+        wx:for="{{quickEntries}}" 
+        wx:key="id"
+        data-id="{{item.id}}"
+        bindtap="onQuickEntryTap"
+        style="--item-color: {{item.color}}"
+      >
+        <view class="quick-icon" style="background: linear-gradient(135deg, {{item.color}}33, {{item.color}}1a); border-color: {{item.color}}4d;">
+          <text>{{item.icon}}</text>
+        </view>
+        <text class="quick-name">{{item.name}}</text>
+      </view>
+    </view>
   </view>
 
   <!-- 业务大类 -->
-  <view class="section">
-    <view class="section-title">业务大类</view>
-    <view class="category-list" wx:if="{{categories.length > 0}}">
+  <view class="section category-section">
+    <view class="section-header">
+      <view class="section-title">
+        <text class="title-icon">📂</text>
+        <text>业务大类</text>
+      </view>
+      <text class="section-more" bindtap="goToQuery">查看全部 ›</text>
+    </view>
+    
+    <view class="category-list" wx:if="{{!loading && categories.length > 0}}">
       <view 
-        class="category-item" 
+        class="category-card tech-card animate-fade-in" 
         wx:for="{{categories}}" 
         wx:key="id"
         data-id="{{item.id}}"
         data-name="{{item.name}}"
         bindtap="onCategoryTap"
+        style="animation-delay: {{index * 100}}ms"
       >
-        <text class="category-icon">{{item.icon}}</text>
-        <text class="category-name">{{item.name}}</text>
-        <text class="category-desc">{{item.description}}</text>
+        <view class="category-main">
+          <text class="category-icon">{{item.icon}}</text>
+          <view class="category-info">
+            <text class="category-name">{{item.name}}</text>
+            <text class="category-desc">{{item.description}}</text>
+          </view>
+        </view>
+        <view class="category-stats">
+          <text class="stats-number">{{item.count}}</text>
+          <text class="stats-label">个查询</text>
+        </view>
+        <view class="category-arrow">›</view>
       </view>
     </view>
-    <view class="empty" wx:else>暂无业务大类配置</view>
+
+    <!-- 加载状态 -->
+    <view class="loading-state" wx:if="{{loading}}">
+      <view class="loading-spinner"></view>
+      <text>加载中...</text>
+    </view>
+
+    <!-- 空状态 -->
+    <view class="empty-state" wx:if="{{!loading && categories.length === 0}}">
+      <text class="empty-icon">📭</text>
+      <text class="empty-text">暂无业务大类配置</text>
+      <text class="empty-hint">请联系管理员配置查询模板</text>
+    </view>
   </view>
 
   <!-- 数据库配置 -->
-  <view class="section">
-    <view class="section-title">数据库配置</view>
-    <view class="config-list" wx:if="{{configs.length > 0}}">
+  <view class="section config-section">
+    <view class="section-header">
+      <view class="section-title">
+        <text class="title-icon">🗄️</text>
+        <text>数据库连接</text>
+      </view>
+      <text class="section-more" bindtap="goToProfile">管理 ›</text>
+    </view>
+    
+    <view class="config-list" wx:if="{{!loading && configs.length > 0}}">
       <view 
-        class="config-item" 
+        class="config-card glass-card" 
         wx:for="{{configs}}" 
         wx:key="name"
         data-name="{{item.name}}"
         bindtap="onConfigTap"
       >
-        <text class="config-type">{{item.db_type}}</text>
-        <text class="config-name">{{item.name}}</text>
-        <text class="config-host">{{item.host}}:{{item.port}}</text>
+        <view class="config-icon">
+          <text>{{item.db_type === 'MySQL' ? '🐬' : item.db_type === 'Oracle' ? '🔮' : '📊'}}</text>
+        </view>
+        <view class="config-info">
+          <text class="config-name">{{item.name}}</text>
+          <text class="config-desc">{{item.description || item.db_type}}</text>
+        </view>
+        <view class="config-status {{item.status === 'online' ? 'online' : 'offline'}}">
+          <text>{{item.status === 'online' ? '在线' : '离线'}}</text>
+        </view>
       </view>
     </view>
-    <view class="empty" wx:else>暂无数据库配置</view>
+
+    <!-- 空状态 -->
+    <view class="empty-state" wx:if="{{!loading && configs.length === 0}}">
+      <text class="empty-icon">🔌</text>
+      <text class="empty-text">暂无数据库配置</text>
+      <text class="empty-hint">请在后台管理系统中配置数据库连接</text>
+    </view>
   </view>
+
+  <!-- 系统信息 -->
+  <view class="system-info">
+    <text>多源数据查询小程序 v1.0.0</text>
+    <text>Powered by FastAPI</text>
+  </view>
+
 </view>
