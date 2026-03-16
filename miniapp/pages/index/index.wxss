@@ -1,0 +1,97 @@
+/* pages/index/index.wxss */
+
+.container {
+  padding: 20rpx;
+  background: #f5f5f5;
+  min-height: 100vh;
+}
+
+.section {
+  background: #fff;
+  border-radius: 16rpx;
+  padding: 24rpx;
+  margin-bottom: 20rpx;
+}
+
+.section-title {
+  font-size: 32rpx;
+  font-weight: bold;
+  color: #333;
+  margin-bottom: 20rpx;
+  padding-bottom: 16rpx;
+  border-bottom: 1rpx solid #eee;
+}
+
+/* 业务大类 */
+.category-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16rpx;
+}
+
+.category-item {
+  width: calc(50% - 8rpx);
+  padding: 24rpx;
+  background: #f8f9fa;
+  border-radius: 12rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.category-icon {
+  font-size: 48rpx;
+  margin-bottom: 12rpx;
+}
+
+.category-name {
+  font-size: 28rpx;
+  color: #333;
+}
+
+.category-count {
+  font-size: 24rpx;
+  color: #999;
+  margin-top: 8rpx;
+}
+
+/* 配置列表 */
+.config-list {
+  
+}
+
+.config-item {
+  padding: 20rpx;
+  background: #f8f9fa;
+  border-radius: 12rpx;
+  margin-bottom: 12rpx;
+  display: flex;
+  align-items: center;
+}
+
+.config-type {
+  padding: 4rpx 12rpx;
+  background: #1890ff;
+  color: #fff;
+  font-size: 22rpx;
+  border-radius: 4rpx;
+  margin-right: 16rpx;
+}
+
+.config-name {
+  flex: 1;
+  font-size: 28rpx;
+  color: #333;
+}
+
+.config-host {
+  font-size: 24rpx;
+  color: #999;
+}
+
+.empty {
+  text-align: center;
+  padding: 40rpx;
+  color: #999;
+  font-size: 28rpx;
+}

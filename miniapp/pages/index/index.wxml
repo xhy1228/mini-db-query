@@ -1,0 +1,47 @@
+<!-- pages/index/index.wxml -->
+<view class="container">
+  <!-- 欢迎区域 -->
+  <view class="header">
+    <text class="welcome">欢迎使用多源数据查询</text>
+    <text class="subtitle">支持MySQL、Oracle、SQL Server等多种数据库</text>
+  </view>
+
+  <!-- 业务大类 -->
+  <view class="section">
+    <view class="section-title">业务大类</view>
+    <view class="category-list" wx:if="{{categories.length > 0}}">
+      <view 
+        class="category-item" 
+        wx:for="{{categories}}" 
+        wx:key="id"
+        data-id="{{item.id}}"
+        data-name="{{item.name}}"
+        bindtap="onCategoryTap"
+      >
+        <text class="category-icon">{{item.icon}}</text>
+        <text class="category-name">{{item.name}}</text>
+        <text class="category-desc">{{item.description}}</text>
+      </view>
+    </view>
+    <view class="empty" wx:else>暂无业务大类配置</view>
+  </view>
+
+  <!-- 数据库配置 -->
+  <view class="section">
+    <view class="section-title">数据库配置</view>
+    <view class="config-list" wx:if="{{configs.length > 0}}">
+      <view 
+        class="config-item" 
+        wx:for="{{configs}}" 
+        wx:key="name"
+        data-name="{{item.name}}"
+        bindtap="onConfigTap"
+      >
+        <text class="config-type">{{item.db_type}}</text>
+        <text class="config-name">{{item.name}}</text>
+        <text class="config-host">{{item.host}}:{{item.port}}</text>
+      </view>
+    </view>
+    <view class="empty" wx:else>暂无数据库配置</view>
+  </view>
+</view>
