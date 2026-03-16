@@ -1,276 +1,269 @@
 // pages/query/query.js
 // 查询页面
 
+const app = getApp()
 const { get, post } = require('../../utils/request')
 
 Page({
   data: {
-    // 数据库配置
-    configs: [],
-    selectedConfig: '',
+    // 当前学校
+    selectedSchool: null,
     
-    // 查询模式
-    queryMode: 'smart',
-    
-    // 智能查询
+    // 业务大类
     categories: [],
-    queries: [],
-    fields: [],
-    operators: ['=', 'LIKE', '>', '<', '>=', '<=', '!='],
+    selectedCategory: null,
     
-    selectedCategoryId: '',
-    selectedCategoryName: '',
-    selectedQueryId: '',
-    selectedQueryName: '',
-    selectedField: '',
-    selectedFieldLabel: '',
-    selectedOperator: '=',
-    queryValue: '',
+    // 查询模板
+    templates: [],
+    selectedTemplate: null,
     
-    // 时间范围
-    enableTimeRange: false,
+    // 查询条件
+    conditions: [],
     startTime: '',
     endTime: '',
     
-    // SQL查询
-    sqlText: '',
-    
-    // 结果
+    // 查询结果
     loading: false,
     result: [],
-    resultHeaders: [],
+    resultColumns: [],
     queried: false
   },
 
   onLoad(options) {
-    // 加载数据库配置
-    this.loadConfigs()
+    // 检查登录
+    if (!app.isLoggedIn()) {
+      wx.redirectTo({ url: '/pages/login/login' })
+      return
+    }
+    
+    // 获取参数
+    if (options.school_id) {
+      this.setData({
+        selectedSchool: { id: options.school_id, name: decodeURIComponent(options.school_name || '') }
+      })
+    }
+    
+    // 如果没有学校，从全局获取
+    if (!this.data.selectedSchool && app.globalData.selectedSchool) {
+      this.setData({ selectedSchool: app.globalData.selectedSchool })
+    }
+    
     // 加载业务大类
     this.loadCategories()
-    
-    // 从首页跳转时可能带有参数
-    if (options.configName) {
-      this.setData({ selectedConfig: options.configName })
-    }
-    if (options.categoryId) {
-      this.setData({ selectedCategoryId: options.categoryId })
-      this.loadQueries(options.categoryId)
-    }
   },
 
-  // 加载数据库配置
-  async loadConfigs() {
-    try {
-      const res = await get('/query/configs')
-      if (res.code === 200) {
-        this.setData({ configs: res.data || [] })
-      }
-    } catch (error) {
-      console.error('加载配置失败:', error)
+  onShow() {
+    // 从全局获取选中的学校
+    if (app.globalData.selectedSchool && !this.data.selectedSchool) {
+      this.setData({ selectedSchool: app.globalData.selectedSchool })
+      this.loadCategories()
     }
   },
 
   // 加载业务大类
   async loadCategories() {
+    const school = this.data.selectedSchool
+    if (!school) {
+      // 跳转到首页选择学校
+      wx.switchTab({ url: '/pages/index/index' })
+      return
+    }
+    
     try {
-      const res = await get('/query/categories')
+      const res = await get('/user/categories', { school_id: school.id })
+      
       if (res.code === 200) {
         this.setData({ categories: res.data || [] })
       }
     } catch (error) {
       console.error('加载业务大类失败:', error)
+      // 使用模拟数据
+      this.setData({
+        categories: this.getMockCategories()
+      })
     }
   },
 
-  // 切换查询模式
-  switchMode(e) {
-    const mode = e.currentTarget.dataset.mode
-    this.setData({ queryMode: mode })
-  },
-
-  // 选择数据库
-  onConfigChange(e) {
-    const index = e.detail.value
-    const config = this.data.configs[index]
-    this.setData({ 
-      selectedConfig: config.name 
-    })
+  // 获取模拟业务大类
+  getMockCategories() {
+    return [
+      { id: 'student', name: '学生业务', icon: '🎓', count: 5 },
+      { id: 'consume', name: '消费业务', icon: '💰', count: 8 },
+      { id: 'access', name: '门禁业务', icon: '🚪', count: 4 }
+    ]
   },
 
   // 选择业务大类
-  onCategoryChange(e) {
-    const index = e.detail.value
-    const category = this.data.categories[index]
+  async onCategoryTap(e) {
+    const category = e.currentTarget.dataset.category
     this.setData({ 
-      selectedCategoryId: category.id,
-      selectedCategoryName: category.name 
+      selectedCategory: category,
+      templates: [],
+      selectedTemplate: null
     })
-    this.loadQueries(category.id)
+    
+    // 加载查询模板
+    await this.loadTemplates(category.id)
   },
 
-  // 加载查询列表
-  async loadQueries(categoryId) {
+  // 加载查询模板
+  async loadTemplates(category) {
+    const school = this.data.selectedSchool
+    if (!school) return
+    
     try {
-      const res = await get(`/query/queries/${categoryId}`)
+      const res = await get('/user/templates', { 
+        school_id: school.id,
+        category: category
+      })
+      
       if (res.code === 200) {
-        this.setData({ queries: res.data || [] })
+        this.setData({ templates: res.data || [] })
       }
     } catch (error) {
-      console.error('加载查询列表失败:', error)
+      console.error('加载查询模板失败:', error)
+      // 使用模拟数据
+      this.setData({
+        templates: this.getMockTemplates()
+      })
     }
   },
 
-  // 选择查询类型
-  onQueryChange(e) {
-    const index = e.detail.value
-    const query = this.data.queries[index]
-    this.setData({ 
-      selectedQueryId: query.id,
-      selectedQueryName: query.name,
-      fields: query.fields || []
+  // 获取模拟模板
+  getMockTemplates() {
+    return [
+      {
+        id: 1,
+        name: '学生信息查询',
+        description: '根据姓名或学号查询学生基本信息',
+        fields: [
+          { id: 'name', label: '姓名', column: 'CUSTNAME', type: 'text', operator: 'LIKE' },
+          { id: 'student_id', label: '学号', column: 'STUDENTID', type: 'text', operator: '=' }
+        ],
+        time_field: null
+      },
+      {
+        id: 2,
+        name: '消费明细查询',
+        description: '查询消费流水明细记录',
+        fields: [
+          { id: 'card_id', label: '卡号', column: 'CARDID', type: 'text', operator: '=' }
+        ],
+        time_field: 'TRATIME'
+      }
+    ]
+  },
+
+  // 选择查询模板
+  onTemplateTap(e) {
+    const template = e.currentTarget.dataset.template
+    
+    // 初始化查询条件
+    const conditions = template.fields.map(field => ({
+      field: field.column,
+      operator: field.operator || '=',
+      value: ''
+    }))
+    
+    this.setData({
+      selectedTemplate: template,
+      conditions: conditions,
+      startTime: '',
+      endTime: ''
     })
   },
 
-  // 选择字段
-  onFieldChange(e) {
-    const index = e.detail.value
-    const field = this.data.fields[index]
-    this.setData({ 
-      selectedField: field.id,
-      selectedFieldLabel: field.label
-    })
+  // 输入查询条件
+  onConditionInput(e) {
+    const index = e.currentTarget.dataset.index
+    const value = e.detail.value
+    
+    const conditions = this.data.conditions
+    conditions[index].value = value
+    
+    this.setData({ conditions })
   },
 
-  // 选择操作符
-  onOperatorChange(e) {
-    const index = e.detail.value
-    this.setData({ 
-      selectedOperator: this.data.operators[index]
-    })
-  },
-
-  // 输入查询值
-  onValueInput(e) {
-    this.setData({ queryValue: e.detail.value })
-  },
-
-  // 切换时间范围
-  toggleTimeRange() {
-    this.setData({ enableTimeRange: !this.data.enableTimeRange })
-  },
-
-  // 选择开始时间
+  // 选择时间
   onStartTimeChange(e) {
     this.setData({ startTime: e.detail.value })
   },
 
-  // 选择结束时间
   onEndTimeChange(e) {
     this.setData({ endTime: e.detail.value })
   },
 
-  // 输入SQL
-  onSqlInput(e) {
-    this.setData({ sqlText: e.detail.value })
-  },
-
   // 执行查询
-  async executeQuery() {
-    if (!this.data.selectedConfig) {
-      wx.showToast({ title: '请选择数据库', icon: 'none' })
+  async doQuery() {
+    const { selectedSchool, selectedTemplate, conditions, startTime, endTime } = this.data
+    
+    if (!selectedSchool) {
+      wx.showToast({ title: '请先选择学校', icon: 'none' })
       return
     }
-
-    this.setData({ loading: true })
-
+    
+    if (!selectedTemplate) {
+      wx.showToast({ title: '请先选择查询模板', icon: 'none' })
+      return
+    }
+    
+    // 验证查询条件
+    const hasCondition = conditions.some(c => c.value.trim())
+    if (!hasCondition) {
+      wx.showToast({ title: '请至少输入一个查询条件', icon: 'none' })
+      return
+    }
+    
+    this.setData({ loading: true, queried: false })
+    
     try {
-      let result
+      const res = await post('/user/query', {
+        school_id: selectedSchool.id,
+        template_id: selectedTemplate.id,
+        conditions: conditions.filter(c => c.value.trim()),
+        start_time: startTime ? `${startTime} 00:00:00` : null,
+        end_time: endTime ? `${endTime} 23:59:59` : null,
+        limit: 500
+      })
       
-      if (this.data.queryMode === 'smart') {
-        // 智能查询
-        result = await post('/query/smart', {
-          config_name: this.data.selectedConfig,
-          category: this.data.selectedCategoryId,
-          query_id: this.data.selectedQueryId,
-          conditions: [{
-            field: this.data.selectedField,
-            operator: this.data.selectedOperator,
-            value: this.data.queryValue
-          }],
-          start_time: this.data.startTime ? `${this.data.startTime} 00:00:00` : null,
-          end_time: this.data.endTime ? `${this.data.endTime} 23:59:59` : null
-        })
-      } else {
-        // SQL查询
-        if (!this.data.sqlText.trim()) {
-          wx.showToast({ title: '请输入SQL语句', icon: 'none' })
-          this.setData({ loading: false })
-          return
-        }
-        result = await post('/query/execute', {
-          config_name: this.data.selectedConfig,
-          sql: this.data.sqlText
-        })
-      }
-
-      if (result.code === 200) {
-        const rows = result.data.rows || []
-        const headers = rows.length > 0 ? Object.keys(rows[0]) : []
+      if (res.code === 200) {
+        const result = res.data.rows || []
+        const columns = result.length > 0 ? Object.keys(result[0]) : []
         
         this.setData({
-          result: rows,
-          resultHeaders: headers,
+          result: result,
+          resultColumns: columns,
           queried: true
         })
-
-        if (rows.length === 0) {
-          wx.showToast({ title: '查询结果为空', icon: 'none' })
-        }
+        
+        wx.showToast({
+          title: `查询成功，共${result.length}条`,
+          icon: 'success'
+        })
       } else {
-        wx.showToast({ title: result.message || '查询失败', icon: 'none' })
+        wx.showToast({
+          title: res.message || '查询失败',
+          icon: 'none'
+        })
       }
     } catch (error) {
-      wx.showToast({ title: '查询失败', icon: 'none' })
+      console.error('查询失败:', error)
+      wx.showToast({
+        title: '查询失败，请重试',
+        icon: 'none'
+      })
     } finally {
       this.setData({ loading: false })
     }
   },
 
-  // 导出结果
-  async exportResult() {
-    try {
-      wx.showLoading({ title: '导出中...' })
-      
-      const result = await post('/query/export', {
-        config_name: this.data.selectedConfig,
-        sql: this.data.queryMode === 'sql' ? this.data.sqlText : ''
-      })
-
-      wx.hideLoading()
-
-      if (result.code === 200) {
-        wx.showModal({
-          title: '导出成功',
-          content: `共${result.data.rows}条数据\n点击确定下载`,
-          success: (res) => {
-            if (res.confirm) {
-              // 下载文件
-              wx.downloadFile({
-                url: result.data.url,
-                success: (res) => {
-                  wx.openDocument({
-                    filePath: res.tempFilePath,
-                    fileType: 'xlsx'
-                  })
-                }
-              })
-            }
-          }
-        })
-      }
-    } catch (error) {
-      wx.hideLoading()
-      wx.showToast({ title: '导出失败', icon: 'none' })
-    }
+  // 返回重新选择
+  goBack() {
+    this.setData({
+      selectedTemplate: null,
+      selectedCategory: null,
+      result: [],
+      queried: false
+    })
   }
 })

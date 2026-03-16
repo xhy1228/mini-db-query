@@ -1,84 +1,60 @@
 // app.js
-// 多源数据查询小程序版 - 入口文件
+// 小程序入口
 
 App({
   globalData: {
     userInfo: null,
-    token: null,
-    baseUrl: 'http://localhost:8000/api' // 开发环境，生产环境需修改
+    userRole: null,
+    schools: [],
+    selectedSchool: null
   },
 
   onLaunch() {
     // 检查登录状态
-    this.checkLogin()
+    this.checkLoginStatus()
   },
 
   // 检查登录状态
-  checkLogin() {
+  checkLoginStatus() {
     const token = wx.getStorageSync('token')
     const userInfo = wx.getStorageSync('userInfo')
-    
+    const userRole = wx.getStorageSync('userRole')
+
     if (token && userInfo) {
-      this.globalData.token = token
       this.globalData.userInfo = userInfo
-      
-      // 验证token是否有效
-      this.verifyToken()
-    } else {
-      // 自动登录
-      this.login()
+      this.globalData.userRole = userRole
+      return true
     }
+    return false
   },
 
-  // 微信登录
-  login() {
-    wx.login({
-      success: (res) => {
-        if (res.code) {
-          // 发送code到后端换取token
-          wx.request({
-            url: `${this.globalData.baseUrl}/auth/wechat-login`,
-            method: 'POST',
-            data: { code: res.code },
-            success: (res) => {
-              if (res.data.code === 200) {
-                const { token, user } = res.data.data
-                this.globalData.token = token
-                this.globalData.userInfo = user
-                
-                // 保存到本地
-                wx.setStorageSync('token', token)
-                wx.setStorageSync('userInfo', user)
-              } else {
-                console.error('登录失败:', res.data.message)
-              }
-            },
-            fail: (err) => {
-              console.error('登录请求失败:', err)
-            }
-          })
-        }
-      }
-    })
+  // 设置用户信息
+  setUserInfo(userInfo, token, role) {
+    this.globalData.userInfo = userInfo
+    this.globalData.userRole = role
+    wx.setStorageSync('token', token)
+    wx.setStorageSync('userInfo', userInfo)
+    wx.setStorageSync('userRole', role)
   },
 
-  // 验证token
-  verifyToken() {
-    wx.request({
-      url: `${this.globalData.baseUrl}/auth/me`,
-      method: 'GET',
-      header: {
-        'Authorization': `Bearer ${this.globalData.token}`
-      },
-      success: (res) => {
-        if (res.data.code !== 200) {
-          // token无效，重新登录
-          this.login()
-        }
-      },
-      fail: () => {
-        this.login()
-      }
-    })
+  // 清除用户信息
+  clearUserInfo() {
+    this.globalData.userInfo = null
+    this.globalData.userRole = null
+    this.globalData.schools = []
+    this.globalData.selectedSchool = null
+    wx.removeStorageSync('token')
+    wx.removeStorageSync('userInfo')
+    wx.removeStorageSync('userRole')
+  },
+
+  // 检查是否已登录
+  isLoggedIn() {
+    return !!this.globalData.userInfo || !!wx.getStorageSync('token')
+  },
+
+  // 检查是否是管理员
+  isAdmin() {
+    return this.globalData.userRole === 'admin'
   }
 })

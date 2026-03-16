@@ -1,29 +1,93 @@
 <!-- pages/index/index.wxml -->
 <view class="container">
 
-  <!-- 顶部装饰背景 -->
+  <!-- 顶部背景 -->
   <view class="header-bg">
     <view class="bg-circle bg-circle-1"></view>
     <view class="bg-circle bg-circle-2"></view>
-    <view class="bg-circle bg-circle-3"></view>
-    <view class="bg-line"></view>
   </view>
 
-  <!-- 头部区域 -->
-  <view class="header">
-    <view class="header-content">
-      <view class="logo-area">
-        <view class="logo-icon">
-          <text>🔍</text>
+  <!-- 用户信息 -->
+  <view class="user-section" wx:if="{{userInfo}}">
+    <view class="user-card glass-card">
+      <view class="user-avatar">
+        <text>👤</text>
+      </view>
+      <view class="user-info">
+        <text class="user-name">{{userInfo.name || '用户'}}</text>
+        <text class="user-role">{{isAdmin ? '管理员' : '普通用户'}}</text>
+      </view>
+      <view class="user-badge" wx:if="{{isAdmin}}">
+        <text>超级管理员</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 学校选择 -->
+  <view class="section school-section">
+    <view class="section-header">
+      <view class="section-title">
+        <text class="title-icon">🏫</text>
+        <text>选择学校</text>
+      </view>
+    </view>
+
+    <!-- 学校列表 -->
+    <view class="school-list" wx:if="{{!loading && schools.length > 0}}">
+      <view 
+        class="school-card tech-card {{selectedSchool.id === item.id ? 'selected' : ''}}" 
+        wx:for="{{schools}}" 
+        wx:key="id"
+        data-school="{{item}}"
+        bindtap="onSchoolTap"
+      >
+        <view class="school-icon">
+          <text>🏛️</text>
         </view>
-        <view class="logo-text">
-          <text class="logo-title">多源数据查询</text>
-          <text class="logo-subtitle">智能 · 高效 · 安全</text>
+        <view class="school-info">
+          <text class="school-name">{{item.name}}</text>
+          <text class="school-code">{{item.code}}</text>
+        </view>
+        <view class="school-check" wx:if="{{selectedSchool.id === item.id}}">
+          <text>✓</text>
         </view>
       </view>
-      
-      <view class="version-badge">
-        <text>v1.0.0</text>
+    </view>
+
+    <!-- 空状态 -->
+    <view class="empty-state" wx:if="{{!loading && schools.length === 0}}">
+      <text class="empty-icon">📭</text>
+      <text class="empty-text">暂无授权学校</text>
+      <text class="empty-hint">请联系管理员分配学校权限</text>
+    </view>
+  </view>
+
+  <!-- 业务大类 -->
+  <view class="section category-section" wx:if="{{selectedSchool}}">
+    <view class="section-header">
+      <view class="section-title">
+        <text class="title-icon">📂</text>
+        <text>{{selectedSchool.name}} - 业务大类</text>
+      </view>
+    </view>
+
+    <!-- 业务大类列表 -->
+    <view class="category-list" wx:if="{{categories.length > 0}}">
+      <view 
+        class="category-card tech-card" 
+        wx:for="{{categories}}" 
+        wx:key="id"
+        data-category="{{item}}"
+        bindtap="onCategoryTap"
+      >
+        <view class="category-main">
+          <text class="category-icon">{{item.icon}}</text>
+          <view class="category-info">
+            <text class="category-name">{{item.name}}</text>
+            <text class="category-count">{{item.count}}个查询</text>
+          </view>
+        </view>
+        <view class="category-arrow">›</view>
       </view>
     </view>
   </view>
@@ -37,114 +101,39 @@
       </view>
     </view>
     <view class="quick-grid">
-      <view 
-        class="quick-item glass-card" 
-        wx:for="{{quickEntries}}" 
-        wx:key="id"
-        data-id="{{item.id}}"
-        bindtap="onQuickEntryTap"
-        style="--item-color: {{item.color}}"
-      >
-        <view class="quick-icon" style="background: linear-gradient(135deg, {{item.color}}33, {{item.color}}1a); border-color: {{item.color}}4d;">
-          <text>{{item.icon}}</text>
+      <view class="quick-item glass-card" bindtap="goToQuery">
+        <view class="quick-icon" style="background: rgba(24, 144, 255, 0.2); border-color: rgba(24, 144, 255, 0.5);">
+          <text>🔍</text>
         </view>
-        <text class="quick-name">{{item.name}}</text>
+        <text class="quick-name">开始查询</text>
+      </view>
+      <view class="quick-item glass-card" bindtap="goToQuery">
+        <view class="quick-icon" style="background: rgba(82, 196, 26, 0.2); border-color: rgba(82, 196, 26, 0.5);">
+          <text>📋</text>
+        </view>
+        <text class="quick-name">查询历史</text>
+      </view>
+      <view class="quick-item glass-card" bindtap="goToQuery">
+        <view class="quick-icon" style="background: rgba(250, 173, 20, 0.2); border-color: rgba(250, 173, 20, 0.5);">
+          <text>📥</text>
+        </view>
+        <text class="quick-name">导出记录</text>
+      </view>
+      <view class="quick-item glass-card" bindtap="goToQuery">
+        <view class="quick-icon" style="background: rgba(114, 46, 209, 0.2); border-color: rgba(114, 46, 209, 0.5);">
+          <text>⚙️</text>
+        </view>
+        <text class="quick-name">设置</text>
       </view>
     </view>
   </view>
 
-  <!-- 业务大类 -->
-  <view class="section category-section">
-    <view class="section-header">
-      <view class="section-title">
-        <text class="title-icon">📂</text>
-        <text>业务大类</text>
-      </view>
-      <text class="section-more" bindtap="goToQuery">查看全部 ›</text>
-    </view>
-    
-    <view class="category-list" wx:if="{{!loading && categories.length > 0}}">
-      <view 
-        class="category-card tech-card animate-fade-in" 
-        wx:for="{{categories}}" 
-        wx:key="id"
-        data-id="{{item.id}}"
-        data-name="{{item.name}}"
-        bindtap="onCategoryTap"
-        style="animation-delay: {{index * 100}}ms"
-      >
-        <view class="category-main">
-          <text class="category-icon">{{item.icon}}</text>
-          <view class="category-info">
-            <text class="category-name">{{item.name}}</text>
-            <text class="category-desc">{{item.description}}</text>
-          </view>
-        </view>
-        <view class="category-stats">
-          <text class="stats-number">{{item.count}}</text>
-          <text class="stats-label">个查询</text>
-        </view>
-        <view class="category-arrow">›</view>
-      </view>
-    </view>
-
-    <!-- 加载状态 -->
-    <view class="loading-state" wx:if="{{loading}}">
+  <!-- 加载状态 -->
+  <view class="loading-overlay" wx:if="{{loading}}">
+    <view class="loading-content glass-card">
       <view class="loading-spinner"></view>
       <text>加载中...</text>
     </view>
-
-    <!-- 空状态 -->
-    <view class="empty-state" wx:if="{{!loading && categories.length === 0}}">
-      <text class="empty-icon">📭</text>
-      <text class="empty-text">暂无业务大类配置</text>
-      <text class="empty-hint">请联系管理员配置查询模板</text>
-    </view>
-  </view>
-
-  <!-- 数据库配置 -->
-  <view class="section config-section">
-    <view class="section-header">
-      <view class="section-title">
-        <text class="title-icon">🗄️</text>
-        <text>数据库连接</text>
-      </view>
-      <text class="section-more" bindtap="goToProfile">管理 ›</text>
-    </view>
-    
-    <view class="config-list" wx:if="{{!loading && configs.length > 0}}">
-      <view 
-        class="config-card glass-card" 
-        wx:for="{{configs}}" 
-        wx:key="name"
-        data-name="{{item.name}}"
-        bindtap="onConfigTap"
-      >
-        <view class="config-icon">
-          <text>{{item.db_type === 'MySQL' ? '🐬' : item.db_type === 'Oracle' ? '🔮' : '📊'}}</text>
-        </view>
-        <view class="config-info">
-          <text class="config-name">{{item.name}}</text>
-          <text class="config-desc">{{item.description || item.db_type}}</text>
-        </view>
-        <view class="config-status {{item.status === 'online' ? 'online' : 'offline'}}">
-          <text>{{item.status === 'online' ? '在线' : '离线'}}</text>
-        </view>
-      </view>
-    </view>
-
-    <!-- 空状态 -->
-    <view class="empty-state" wx:if="{{!loading && configs.length === 0}}">
-      <text class="empty-icon">🔌</text>
-      <text class="empty-text">暂无数据库配置</text>
-      <text class="empty-hint">请在后台管理系统中配置数据库连接</text>
-    </view>
-  </view>
-
-  <!-- 系统信息 -->
-  <view class="system-info">
-    <text>多源数据查询小程序 v1.0.0</text>
-    <text>Powered by FastAPI</text>
   </view>
 
 </view>

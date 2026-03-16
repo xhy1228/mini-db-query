@@ -1,49 +1,51 @@
 // pages/index/index.js
 // 首页
 
+const app = getApp()
 const { get } = require('../../utils/request')
 
 Page({
   data: {
-    // 业务大类列表
-    categories: [],
-    // 数据库配置列表
-    configs: [],
-    // 加载状态
-    loading: true,
     // 用户信息
     userInfo: null,
-    // 系统信息
-    systemInfo: null,
-    // 快捷入口
-    quickEntries: [
-      { id: 'smart', name: '智能查询', icon: '🧠', color: '#1890ff' },
-      { id: 'sql', name: 'SQL查询', icon: '📝', color: '#52c41a' },
-      { id: 'history', name: '查询历史', icon: '📋', color: '#faad14' },
-      { id: 'export', name: '导出记录', icon: '📥', color: '#722ed1' }
-    ]
+    isAdmin: false,
+    
+    // 学校列表
+    schools: [],
+    selectedSchool: null,
+    
+    // 业务大类
+    categories: [],
+    
+    // 加载状态
+    loading: true
   },
 
   onLoad() {
-    this.loadSystemInfo()
-    this.loadData()
+    // 检查登录状态
+    this.checkLogin()
   },
 
   onShow() {
-    // 每次显示都刷新数据
-    this.loadData()
+    // 刷新数据
+    if (app.isLoggedIn()) {
+      this.loadData()
+    }
   },
 
-  onPullDownRefresh() {
-    this.loadData().finally(() => {
-      wx.stopPullDownRefresh()
+  // 检查登录
+  checkLogin() {
+    if (!app.isLoggedIn()) {
+      wx.redirectTo({ url: '/pages/login/login' })
+      return
+    }
+    
+    this.setData({
+      userInfo: app.globalData.userInfo,
+      isAdmin: app.isAdmin()
     })
-  },
-
-  // 加载系统信息
-  loadSystemInfo() {
-    const systemInfo = wx.getSystemInfoSync()
-    this.setData({ systemInfo })
+    
+    this.loadData()
   },
 
   // 加载数据
@@ -51,92 +53,105 @@ Page({
     this.setData({ loading: true })
     
     try {
-      // 尝试加载后端数据
-      const [categoriesRes, configsRes] = await Promise.all([
-        get('/query/categories'),
-        get('/query/configs')
-      ])
+      // 获取用户授权的学校
+      const schoolsRes = await get('/user/schools')
       
-      // 如果后端有数据则使用后端数据，否则使用模拟数据
-      const categories = categoriesRes.code === 200 ? categoriesRes.data : this.getMockCategories()
-      const configs = configsRes.code === 200 ? configsRes.data : this.getMockConfigs()
-      
-      this.setData({
-        categories,
-        configs,
-        loading: false
-      })
+      if (schoolsRes.code === 200) {
+        const schools = schoolsRes.data || []
+        
+        this.setData({
+          schools,
+          loading: false
+        })
+        
+        // 如果只有一个学校，自动选择
+        if (schools.length === 1) {
+          this.selectSchool(schools[0])
+        }
+      }
     } catch (error) {
-      console.error('加载数据失败，使用模拟数据:', error)
-      // 后端不可用时使用模拟数据
+      console.error('加载数据失败:', error)
+      this.setData({ loading: false })
+      
+      // 使用模拟数据
       this.setData({
-        categories: this.getMockCategories(),
-        configs: this.getMockConfigs(),
-        loading: false
+        schools: this.getMockSchools()
       })
     }
   },
 
-  // 获取模拟业务大类数据
+  // 获取模拟学校数据
+  getMockSchools() {
+    return [
+      { id: 1, name: '示例学校A', code: 'SCHOOL_A' },
+      { id: 2, name: '示例学校B', code: 'SCHOOL_B' }
+    ]
+  },
+
+  // 选择学校
+  async selectSchool(school) {
+    this.setData({ selectedSchool: school })
+    
+    // 保存到全局
+    app.globalData.selectedSchool = school
+    
+    // 加载该学校的业务大类
+    try {
+      const res = await get(`/user/categories?school_id=${school.id}`)
+      
+      if (res.code === 200) {
+        this.setData({ categories: res.data || [] })
+      }
+    } catch (error) {
+      console.error('加载业务大类失败:', error)
+      
+      // 使用模拟数据
+      this.setData({
+        categories: this.getMockCategories()
+      })
+    }
+  },
+
+  // 获取模拟业务大类
   getMockCategories() {
     return [
-      { id: 'student', name: '学生业务', icon: '🎓', description: '学生信息查询', count: 5 },
-      { id: 'consume', name: '消费业务', icon: '💰', description: '消费充值记录', count: 8 },
-      { id: 'access', name: '门禁业务', icon: '🚪', description: '进出记录查询', count: 4 },
-      { id: 'wechat', name: '微信业务', icon: '💬', description: '微信用户查询', count: 3 }
+      { id: 'student', name: '学生业务', icon: '🎓', count: 5 },
+      { id: 'consume', name: '消费业务', icon: '💰', count: 8 },
+      { id: 'access', name: '门禁业务', icon: '🚪', count: 4 }
     ]
   },
 
-  // 获取模拟数据库配置
-  getMockConfigs() {
-    return [
-      { name: '一卡通Oracle', db_type: 'Oracle', status: 'online', description: '一卡通系统数据库' },
-      { name: '微信MySQL', db_type: 'MySQL', status: 'online', description: '微信系统数据库' },
-      { name: 'SQLServer测试', db_type: 'SQLServer', status: 'offline', description: '测试数据库' }
-    ]
+  // 点击学校卡片
+  onSchoolTap(e) {
+    const school = e.currentTarget.dataset.school
+    this.selectSchool(school)
   },
 
-  // 选择业务大类
+  // 点击业务大类
   onCategoryTap(e) {
-    const { id, name } = e.currentTarget.dataset
-    wx.navigateTo({
-      url: `/pages/query/query?categoryId=${id}&categoryName=${encodeURIComponent(name)}`
-    })
-  },
-
-  // 选择数据库配置
-  onConfigTap(e) {
-    const { name } = e.currentTarget.dataset
-    wx.navigateTo({
-      url: `/pages/query/query?configName=${encodeURIComponent(name)}`
-    })
-  },
-
-  // 快捷入口点击
-  onQuickEntryTap(e) {
-    const { id } = e.currentTarget.dataset
+    const category = e.currentTarget.dataset.category
+    const school = this.data.selectedSchool
     
-    switch (id) {
-      case 'smart':
-      case 'sql':
-        wx.switchTab({ url: '/pages/query/query' })
-        break
-      case 'history':
-        wx.navigateTo({ url: '/pages/history/history' })
-        break
-      case 'export':
-        wx.showToast({ title: '功能开发中', icon: 'none' })
-        break
+    if (!school) {
+      wx.showToast({ title: '请先选择学校', icon: 'none' })
+      return
     }
+    
+    // 跳转到查询页面
+    wx.switchTab({
+      url: `/pages/query/query?school_id=${school.id}&category=${category.id}&category_name=${encodeURIComponent(category.name)}`
+    })
   },
 
-  // 跳转到查询页面
+  // 跳转到查询页
   goToQuery() {
     wx.switchTab({ url: '/pages/query/query' })
   },
 
-  // 跳转到个人中心
-  goToProfile() {
-    wx.switchTab({ url: '/pages/profile/profile' })
+  // 下拉刷新
+  onPullDownRefresh() {
+    this.loadData().finally(() => {
+      wx.stopPullDownRefresh()
+    })
   }
 })

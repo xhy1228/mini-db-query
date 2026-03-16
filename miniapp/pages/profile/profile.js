@@ -2,15 +2,13 @@
 // 个人中心页面
 
 const app = getApp()
+const { post } = require('../../utils/request')
 
 Page({
   data: {
-    userInfo: {
-      nickname: '用户',
-      avatar: '',
-      role: 'user'
-    },
-    version: '1.0.0'
+    userInfo: null,
+    isAdmin: false,
+    version: '1.1.0'
   },
 
   onLoad() {
@@ -23,12 +21,35 @@ Page({
 
   // 加载用户信息
   loadUserInfo() {
-    const userInfo = wx.getStorageSync('userInfo') || {}
-    this.setData({ 
-      userInfo: {
-        ...userInfo,
-        nickname: userInfo.nickname || '用户',
-        role: userInfo.role || 'user'
+    const userInfo = wx.getStorageSync('userInfo')
+    const userRole = wx.getStorageSync('userRole')
+    
+    this.setData({
+      userInfo: userInfo,
+      isAdmin: userRole === 'admin'
+    })
+  },
+
+  // 退出登录
+  logout() {
+    wx.showModal({
+      title: '确认退出',
+      content: '确定要退出登录吗？',
+      success: (res) => {
+        if (res.confirm) {
+          // 清除本地存储
+          app.clearUserInfo()
+          
+          wx.showToast({
+            title: '已退出',
+            icon: 'success'
+          })
+          
+          // 跳转到登录页
+          setTimeout(() => {
+            wx.redirectTo({ url: '/pages/login/login' })
+          }, 1500)
+        }
       }
     })
   },
@@ -39,15 +60,30 @@ Page({
     
     switch (action) {
       case 'history':
-        wx.navigateTo({ url: '/pages/history/history' })
+        wx.switchTab({ url: '/pages/history/history' })
         break
-      case 'favorites':
-        wx.showToast({ title: '功能开发中', icon: 'none' })
+      case 'query':
+        wx.switchTab({ url: '/pages/query/query' })
         break
-      case 'export':
-        wx.showToast({ title: '功能开发中', icon: 'none' })
+      case 'about':
+        this.showAbout()
         break
     }
+  },
+
+  // 显示关于
+  showAbout() {
+    wx.showModal({
+      title: '关于',
+      content: `多源数据查询小程序
+版本: v${this.data.version}
+
+支持MySQL、Oracle、SQL Server等
+多种数据库的智能查询
+
+© 2026 飞书百万`,
+      showCancel: false
+    })
   },
 
   // 菜单点击
@@ -55,26 +91,11 @@ Page({
     const menu = e.currentTarget.dataset.menu
     
     switch (menu) {
-      case 'configs':
-        wx.showModal({
-          title: '数据库配置',
-          content: '请在管理后台配置数据库连接',
-          showCancel: false
-        })
-        break
-      case 'templates':
-        wx.showModal({
-          title: '查询模板',
-          content: '请在管理后台配置查询模板',
-          showCancel: false
-        })
-        break
       case 'about':
-        wx.showModal({
-          title: '关于',
-          content: '多源数据查询小程序\n版本: v1.0.0\n\n支持MySQL、Oracle、SQL Server等数据库的智能查询',
-          showCancel: false
-        })
+        this.showAbout()
+        break
+      case 'logout':
+        this.logout()
         break
     }
   }
