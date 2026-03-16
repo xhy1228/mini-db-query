@@ -219,7 +219,7 @@ def init_database(engine):
 
 def create_default_admin(session):
     """创建默认超级管理员"""
-    from .security import get_password_hash
+    from core.security import get_password_hash
     
     # 检查是否已存在
     admin = session.query(User).filter(User.phone == 'admin').first()
