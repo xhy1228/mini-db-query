@@ -1,0 +1,226 @@
+/* pages/profile/profile.wxss */
+
+.container {
+  padding: 20rpx;
+  min-height: 100vh;
+}
+
+/* 头部装饰 */
+.header-decoration {
+  position: relative;
+  height: 100rpx;
+  margin-bottom: 20rpx;
+}
+
+.decoration-circle {
+  position: absolute;
+  border-radius: 50%;
+  opacity: 0.6;
+}
+
+.circle-1 {
+  width: 60rpx;
+  height: 60rpx;
+  background: linear-gradient(135deg, #1890ff, #40a9ff);
+  top: 20rpx;
+  left: 40rpx;
+  animation: pulse 2s infinite;
+}
+
+.circle-2 {
+  width: 80rpx;
+  height: 80rpx;
+  background: linear-gradient(135deg, #40a9ff, #69c0ff);
+  top: 0;
+  right: 80rpx;
+  animation: pulse 2s infinite 0.5s;
+}
+
+.circle-3 {
+  width: 40rpx;
+  height: 40rpx;
+  background: linear-gradient(135deg, #69c0ff, #91d5ff);
+  top: 40rpx;
+  right: 40rpx;
+  animation: pulse 2s infinite 1s;
+}
+
+/* 用户卡片 */
+.user-card {
+  display: flex;
+  align-items: center;
+  padding: 40rpx;
+  margin-bottom: 30rpx;
+}
+
+.avatar-container {
+  position: relative;
+  margin-right: 30rpx;
+}
+
+.avatar {
+  width: 120rpx;
+  height: 120rpx;
+  border-radius: 50%;
+  border: 4rpx solid rgba(24, 144, 255, 0.5);
+}
+
+.avatar-glow {
+  position: absolute;
+  top: -10rpx;
+  left: -10rpx;
+  right: -10rpx;
+  bottom: -10rpx;
+  border-radius: 50%;
+  border: 2rpx solid rgba(24, 144, 255, 0.3);
+  animation: glow 2s infinite;
+}
+
+.user-info {
+  flex: 1;
+}
+
+.username {
+  font-size: 40rpx;
+  font-weight: 600;
+  color: #fff;
+  display: block;
+  margin-bottom: 12rpx;
+}
+
+.user-role {
+  font-size: 26rpx;
+  color: #1890ff;
+  background: rgba(24, 144, 255, 0.1);
+  padding: 8rpx 20rpx;
+  border-radius: 20rpx;
+  border: 1px solid rgba(24, 144, 255, 0.3);
+}
+
+/* 快捷操作 */
+.quick-actions {
+  display: flex;
+  justify-content: space-around;
+  padding: 30rpx;
+  margin-bottom: 30rpx;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 24rpx;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.action-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+}
+
+.action-icon {
+  width: 80rpx;
+  height: 80rpx;
+  background: linear-gradient(135deg, rgba(24, 144, 255, 0.2), rgba(24, 144, 255, 0.1));
+  border-radius: 20rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 16rpx;
+  border: 1px solid rgba(24, 144, 255, 0.3);
+  transition: all 0.3s ease;
+}
+
+.action-item:active .action-icon {
+  transform: scale(0.95);
+  background: rgba(24, 144, 255, 0.3);
+}
+
+.action-icon text {
+  font-size: 40rpx;
+}
+
+.action-label {
+  font-size: 26rpx;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+/* 菜单区块 */
+.menu-section {
+  margin-bottom: 30rpx;
+}
+
+.menu-title {
+  font-size: 28rpx;
+  color: rgba(255, 255, 255, 0.5);
+  margin-bottom: 20rpx;
+  padding-left: 10rpx;
+}
+
+.menu-list {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 24rpx;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+}
+
+.menu-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 30rpx;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  transition: all 0.3s ease;
+}
+
+.menu-item:last-child {
+  border-bottom: none;
+}
+
+.menu-item:active {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.menu-left {
+  display: flex;
+  align-items: center;
+}
+
+.menu-icon {
+  font-size: 36rpx;
+  margin-right: 20rpx;
+}
+
+.menu-text {
+  font-size: 30rpx;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.menu-arrow {
+  font-size: 32rpx;
+  color: rgba(255, 255, 255, 0.3);
+}
+
+/* 关于信息 */
+.about-section {
+  text-align: center;
+  padding: 60rpx 40rpx;
+}
+
+.app-info {
+  margin-bottom: 20rpx;
+}
+
+.app-name {
+  font-size: 32rpx;
+  color: rgba(255, 255, 255, 0.6);
+  display: block;
+  margin-bottom: 8rpx;
+}
+
+.app-version {
+  font-size: 24rpx;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.copyright {
+  font-size: 22rpx;
+  color: rgba(255, 255, 255, 0.3);
+}
