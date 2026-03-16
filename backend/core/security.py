@@ -6,19 +6,63 @@
 from datetime import datetime, timedelta
 from typing import Optional
 from jose import JWTError, jwt
-from passlib.context import CryptContext
+import bcrypt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
+from cryptography.fernet import Fernet
+import base64
+import hashlib
 
 from core.config import settings
 
 
-# 密码加密上下文
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
 # HTTP Bearer认证
 security = HTTPBearer()
+
+
+def _get_fernet_key() -> bytes:
+    """从JWT密钥生成Fernet密钥"""
+    key = hashlib.sha256(settings.JWT_SECRET_KEY.encode()).digest()
+    return base64.urlsafe_b64encode(key)
+
+
+def encrypt_password(plain_password: str) -> str:
+    """
+    加密密码（可逆，用于存储数据库连接密码）
+    
+    Args:
+        plain_password: 明文密码
+        
+    Returns:
+        加密后的密码字符串
+    """
+    if not plain_password:
+        return ""
+    f = Fernet(_get_fernet_key())
+    encrypted = f.encrypt(plain_password.encode())
+    return encrypted.decode()
+
+
+def decrypt_password(encrypted_password: str) -> str:
+    """
+    解密密码
+    
+    Args:
+        encrypted_password: 加密的密码
+        
+    Returns:
+        明文密码
+    """
+    if not encrypted_password:
+        return ""
+    try:
+        f = Fernet(_get_fernet_key())
+        decrypted = f.decrypt(encrypted_password.encode())
+        return decrypted.decode()
+    except Exception:
+        # 如果解密失败，可能是明文密码（兼容旧数据）
+        return encrypted_password
 
 
 class TokenData(BaseModel):
@@ -30,12 +74,22 @@ class TokenData(BaseModel):
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """验证密码"""
-    return pwd_context.verify(plain_password, hashed_password)
+    if isinstance(plain_password, str):
+        plain_password = plain_password.encode('utf-8')
+    if isinstance(hashed_password, str):
+        hashed_password = hashed_password.encode('utf-8')
+    try:
+        return bcrypt.checkpw(plain_password, hashed_password)
+    except Exception:
+        return False
 
 
 def get_password_hash(password: str) -> str:
     """生成密码哈希"""
-    return pwd_context.hash(password)
+    if isinstance(password, str):
+        password = password.encode('utf-8')
+    hashed = bcrypt.hashpw(password, bcrypt.gensalt())
+    return hashed.decode('utf-8')
 
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:

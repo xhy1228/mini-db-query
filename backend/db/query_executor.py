@@ -13,10 +13,8 @@ from typing import List, Dict, Any, Optional
 
 from sqlalchemy import text
 
-from src.config.settings import LOG_LEVEL
-
 # 设置模块日志
-logging.basicConfig(level=LOG_LEVEL)
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 

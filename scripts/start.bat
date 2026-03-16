@@ -1,40 +1,45 @@
 @echo off
 chcp 65001 >nul
-echo ============================================
-echo   多源数据查询小程序 - 启动服务
-echo ============================================
-echo.
+REM ============================================
+REM 多源数据查询小程序版 - 启动脚本
+REM ============================================
 
-cd /d %~dp0\backend
+REM 获取项目目录
+set "SCRIPT_DIR=%~dp0"
+set "PROJECT_DIR=%SCRIPT_DIR%.."
+set "BACKEND_DIR=%PROJECT_DIR%\backend"
 
-REM 检查Python
-python --version >nul 2>&1
-if errorlevel 1 (
-    echo [错误] 未找到Python，请先安装Python 3.10+
+cd /d "%BACKEND_DIR%"
+
+REM 检查虚拟环境
+if not exist "venv" (
+    echo [WARN] 未找到虚拟环境，请先运行 install.bat 进行安装
     pause
     exit /b 1
 )
 
-REM 检查依赖
-echo [1/3] 检查依赖...
-pip show fastapi >nul 2>&1
-if errorlevel 1 (
-    echo [安装] 正在安装依赖...
-    pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
+REM 激活虚拟环境
+call venv\Scripts\activate.bat
+
+REM 检查.env文件
+if not exist ".env" (
+    echo [WARN] 未找到.env配置文件，使用默认配置
+    if exist ".env.example" (
+        copy .env.example .env
+    )
 )
 
-REM 创建必要目录
-echo [2/3] 创建必要目录...
-if not exist "logs" mkdir logs
-if not exist "exports" mkdir exports
-if not exist "data" mkdir data
+echo.
+echo ============================================
+echo   多源数据查询小程序版 服务启动
+echo ============================================
+echo.
+echo 项目目录: %BACKEND_DIR%
+echo API地址: http://localhost:8000
+echo 文档地址: http://localhost:8000/docs
+echo.
+echo 按 Ctrl+C 停止服务
+echo.
 
 REM 启动服务
-echo [3/3] 启动服务...
-echo.
-echo 服务地址: http://localhost:8000
-echo API文档: http://localhost:8000/docs
-echo.
 python main.py
-
-pause

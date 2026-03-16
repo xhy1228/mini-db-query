@@ -394,22 +394,38 @@ class SQLServerConnector(DatabaseConnector):
         return create_engine(connection_string, pool_pre_ping=True)
 
 
+class SQLiteConnector(DatabaseConnector):
+    """SQLite 数据库连接器（本地文件）"""
+    
+    def _create_engine(self) -> Engine:
+        db_config = self.config
+        database = db_config.get('database', '')
+        
+        # 支持相对路径和绝对路径
+        connection_string = f"sqlite:///{database}"
+        logger.debug(f"创建SQLite连接: {database}")
+        return create_engine(connection_string, pool_pre_ping=True)
+
+
 def get_connector(connector_type: str, config: Optional[Dict[str, Any]] = None) -> DatabaseConnector:
     """根据数据库类型返回对应的连接器实例"""
     if config is None:
         raise ValueError("数据库配置不能为空")
     
-    # 检查必要字段
-    required_fields = ['host', 'port', 'username', 'password', 'database']
-    missing_fields = [f for f in required_fields if not config.get(f)]
-    if missing_fields:
-        raise ValueError(f"配置缺少必要字段: {', '.join(missing_fields)}")
-    
     connector_map = {
         'MySQL': MySQLConnector,
         'Oracle': OracleConnector,
-        'SQLServer': SQLServerConnector
+        'SQLServer': SQLServerConnector,
+        'SQLite': SQLiteConnector
     }
+    
+    # SQLite不需要检查这些字段
+    if connector_type != 'SQLite':
+        # 检查必要字段
+        required_fields = ['host', 'port', 'username', 'password', 'database']
+        missing_fields = [f for f in required_fields if not config.get(f)]
+        if missing_fields:
+            raise ValueError(f"配置缺少必要字段: {', '.join(missing_fields)}")
     
     connector_cls = connector_map.get(connector_type)
     if not connector_cls:

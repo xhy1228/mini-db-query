@@ -11,7 +11,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 from typing import Optional
 
-from models.database import get_db_session
+from models import get_db_session
 from services.user_service import UserService
 from core.security import get_current_user, TokenData
 

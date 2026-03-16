@@ -13,7 +13,7 @@ from datetime import datetime
 import time
 import json
 
-from models.database import get_db_session, DatabaseConfig, QueryTemplate
+from models import get_db_session, DatabaseConfig, QueryTemplate
 from services.user_service import UserService, QueryTemplateService, QueryLogService
 from core.security import get_current_user, TokenData
 from core.config import settings
@@ -260,13 +260,20 @@ async def smart_query(request: SmartQueryRequest,
         # 构建数据库连接配置
         config = {
             'db_type': db_config.db_type,
-            'host': db_config.host,
-            'port': db_config.port,
-            'username': db_config.username,
-            'password': db_config.password,  # 需要解密
             'database': db_config.database,
-            'service_name': db_config.service_name
         }
+        
+        # 非SQLite数据库需要更多配置
+        if db_config.db_type != 'SQLite':
+            from core.security import decrypt_password
+            plain_password = decrypt_password(db_config.password)
+            config.update({
+                'host': db_config.host,
+                'port': db_config.port,
+                'username': db_config.username,
+                'password': plain_password,
+                'service_name': db_config.service_name
+            })
         
         connector = get_connector(config['db_type'], config)
         if not connector or not connector.connect():
@@ -410,7 +417,7 @@ async def create_database(school_id: int, name: str, db_type: str,
     if current_user.role != 'admin':
         raise HTTPException(status_code=403, detail="权限不足")
     
-    from core.security import get_password_hash
+    from core.security import encrypt_password
     
     config = DatabaseConfig(
         school_id=school_id,
@@ -419,7 +426,7 @@ async def create_database(school_id: int, name: str, db_type: str,
         host=host,
         port=port,
         username=username,
-        password=get_password_hash(password),
+        password=encrypt_password(password),  # 使用可逆加密
         database=database,
         service_name=service_name,
         description=description
@@ -499,23 +506,21 @@ async def test_database(db_id: int,
     if current_user.role != 'admin':
         raise HTTPException(status_code=403, detail="权限不足")
     
-    from core.security import verify_password, get_password_hash
+    from core.security import decrypt_password
     
     config = db.query(DatabaseConfig).filter(DatabaseConfig.id == db_id).first()
     if not config:
         raise HTTPException(status_code=404, detail="配置不存在")
     
     try:
-        # 构建连接配置（需要解密密码）
-        from core.security import verify_password
-        # 密码是哈希存储的，这里需要用明文测试
-        # 实际应该存储加密的明文密码
+        # 解密密码
+        plain_password = decrypt_password(config.password)
         
         connector = get_connector(config.db_type, {
             'host': config.host,
             'port': config.port,
             'username': config.username,
-            'password': config.password,  # 这里有问题，应该存明文或解密
+            'password': plain_password,
             'database': config.database,
             'service_name': config.service_name
         })
