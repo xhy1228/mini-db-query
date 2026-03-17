@@ -2,93 +2,113 @@
 """
 多源数据查询小程序版 - 数据库会话管理
 
-支持:
-- SQLite (开发环境默认)
-- MySQL 8.0.2+ (生产环境推荐)
-
-配置环境变量:
-- DATABASE_URL: 数据库连接字符串
-  SQLite: sqlite:///./data/mini_db_query.db
-  MySQL: mysql+pymysql://user:password@host:port/database?charset=utf8mb4
-
-Author: 飞书百万（AI助手）
+Deploy first, configure database later
 """
 
 import os
-from sqlalchemy import create_engine, event
+import sys
+import logging
+from sqlalchemy import create_engine, text, event
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.pool import QueuePool
-from typing import Generator
-import logging
-
-from models.database import Base, init_database, create_default_admin
-
+from typing import Generator, Optional
+import re
 
 logger = logging.getLogger(__name__)
 
-# 数据目录
-DATA_DIR = os.path.join(os.path.dirname(__file__), '..', 'data')
-os.makedirs(DATA_DIR, exist_ok=True)
+# 全局变量
+engine = None
+SessionLocal = None
+DATABASE_URL = None
+MYSQL_INFO = {}
 
-# 数据库配置
-DATABASE_URL = os.environ.get('DATABASE_URL', f"sqlite:///{DATA_DIR}/mini_db_query.db")
 
-# 判断数据库类型
-IS_MYSQL = DATABASE_URL.startswith('mysql')
-IS_SQLITE = DATABASE_URL.startswith('sqlite')
-
-# 创建引擎配置
-if IS_MYSQL:
-    # MySQL配置
-    engine = create_engine(
-        DATABASE_URL,
-        poolclass=QueuePool,
-        pool_size=10,
-        max_overflow=20,
-        pool_timeout=30,
-        pool_recycle=3600,  # 1小时回收连接
-        pool_pre_ping=True,  # 连接前检查可用性
-        echo=False,
-        connect_args={
-            'charset': 'utf8mb4',
-        }
-    )
-    logger.info(f"MySQL数据库连接池已创建: {DATABASE_URL.split('@')[-1] if '@' in DATABASE_URL else DATABASE_URL}")
+def _load_config():
+    """加载配置"""
+    global DATABASE_URL, MYSQL_INFO
     
-elif IS_SQLITE:
-    # SQLite配置
-    engine = create_engine(
-        DATABASE_URL,
-        connect_args={"check_same_thread": False},
-        echo=False
-    )
-    logger.info(f"SQLite数据库已创建: {DATA_DIR}")
+    try:
+        from core.config import settings
+        DATABASE_URL = settings.DATABASE_URL or ""
+    except Exception as e:
+        logger.warning(f"Failed to load settings: {e}")
+        DATABASE_URL = ""
     
-else:
-    # 其他数据库
-    engine = create_engine(DATABASE_URL, echo=False)
-    logger.info(f"数据库已连接: {DATABASE_URL.split('://')[0]}://...")
+    if DATABASE_URL and DATABASE_URL.startswith('mysql'):
+        # 解析MySQL连接信息
+        pattern = r'mysql\+pymysql://([^:]+):([^@]+)@([^:]+):(\d+)/([^?]+)'
+        match = re.match(pattern, DATABASE_URL)
+        if match:
+            MYSQL_INFO = {
+                'user': match.group(1),
+                'password': '***',  # 隐藏密码
+                'host': match.group(3),
+                'port': int(match.group(4)),
+                'database': match.group(5).split('?')[0]
+            }
+            logger.info(f"MySQL Configuration: {MYSQL_INFO.get('host')}:{MYSQL_INFO.get('port')}/{MYSQL_INFO.get('database')}")
 
 
-# SQLite WAL模式优化
-@event.listens_for(engine, "connect")
-def set_sqlite_pragma(dbapi_conn, connection_record):
-    """为SQLite连接设置PRAGMA"""
-    if IS_SQLITE:
-        cursor = dbapi_conn.cursor()
-        cursor.execute("PRAGMA journal_mode=WAL")
-        cursor.execute("PRAGMA synchronous=NORMAL")
-        cursor.execute("PRAGMA cache_size=-64000")  # 64MB
-        cursor.execute("PRAGMA foreign_keys=ON")
-        cursor.close()
+def _create_engine():
+    """创建数据库引擎"""
+    global engine, SessionLocal
+    
+    if not DATABASE_URL:
+        logger.info("Database not configured. Skipping engine creation.")
+        return False
+    
+    if not DATABASE_URL.startswith('mysql'):
+        logger.warning("DATABASE_URL is not MySQL. Skipping.")
+        return False
+    
+    try:
+        engine = create_engine(
+            DATABASE_URL,
+            poolclass=QueuePool,
+            pool_size=10,
+            max_overflow=20,
+            pool_timeout=30,
+            pool_recycle=3600,
+            pool_pre_ping=True,
+            echo=False,
+            connect_args={'charset': 'utf8mb4'}
+        )
+        
+        # 测试连接
+        with engine.connect() as conn:
+            result = conn.execute(text("SELECT VERSION()"))
+            version = result.scalar()
+            logger.info(f"MySQL Connected: {version}")
+        
+        # 创建会话工厂
+        SessionLocal = sessionmaker(
+            autocommit=False,
+            autoflush=False,
+            bind=engine
+        )
+        
+        logger.info("MySQL connection pool created successfully")
+        return True
+        
+    except Exception as e:
+        logger.error(f"MySQL connection failed: {e}")
+        engine = None
+        SessionLocal = None
+        return False
 
 
-# 创建会话工厂
-SessionLocal = sessionmaker(
-    autocommit=False,
-    autoflush=False,
-    bind=engine
-)
+# 初始化配置
+_load_config()
+
+
+def is_database_configured() -> bool:
+    """检查数据库是否已配置"""
+    return bool(DATABASE_URL and DATABASE_URL.strip())
+
+
+def is_database_connected() -> bool:
+    """检查数据库是否已连接"""
+    return engine is not None
 
 
 def get_db_session() -> Generator[Session, None, None]:
@@ -100,6 +120,9 @@ def get_db_session() -> Generator[Session, None, None]:
     Yields:
         Session: 数据库会话
     """
+    if not SessionLocal:
+        raise RuntimeError("Database not configured. Please visit /setup to configure.")
+    
     session = SessionLocal()
     try:
         yield session
@@ -109,21 +132,30 @@ def get_db_session() -> Generator[Session, None, None]:
 
 def init_db():
     """初始化数据库"""
+    if not engine:
+        logger.warning("Database engine not available. Skipping initialization.")
+        return
+    
     try:
+        from models.database import init_database, create_default_admin
+        
         # 创建表
         init_database(engine)
-        logger.info("数据库表结构初始化完成")
+        logger.info("Database tables created/verified")
         
         # 创建默认管理员
-        session = SessionLocal()
-        try:
-            create_default_admin(session)
-            logger.info("默认管理员账号检查完成")
-        finally:
-            session.close()
-            
+        if SessionLocal:
+            session = SessionLocal()
+            try:
+                create_default_admin(session)
+                logger.info("Default admin account verified")
+            finally:
+                session.close()
+        
+        logger.info("Database initialization completed successfully")
+        
     except Exception as e:
-        logger.error(f"数据库初始化失败: {e}")
+        logger.error(f"Database initialization failed: {e}")
         raise
 
 
@@ -134,13 +166,16 @@ def check_db_connection() -> bool:
     Returns:
         bool: 连接正常返回True
     """
+    if not engine or not SessionLocal:
+        return False
+    
     try:
         session = SessionLocal()
-        session.execute("SELECT 1")
+        session.execute(text("SELECT 1"))
         session.close()
         return True
     except Exception as e:
-        logger.error(f"数据库连接检查失败: {e}")
+        logger.error(f"Database connection check failed: {e}")
         return False
 
 
@@ -152,25 +187,26 @@ def get_db_info() -> dict:
         dict: 数据库信息
     """
     info = {
-        'type': 'MySQL' if IS_MYSQL else 'SQLite',
-        'url': DATABASE_URL.split('@')[-1] if '@' in DATABASE_URL else DATABASE_URL
+        'configured': bool(DATABASE_URL),
+        'connected': engine is not None,
+        'type': 'MySQL' if DATABASE_URL and DATABASE_URL.startswith('mysql') else None,
+        'host': MYSQL_INFO.get('host'),
+        'port': MYSQL_INFO.get('port'),
+        'database': MYSQL_INFO.get('database'),
+        'version': None
     }
     
-    if IS_MYSQL:
+    if engine:
         try:
-            session = SessionLocal()
-            result = session.execute("SELECT VERSION()").scalar()
-            info['version'] = result
-            session.close()
-        except:
-            pass
-    elif IS_SQLITE:
-        try:
-            session = SessionLocal()
-            result = session.execute("SELECT sqlite_version()").scalar()
-            info['version'] = result
-            session.close()
+            with engine.connect() as conn:
+                result = conn.execute(text("SELECT VERSION()")).scalar()
+                info['version'] = result
         except:
             pass
     
     return info
+
+
+# 如果配置了数据库，尝试创建引擎
+if DATABASE_URL:
+    _create_engine()

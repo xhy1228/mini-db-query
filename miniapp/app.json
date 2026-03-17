@@ -3,7 +3,9 @@
     "pages/login/login",
     "pages/index/index",
     "pages/query/query",
+    "pages/sql/sql",
     "pages/history/history",
+    "pages/history-detail/history-detail",
     "pages/profile/profile"
   ],
   "window": {

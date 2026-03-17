@@ -1,57 +1,120 @@
 <!-- pages/history/history.wxml -->
 <view class="container">
-  
-  <!-- 顶部装饰 -->
-  <view class="header-decoration">
-    <view class="decoration-circle circle-1"></view>
-    <view class="decoration-circle circle-2"></view>
+  <!-- 顶部操作栏 -->
+  <view class="header">
+    <view class="filter-btn" bindtap="toggleFilter">
+      <text class="icon">🔍</text>
+      <text>筛选</text>
+    </view>
+    <view class="total" wx:if="{{historyList.length > 0}}">
+      共 {{total}} 条
+    </view>
+    <view class="clear-btn" bindtap="clearHistory">
+      <text class="icon">🗑️</text>
+      <text>清空</text>
+    </view>
   </view>
 
-  <!-- 页面标题 -->
-  <view class="page-header">
-    <text class="page-title">查询历史</text>
-    <text class="page-subtitle">最近30条查询记录</text>
+  <!-- 筛选面板 -->
+  <view class="filter-panel" wx:if="{{showFilter}}">
+    <view class="filter-item">
+      <text class="label">状态</text>
+      <picker mode="selector" range="{{['全部', '成功', '失败']}}" bindchange="onStatusChange">
+        <view class="picker">
+          <text>{{filterStatus === '' ? '全部' : (filterStatus === 'success' ? '成功' : '失败')}}</text>
+          <text class="arrow">▼</text>
+        </view>
+      </picker>
+    </view>
+    
+    <view class="filter-item">
+      <text class="label">学校</text>
+      <picker mode="selector" range="{{schools}}" range-key="name" bindchange="onSchoolChange">
+        <view class="picker">
+          <text>{{filterSchoolId ? (schools[schools.findIndex(s => s.id === filterSchoolId)].name) : '全部学校'}}</text>
+          <text class="arrow">▼</text>
+        </view>
+      </picker>
+    </view>
+    
+    <view class="filter-item">
+      <text class="label">开始日期</text>
+      <picker mode="date" bindchange="onStartDateChange" value="{{startDate}}">
+        <view class="picker">
+          <text>{{startDate || '选择日期'}}</text>
+          <text class="arrow">▼</text>
+        </view>
+      </picker>
+    </view>
+    
+    <view class="filter-item">
+      <text class="label">结束日期</text>
+      <picker mode="date" bindchange="onEndDateChange" value="{{endDate}}">
+        <view class="picker">
+          <text>{{endDate || '选择日期'}}</text>
+          <text class="arrow">▼</text>
+        </view>
+      </picker>
+    </view>
+    
+    <view class="filter-actions">
+      <button size="small" bindtap="resetFilter">重置</button>
+      <button type="primary" size="small" bindtap="applyFilter">应用</button>
+    </view>
   </view>
 
-  <!-- 历史列表 -->
+  <!-- 列表内容 -->
   <view class="history-list" wx:if="{{historyList.length > 0}}">
     <view 
-      class="history-item tech-card animate-fade-in" 
+      class="history-item {{item.statusClass}}" 
       wx:for="{{historyList}}" 
       wx:key="id"
       bindtap="onHistoryTap"
       data-item="{{item}}"
     >
-      <view class="history-icon">
-        <text>{{item.mode === 'smart' ? '🧠' : '📝'}}</text>
-      </view>
-      <view class="history-content">
-        <view class="history-title">{{item.name || 'SQL查询'}}</view>
-        <view class="history-sql">{{item.sql}}</view>
-        <view class="history-meta">
-          <text class="meta-time">{{item.time}}</text>
-          <text class="meta-count">{{item.count}}条</text>
-          <text class="meta-db">{{item.config}}</text>
+      <view class="item-header">
+        <view class="query-name">{{item.query_name || 'SQL查询'}}</view>
+        <view class="status-badge {{item.statusClass}}">
+          <text>{{item.statusText}}</text>
         </view>
       </view>
-      <view class="history-arrow">
-        <text>›</text>
+      
+      <view class="item-body">
+        <view class="info-row">
+          <text class="label">学校：</text>
+          <text class="value">{{item.school_name || '-'}}</text>
+        </view>
+        <view class="info-row">
+          <text class="label">结果：</text>
+          <text class="value">{{item.result_count || 0}} 条</text>
+        </view>
+        <view class="info-row">
+          <text class="label">耗时：</text>
+          <text class="value">{{item.query_time || 0}} ms</text>
+        </view>
+      </view>
+      
+      <view class="item-footer">
+        <text class="time">{{item.timeText}}</text>
+        <text class="detail-hint">查看详情 ></text>
       </view>
     </view>
   </view>
 
+  <!-- 加载更多 -->
+  <view class="load-more" wx:if="{{historyList.length > 0}}">
+    <text wx:if="{{loading && page > 1}}">加载中...</text>
+    <text wx:elif="{{!hasMore && page > 1}}">没有更多了</text>
+  </view>
+
   <!-- 空状态 -->
-  <view class="empty-state" wx:if="{{historyList.length === 0}}">
-    <text class="empty-icon">📋</text>
-    <text class="empty-text">暂无查询记录</text>
-    <text class="empty-hint">执行查询后将在此显示</text>
+  <view class="empty" wx:if="{{!loading && historyList.length === 0}}">
+    <text class="icon">📭</text>
+    <text class="text">暂无查询历史</text>
   </view>
 
-  <!-- 清空按钮 -->
-  <view class="clear-area" wx:if="{{historyList.length > 0}}">
-    <button class="clear-btn" bindtap="clearHistory">
-      <text>🗑️ 清空历史</text>
-    </button>
+  <!-- 加载中 -->
+  <view class="loading" wx:if="{{loading && page === 1}}">
+    <text>加载中...</text>
   </view>
-
 </view>
