@@ -169,9 +169,9 @@ INSERT INTO `schools` (`name`, `code`, `description`, `status`) VALUES
 -- Password: 123456 (bcrypt hashed)
 -- ============================================
 INSERT INTO `users` (`phone`, `password`, `name`, `id_card`, `role`, `status`) VALUES
-('admin', '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY5NU7y.VRV6vW2', '超级管理员', NULL, 'admin', 'active'),
-('13800138000', '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY5NU7y.VRV6vW2', '张三', NULL, 'user', 'active'),
-('13900139000', '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY5NU7y.VRV6vW2', '李四', NULL, 'user', 'active');
+('admin', '\$2b\$12\$Mq9a.Kr7A/GbTpFc6evrZuik5Uy.jPZ3nKfn08as1NDWpJ4qBrIUi', '超级管理员', NULL, 'admin', 'active'),
+('13800138000', '\$2b\$12\$Mq9a.Kr7A/GbTpFc6evrZuik5Uy.jPZ3nKfn08as1NDWpJ4qBrIUi', '张三', NULL, 'user', 'active'),
+('13900139000', '\$2b\$12\$Mq9a.Kr7A/GbTpFc6evrZuik5Uy.jPZ3nKfn08as1NDWpJ4qBrIUi', '李四', NULL, 'user', 'active');
 
 -- ============================================
 -- Default Data: User School Permissions

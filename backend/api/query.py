@@ -272,7 +272,16 @@ async def smart_query(request: SmartQueryRequest,
         # 非SQLite数据库需要更多配置
         if db_config.db_type != 'SQLite':
             from core.security import decrypt_password
-            plain_password = decrypt_password(db_config.password)
+            
+            # 尝试解密密码，如果失败则使用原始密码（兼容旧数据）
+            try:
+                try:
+                plain_password = decrypt_password(db_config.password)
+            except Exception:
+                plain_password = db_config.password
+            except Exception:
+                plain_password = db_config.password
+            
             config.update({
                 'host': db_config.host,
                 'port': db_config.port,
@@ -531,7 +540,10 @@ async def direct_sql_query(
         
         if db_config.db_type != 'SQLite':
             from core.security import decrypt_password
-            plain_password = decrypt_password(db_config.password)
+            try:
+                plain_password = decrypt_password(db_config.password)
+            except Exception:
+                plain_password = db_config.password
             config.update({
                 'host': db_config.host,
                 'port': db_config.port,
@@ -665,7 +677,10 @@ async def export_query_result(
         
         if db_config.db_type != 'SQLite':
             from core.security import decrypt_password
-            plain_password = decrypt_password(db_config.password)
+            try:
+                plain_password = decrypt_password(db_config.password)
+            except Exception:
+                plain_password = db_config.password
             config.update({
                 'host': db_config.host,
                 'port': db_config.port,
@@ -954,8 +969,11 @@ async def test_database(db_id: int,
         raise HTTPException(status_code=404, detail="配置不存在")
     
     try:
-        # 解密密码
-        plain_password = decrypt_password(config.password)
+        # 解密密码，如果失败则使用原始密码（兼容旧数据）
+        try:
+            plain_password = decrypt_password(config.password)
+        except Exception:
+            plain_password = config.password
         
         connector = get_connector(config.db_type, {
             'host': config.host,
