@@ -1,143 +1,304 @@
 # -*- coding: utf-8 -*-
 """
-多源数据查询小程序版 - 主入口
+Mini DB Query - Main Entry Point
 
-Author: 飞书百万（AI助手）
+Deploy first, configure database later
 """
 
-import logging
 import os
+import sys
 from pathlib import Path
-from fastapi import FastAPI, Request
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import JSONResponse
-from contextlib import asynccontextmanager
-import uvicorn
 
-from core.config import settings
-from api import auth, query
+# Add current directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 
-# 配置日志
-logging.basicConfig(
-    level=logging.INFO if not settings.DEBUG else logging.DEBUG,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler('./logs/app.log', encoding='utf-8'),
-        logging.StreamHandler()
-    ]
-)
-logger = logging.getLogger(__name__)
-
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    """应用生命周期"""
-    # 启动时
-    logger.info(f"🚀 {settings.APP_NAME} v{settings.APP_VERSION} 启动中...")
-    logger.info(f"📡 服务地址: http://{settings.HOST}:{settings.PORT}")
-    
-    # 初始化数据库
-    from models.session import init_db
-    init_db()
-    logger.info("✅ 数据库初始化完成")
-    
-    # 检查依赖
+def check_database_configured() -> bool:
+    """检查数据库是否已配置"""
     try:
-        from db.connector import check_dependencies
-        missing = check_dependencies()
-        if missing:
-            logger.warning(f"⚠️ 缺少数据库驱动: {', '.join(missing)}")
-        else:
-            logger.info("✅ 所有数据库驱动已安装")
-    except Exception as e:
-        logger.warning(f"⚠️ 数据库驱动检查失败: {e}")
-    
-    yield
-    
-    # 关闭时
-    try:
-        from db.connection_manager import connection_manager
-        connection_manager.stop()
+        from core.config import settings
+        return bool(settings.DATABASE_URL and settings.DATABASE_URL.strip())
     except:
-        pass
-    logger.info("👋 服务已关闭")
+        return False
 
 
-# 创建FastAPI应用
-app = FastAPI(
-    title=settings.APP_NAME,
-    version=settings.APP_VERSION,
-    description="多源数据查询小程序后端服务",
-    lifespan=lifespan
-)
+def check_database_connection() -> tuple[bool, str]:
+    """检查数据库连接是否可用
+    
+    Returns:
+        (success, message)
+    """
+    try:
+        from sqlalchemy import create_engine, text
+        from core.config import settings
+        
+        if not settings.DATABASE_URL:
+            return False, "Database not configured"
+        
+        if not settings.is_mysql:
+            return False, "DATABASE_URL must be MySQL"
+        
+        # 测试连接
+        engine = create_engine(settings.DATABASE_URL)
+        with engine.connect() as conn:
+            result = conn.execute(text("SELECT VERSION()"))
+            version = result.scalar()
+            return True, f"MySQL {version}"
+            
+    except Exception as e:
+        return False, str(e)
 
 
-# 配置CORS
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=settings.ALLOWED_ORIGINS,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+def check_tables_initialized() -> bool:
+    """检查数据库表是否已初始化"""
+    try:
+        from sqlalchemy import create_engine, text
+        from core.config import settings
+        
+        if not settings.DATABASE_URL:
+            return False
+        
+        engine = create_engine(settings.DATABASE_URL)
+        with engine.connect() as conn:
+            # 检查 users 表是否存在
+            result = conn.execute(text("SHOW TABLES LIKE 'users'"))
+            return result.fetchone() is not None
+    except:
+        return False
 
 
-# 全局异常处理
-@app.exception_handler(Exception)
-async def global_exception_handler(request: Request, exc: Exception):
-    """全局异常处理"""
-    logger.error(f"全局异常: {exc}", exc_info=True)
-    return JSONResponse(
-        status_code=500,
-        content={
-            "code": 500,
-            "message": f"服务器内部错误: {str(exc)}",
-            "data": None
-        }
-    )
+def main():
+    """Main entry point with error handling"""
+    try:
+        # Setup logging first
+        os.makedirs("./logs", exist_ok=True)
+        
+        from fastapi import FastAPI, Request, Response
+        from fastapi.middleware.cors import CORSMiddleware
+        from fastapi.staticfiles import StaticFiles
+        from fastapi.responses import JSONResponse, HTMLResponse, RedirectResponse
+        from contextlib import asynccontextmanager
+        import uvicorn
+        import logging
 
+        # Setup basic logging
+        logging.basicConfig(
+            level=logging.INFO,
+            format='%(asctime)s [%(levelname)s] %(name)s: %(message)s',
+            handlers=[
+                logging.StreamHandler(sys.stdout),
+                logging.FileHandler('./logs/app.log', encoding='utf-8')
+            ]
+        )
+        logger = logging.getLogger(__name__)
 
-# 注册路由
-app.include_router(auth.router, prefix="/api")
-app.include_router(query.router, prefix="/api")
+        # Load config
+        from core.config import settings
+        logger.info("=" * 60)
+        logger.info("Starting Mini DB Query Server")
+        logger.info("=" * 60)
+        logger.info(f"Python: {sys.version}")
+        logger.info(f"Working Directory: {os.getcwd()}")
+        logger.info(f"App Version: {settings.APP_VERSION}")
+        
+        # 检查数据库配置状态
+        db_configured = check_database_configured()
+        db_connected = False
+        db_initialized = False
+        
+        if db_configured:
+            mysql_info = settings.mysql_info
+            if mysql_info:
+                logger.info(f"MySQL: {mysql_info.get('host')}:{mysql_info.get('port')}/{mysql_info.get('database')}")
+            
+            db_connected, db_msg = check_database_connection()
+            if db_connected:
+                logger.info(f"Database connected: {db_msg}")
+                db_initialized = check_tables_initialized()
+                if not db_initialized:
+                    logger.warning("Database tables not initialized. Please run init_database.sql")
+            else:
+                logger.warning(f"Database connection failed: {db_msg}")
+        else:
+            logger.info("Database not configured yet. Use /setup to configure.")
 
+        @asynccontextmanager
+        async def lifespan(app: FastAPI):
+            """Application lifecycle manager"""
+            logger.info("Initializing application...")
+            
+            # 不强制检查数据库，允许无数据库启动
+            if not db_configured:
+                logger.info("Database not configured. Please visit /setup to configure.")
+            elif not db_connected:
+                logger.warning("Database connection failed. Please check configuration.")
+            elif not db_initialized:
+                logger.warning("Database tables not initialized. Please run init_database.sql")
+            else:
+                # 初始化数据库会话
+                try:
+                    from models.session import init_db
+                    init_db()
+                    logger.info("Database session initialized")
+                except Exception as e:
+                    logger.error(f"Database session init failed: {e}")
+            
+            # Check database drivers
+            try:
+                from db.connector import check_dependencies
+                missing = check_dependencies()
+                if missing:
+                    logger.warning(f"Missing database drivers: {', '.join(missing)}")
+                else:
+                    logger.info("All database drivers installed")
+            except Exception as e:
+                logger.warning(f"Database driver check failed: {e}")
+            
+            logger.info("=" * 60)
+            logger.info(f"Server ready at http://{settings.HOST}:{settings.PORT}")
+            logger.info(f"Setup Page: http://{settings.HOST}:{settings.PORT}/setup")
+            logger.info(f"Admin Panel: http://{settings.HOST}:{settings.PORT}/admin")
+            logger.info(f"API Docs: http://{settings.HOST}:{settings.PORT}/docs")
+            logger.info("=" * 60)
+            
+            yield
+            
+            # Shutdown
+            try:
+                from db.connection_manager import connection_manager
+                connection_manager.stop()
+            except:
+                pass
+            logger.info("Server stopped")
 
-# 静态文件服务（导出文件）
-export_dir = Path("./exports")
-export_dir.mkdir(exist_ok=True)
-app.mount("/exports", StaticFiles(directory="./exports"), name="exports")
+        # 创建FastAPI应用
+        app = FastAPI(
+            title=settings.APP_NAME,
+            version=settings.APP_VERSION,
+            description="多源数据查询小程序后端服务 - Deploy first, configure later",
+            lifespan=lifespan
+        )
 
+        # 配置CORS
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=settings.allowed_origins_list,
+            allow_credentials=True,
+            allow_methods=["*"],
+            allow_headers=["*"],
+        )
 
-# 健康检查
-@app.get("/health")
-async def health_check():
-    """健康检查"""
-    return {
-        "status": "healthy",
-        "app": settings.APP_NAME,
-        "version": settings.APP_VERSION
-    }
+        # 全局异常处理
+        @app.exception_handler(Exception)
+        async def global_exception_handler(request: Request, exc: Exception):
+            """全局异常处理"""
+            logger.error(f"Global exception: {exc}", exc_info=True)
+            return JSONResponse(
+                status_code=500,
+                content={
+                    "code": 500,
+                    "message": f"服务器内部错误: {str(exc)}",
+                    "data": None
+                }
+            )
 
+        # 注册路由
+        from api import auth, query, logs
+        app.include_router(auth.router, prefix="/api")
+        app.include_router(query.router, prefix="/api")
+        app.include_router(logs.router, prefix="/api")
+        
+        # Setup API - 必须在静态文件之前
+        from api.setup import router as setup_router
+        app.include_router(setup_router, prefix="/api")
 
-# 根路径
-@app.get("/")
-async def root():
-    """根路径"""
-    return {
-        "name": settings.APP_NAME,
-        "version": settings.APP_VERSION,
-        "docs": "/docs",
-        "health": "/health"
-    }
+        # 静态文件服务（导出文件）
+        export_dir = Path("./exports")
+        export_dir.mkdir(exist_ok=True)
+        app.mount("/exports", StaticFiles(directory="./exports"), name="exports")
+
+        # 管理后台静态文件
+        admin_dir = None
+        possible_paths = [
+            Path("./admin"),
+            Path("../admin"),
+            Path("../../admin"),
+        ]
+
+        for p in possible_paths:
+            if p.exists():
+                admin_dir = p
+                logger.info(f"Admin panel found at: {p.absolute()}")
+                break
+
+        if admin_dir:
+            app.mount("/admin", StaticFiles(directory=str(admin_dir.absolute()), html=True), name="admin")
+        else:
+            logger.warning("Admin panel directory not found!")
+
+        # Setup 页面路由
+        @app.get("/setup", response_class=HTMLResponse)
+        async def setup_page():
+            """配置页面"""
+            html_path = Path(__file__).parent / "admin" / "setup.html"
+            if html_path.exists():
+                return HTMLResponse(content=html_path.read_text(encoding='utf-8'))
+            return HTMLResponse(content="<h1>Setup page not found</h1><p>Please check admin/setup.html</p>")
+
+        # 健康检查
+        @app.get("/health")
+        async def health_check():
+            """健康检查"""
+            db_status = "not_configured"
+            if db_configured:
+                if db_connected:
+                    db_status = "connected"
+                else:
+                    db_status = "connection_failed"
+            
+            return {
+                "status": "healthy",
+                "app": settings.APP_NAME,
+                "version": settings.APP_VERSION,
+                "database": db_status
+            }
+
+        # 根路径 - 根据配置状态重定向
+        @app.get("/")
+        async def root():
+            """根路径"""
+            if not db_configured:
+                return RedirectResponse(url="/setup")
+            return {
+                "name": settings.APP_NAME,
+                "version": settings.APP_VERSION,
+                "docs": "/docs",
+                "health": "/health",
+                "setup": "/setup",
+                "admin": "/admin"
+            }
+
+        # 启动服务器
+        logger.info("Starting uvicorn server...")
+        uvicorn.run(
+            app,
+            host=settings.HOST,
+            port=settings.PORT,
+            log_level="info"
+        )
+
+    except Exception as e:
+        # 写入错误日志
+        with open('./logs/startup_error.log', 'w', encoding='utf-8') as f:
+            import traceback
+            f.write(f"Startup Error: {e}\n\n")
+            f.write(traceback.format_exc())
+        
+        print(f"\n[ERROR] Failed to start server: {e}")
+        print("Check logs/startup_error.log for details\n")
+        input("Press Enter to exit...")
+        sys.exit(1)
 
 
 if __name__ == "__main__":
-    uvicorn.run(
-        "main:app",
-        host=settings.HOST,
-        port=settings.PORT,
-        reload=settings.DEBUG,
-        log_level="info"
-    )
+    main()

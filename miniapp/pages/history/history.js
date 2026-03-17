@@ -9,7 +9,15 @@ Page({
     historyList: [],
     loading: true,
     page: 1,
-    hasMore: true
+    hasMore: true,
+    total: 0,
+    // 筛选条件
+    showFilter: false,
+    filterStatus: '',
+    filterSchoolId: null,
+    schools: [],
+    startDate: '',
+    endDate: ''
   },
 
   onLoad() {
@@ -19,6 +27,7 @@ Page({
       return
     }
     
+    this.loadSchools()
     this.loadHistory()
   },
 
@@ -30,6 +39,18 @@ Page({
     }
   },
 
+  // 加载学校列表（用于筛选）
+  async loadSchools() {
+    try {
+      const res = await get('/user/schools')
+      if (res.code === 200) {
+        this.setData({ schools: res.data || [] })
+      }
+    } catch (error) {
+      console.error('加载学校失败:', error)
+    }
+  },
+
   // 加载历史记录
   async loadHistory() {
     if (!this.data.hasMore && this.data.page > 1) return
@@ -37,10 +58,23 @@ Page({
     this.setData({ loading: true })
     
     try {
-      const res = await get('/user/history', {
-        skip: (this.data.page - 1) * 30,
-        limit: 30
-      })
+      let url = `/user/history?skip=${(this.data.page - 1) * 30}&limit=30`
+      
+      // 添加筛选条件
+      if (this.data.filterStatus) {
+        url += `&status=${this.data.filterStatus}`
+      }
+      if (this.data.filterSchoolId) {
+        url += `&school_id=${this.data.filterSchoolId}`
+      }
+      if (this.data.startDate) {
+        url += `&start_date=${this.data.startDate}`
+      }
+      if (this.data.endDate) {
+        url += `&end_date=${this.data.endDate}`
+      }
+      
+      const res = await get(url)
       
       if (res.code === 200) {
         const list = res.data || []
@@ -54,7 +88,10 @@ Page({
         }))
         
         if (this.data.page === 1) {
-          this.setData({ historyList: formattedList })
+          this.setData({ 
+            historyList: formattedList,
+            total: res.total || list.length
+          })
         } else {
           this.setData({ 
             historyList: [...this.data.historyList, ...formattedList]
@@ -89,7 +126,7 @@ Page({
     
     // 今天
     if (diff < 86400000) {
-      return `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`
+      return `今天 ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`
     }
     
     // 昨天
@@ -101,21 +138,62 @@ Page({
     return `${date.getMonth() + 1}/${date.getDate()} ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`
   },
 
-  // 点击历史记录
+  // 点击历史记录 - 查看详情
   onHistoryTap(e) {
     const item = e.currentTarget.dataset.item
     
-    // 设置全局学校
-    if (item.school_id) {
-      app.globalData.selectedSchool = { id: item.school_id }
+    wx.navigateTo({
+      url: `/pages/history-detail/history-detail?id=${item.id}`
+    })
+  },
+
+  // 切换筛选面板
+  toggleFilter() {
+    this.setData({ showFilter: !this.data.showFilter })
+  },
+
+  // 状态筛选
+  onStatusChange(e) {
+    this.setData({ filterStatus: e.detail.value })
+  },
+
+  // 学校筛选
+  onSchoolChange(e) {
+    const index = e.detail.value
+    if (index === '0') {
+      this.setData({ filterSchoolId: null })
+    } else {
+      const school = this.data.schools[index - 1]
+      this.setData({ filterSchoolId: school.id })
     }
-    
-    // 跳转到查询页面
-    wx.switchTab({
-      url: '/pages/query/query',
-      success: () => {
-        // 可以通过事件传递查询信息
-      }
+  },
+
+  // 日期筛选
+  onStartDateChange(e) {
+    this.setData({ startDate: e.detail.value })
+  },
+
+  onEndDateChange(e) {
+    this.setData({ endDate: e.detail.value })
+  },
+
+  // 应用筛选
+  applyFilter() {
+    this.setData({ 
+      page: 1, 
+      hasMore: true,
+      showFilter: false
+    })
+    this.loadHistory()
+  },
+
+  // 重置筛选
+  resetFilter() {
+    this.setData({
+      filterStatus: '',
+      filterSchoolId: null,
+      startDate: '',
+      endDate: ''
     })
   },
 
@@ -143,7 +221,7 @@ Page({
       success: (res) => {
         if (res.confirm) {
           wx.setStorageSync('queryHistory', [])
-          this.setData({ historyList: [] })
+          this.setData({ historyList: [], total: 0 })
           wx.showToast({
             title: '已清空',
             icon: 'success'

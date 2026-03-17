@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>数据库配置 - Mini DB Query</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 40px;
+            max-width: 500px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+        
+        .logo {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .logo h1 {
+            color: #1a1a2e;
+            font-size: 28px;
+            margin-bottom: 8px;
+        }
+        
+        .logo p {
+            color: #666;
+            font-size: 14px;
+        }
+        
+        .status-box {
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 25px;
+            display: none;
+        }
+        
+        .status-box.configured {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+            display: block;
+        }
+        
+        .status-box.not-configured {
+            background: #fff3cd;
+            border: 1px solid #ffeeba;
+            color: #856404;
+            display: block;
+        }
+        
+        .status-box.error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+            display: block;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 500;
+        }
+        
+        .form-group input {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+        
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .form-row {
+            display: flex;
+            gap: 15px;
+        }
+        
+        .form-row .form-group {
+            flex: 1;
+        }
+        
+        .btn {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-bottom: 10px;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn-primary:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+        
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background: #218838;
+        }
+        
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 10px;
+            display: none;
+        }
+        
+        .result.success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+            display: block;
+        }
+        
+        .result.error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+            display: block;
+        }
+        
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+            vertical-align: middle;
+            margin-right: 10px;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .steps {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+        
+        .steps h3 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 16px;
+        }
+        
+        .steps ol {
+            margin-left: 20px;
+            color: #666;
+            line-height: 1.8;
+        }
+        
+        .version-info {
+            text-align: center;
+            margin-top: 20px;
+            color: #999;
+            font-size: 12px;
+        }
+        
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">
+            <h1>🔧 数据库配置</h1>
+            <p>Mini DB Query - 部署第一步</p>
+        </div>
+        
+        <div id="statusBox" class="status-box"></div>
+        
+        <div id="configForm">
+            <div class="form-row">
+                <div class="form-group">
+                    <label>MySQL 主机</label>
+                    <input type="text" id="host" placeholder="localhost" value="localhost">
+                </div>
+                <div class="form-group">
+                    <label>端口</label>
+                    <input type="number" id="port" placeholder="3306" value="3306">
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label>用户名</label>
+                <input type="text" id="user" placeholder="root">
+            </div>
+            
+            <div class="form-group">
+                <label>密码</label>
+                <input type="password" id="password" placeholder="请输入密码">
+            </div>
+            
+            <div class="form-group">
+                <label>数据库名</label>
+                <input type="text" id="database" placeholder="mini_db_query" value="mini_db_query">
+            </div>
+            
+            <button class="btn btn-primary" id="testBtn" onclick="testConnection()">
+                测试连接
+            </button>
+            
+            <button class="btn btn-success hidden" id="saveBtn" onclick="saveConfig()">
+                保存配置
+            </button>
+            
+            <div id="result" class="result"></div>
+        </div>
+        
+        <div class="steps">
+            <h3>📋 配置步骤</h3>
+            <ol>
+                <li>填写 MySQL 连接信息</li>
+                <li>点击"测试连接"验证</li>
+                <li>连接成功后点击"保存配置"</li>
+                <li>在 MySQL 中执行初始化脚本</li>
+                <li>跳转到管理后台登录</li>
+            </ol>
+        </div>
+        
+        <div class="version-info">
+            Mini DB Query v1.0.0.18 | MySQL 8.0.2+ Required
+        </div>
+    </div>
+    
+    <script>
+        // 检查配置状态
+        async function checkStatus() {
+            try {
+                const response = await fetch('/api/setup/status');
+                const data = await response.json();
+                
+                const statusBox = document.getElementById('statusBox');
+                const configForm = document.getElementById('configForm');
+                
+                if (data.configured) {
+                    if (data.connected) {
+                        if (data.tables_initialized) {
+                            statusBox.className = 'status-box configured';
+                            statusBox.innerHTML = `
+                                <strong>✅ 数据库已配置并连接成功！</strong><br>
+                                MySQL 版本: ${data.mysql_version}<br>
+                                数据库: ${data.mysql_info?.database || 'N/A'}
+                            `;
+                            // 配置完成，跳转到管理后台
+                            setTimeout(() => {
+                                window.location.href = '/admin';
+                            }, 2000);
+                        } else {
+                            statusBox.className = 'status-box not-configured';
+                            statusBox.innerHTML = `
+                                <strong>⚠️ 数据库已连接，但表未初始化</strong><br>
+                                请在 MySQL 中执行 init_database.sql 脚本
+                            `;
+                        }
+                    } else {
+                        statusBox.className = 'status-box error';
+                        statusBox.innerHTML = `
+                            <strong>❌ 数据库连接失败</strong><br>
+                            ${data.error || '请检查数据库配置'}
+                        `;
+                        configForm.style.display = 'block';
+                    }
+                } else {
+                    statusBox.className = 'status-box not-configured';
+                    statusBox.innerHTML = `
+                        <strong>ℹ️ 请配置数据库连接</strong><br>
+                        填写下方 MySQL 连接信息
+                    `;
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+        
+        // 测试连接
+        async function testConnection() {
+            const host = document.getElementById('host').value;
+            const port = document.getElementById('port').value;
+            const user = document.getElementById('user').value;
+            const password = document.getElementById('password').value;
+            const database = document.getElementById('database').value;
+            
+            if (!host || !user || !password || !database) {
+                showResult('请填写完整信息', 'error');
+                return;
+            }
+            
+            const testBtn = document.getElementById('testBtn');
+            testBtn.disabled = true;
+            testBtn.innerHTML = '<span class="spinner"></span>测试中...';
+            
+            try {
+                const response = await fetch('/api/setup/test', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        host, port: parseInt(port), user, password, database
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showResult(`✅ 连接成功！MySQL版本: ${data.version}`, 'success');
+                    document.getElementById('saveBtn').classList.remove('hidden');
+                } else {
+                    showResult(`❌ ${data.message}`, 'error');
+                    document.getElementById('saveBtn').classList.add('hidden');
+                }
+            } catch (e) {
+                showResult(`❌ 连接失败: ${e.message}`, 'error');
+            }
+            
+            testBtn.disabled = false;
+            testBtn.innerHTML = '测试连接';
+        }
+        
+        // 保存配置
+        async function saveConfig() {
+            const host = document.getElementById('host').value;
+            const port = document.getElementById('port').value;
+            const user = document.getElementById('user').value;
+            const password = document.getElementById('password').value;
+            const database = document.getElementById('database').value;
+            
+            const saveBtn = document.getElementById('saveBtn');
+            saveBtn.disabled = true;
+            saveBtn.innerHTML = '<span class="spinner"></span>保存中...';
+            
+            try {
+                const response = await fetch('/api/setup/save', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        host, port: parseInt(port), user, password, database
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showResult('✅ 配置保存成功！正在跳转...', 'success');
+                    setTimeout(() => {
+                        window.location.href = '/admin';
+                    }, 1500);
+                } else {
+                    showResult(`❌ 保存失败: ${data.message}`, 'error');
+                }
+            } catch (e) {
+                showResult(`❌ 保存失败: ${e.message}`, 'error');
+            }
+            
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = '保存配置';
+        }
+        
+        function showResult(message, type) {
+            const result = document.getElementById('result');
+            result.className = `result ${type}`;
+            result.innerHTML = message;
+        }
+        
+        // 初始化
+        checkStatus();
+    </script>
+</body>
+</html>

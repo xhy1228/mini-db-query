@@ -2,17 +2,25 @@
 // 个人中心页面
 
 const app = getApp()
-const { post } = require('../../utils/request')
+const { post, get } = require('../../utils/request')
 
 Page({
   data: {
     userInfo: null,
     isAdmin: false,
-    version: '1.1.0'
+    version: '1.2.0',
+    serverUrl: '',
+    // 统计数据
+    stats: {
+      queryCount: 0,
+      schoolCount: 0
+    }
   },
 
   onLoad() {
     this.loadUserInfo()
+    this.loadStats()
+    this.getServerUrl()
   },
 
   onShow() {
@@ -27,6 +35,37 @@ Page({
     this.setData({
       userInfo: userInfo,
       isAdmin: userRole === 'admin'
+    })
+  },
+
+  // 加载统计数据
+  async loadStats() {
+    try {
+      // 获取查询历史数量
+      const historyRes = await get('/user/history?limit=1')
+      if (historyRes.code === 200) {
+        this.setData({
+          'stats.queryCount': historyRes.total || 0
+        })
+      }
+      
+      // 获取学校数量
+      const schoolsRes = await get('/user/schools')
+      if (schoolsRes.code === 200) {
+        this.setData({
+          'stats.schoolCount': (schoolsRes.data || []).length
+        })
+      }
+    } catch (error) {
+      console.error('加载统计失败:', error)
+    }
+  },
+
+  // 获取服务器地址
+  getServerUrl() {
+    const request = require('../../utils/request')
+    this.setData({
+      serverUrl: request.BASE_URL || ''
     })
   },
 
@@ -65,6 +104,25 @@ Page({
       case 'query':
         wx.switchTab({ url: '/pages/query/query' })
         break
+      case 'sql':
+        // SQL查询 - 仅管理员
+        if (this.data.isAdmin) {
+          wx.navigateTo({ url: '/pages/sql/sql' })
+        } else {
+          wx.showToast({ title: '权限不足', icon: 'none' })
+        }
+        break
+      case 'admin':
+        // 管理后台 - 仅管理员
+        if (this.data.isAdmin) {
+          wx.setClipboardData({
+            data: this.data.serverUrl.replace('/api', '/admin/'),
+            success: () => {
+              wx.showToast({ title: '链接已复制', icon: 'success' })
+            }
+          })
+        }
+        break
       case 'about':
         this.showAbout()
         break
@@ -80,6 +138,11 @@ Page({
 
 支持MySQL、Oracle、SQL Server等
 多种数据库的智能查询
+
+新功能：
+• SQL直接查询（管理员）
+• 数据导出Excel
+• 查询历史详情
 
 © 2026 飞书百万`,
       showCancel: false
@@ -97,6 +160,18 @@ Page({
       case 'logout':
         this.logout()
         break
+    }
+  },
+
+  // 复制服务器地址
+  copyServerUrl() {
+    if (this.data.serverUrl) {
+      wx.setClipboardData({
+        data: this.data.serverUrl,
+        success: () => {
+          wx.showToast({ title: '已复制', icon: 'success' })
+        }
+      })
     }
   }
 })
