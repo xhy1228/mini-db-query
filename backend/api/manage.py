@@ -14,7 +14,7 @@ from urllib.parse import quote_plus
 
 from models import get_db_session
 from models.database import School, DatabaseConfig, QueryTemplate, UserSchool
-from core.security import get_current_user, TokenData
+from core.security import get_current_user, TokenData, encrypt_password, decrypt_password
 from core.config import settings
 
 router = APIRouter(tags=["管理"])
@@ -236,6 +236,9 @@ async def create_database(
     if not school:
         return {"code": 400, "message": "学校不存在", "data": None}
     
+    # 加密密码
+    encrypted_password = encrypt_password(request.password or "")
+    
     db_config = DatabaseConfig(
         school_id=request.school_id,
         name=request.name,
@@ -243,7 +246,7 @@ async def create_database(
         host=request.host or "localhost",
         port=request.port or 3306,
         username=request.username or "",
-        password=request.password or "",
+        password=encrypted_password,  # 加密存储
         db_name=request.db_name or "",
         service_name=request.service_name,
         driver=request.driver,
@@ -285,6 +288,11 @@ async def update_database(
         raise HTTPException(status_code=404, detail="配置不存在")
     
     update_data = request.dict(exclude_unset=True)
+    
+    # 如果更新密码，需要加密
+    if 'password' in update_data and update_data['password']:
+        update_data['password'] = encrypt_password(update_data['password'])
+    
     for key, value in update_data.items():
         setattr(db_config, key, value)
     
@@ -326,12 +334,19 @@ async def test_database_connection(
     try:
         from sqlalchemy import create_engine, text
         
+        # 解密密码
+        try:
+            plain_password = decrypt_password(db_config.password)
+        except:
+            # 如果解密失败，尝试使用原始密码（兼容旧数据）
+            plain_password = db_config.password
+        
         # 构建连接URL，对密码进行URL编码
         if db_config.db_type == 'MySQL':
-            encoded_password = quote_plus(db_config.password)
+            encoded_password = quote_plus(plain_password)
             url = f"mysql+pymysql://{db_config.username}:{encoded_password}@{db_config.host}:{db_config.port}/{db_config.db_name}?charset=utf8mb4"
         elif db_config.db_type == 'Oracle':
-            encoded_password = quote_plus(db_config.password)
+            encoded_password = quote_plus(plain_password)
             url = f"oracle+oracledb://{db_config.username}:{encoded_password}@{db_config.host}:{db_config.port}/?service_name={db_config.service_name}"
         else:
             return {"code": 400, "message": f"暂不支持 {db_config.db_type} 连接测试", "data": None}
@@ -462,35 +477,69 @@ async def delete_template(
     return {"code": 200, "message": "删除成功", "data": None}
 
 
-# ========== 业务大类统计 ==========
+# ========== 用户授权管理 API ==========
 
-@router.get("/categories")
-async def list_categories(
-    school_id: Optional[int] = None,
+@router.get("/users/{user_id}/schools")
+async def get_user_schools(
+    user_id: int,
     current_user: TokenData = Depends(get_current_user),
     db: Session = Depends(get_db_session)
 ):
-    """获取业务大类列表"""
-    query = db.query(QueryTemplate)
-    if school_id:
-        query = query.filter(QueryTemplate.school_id == school_id)
+    """获取用户授权的学校"""
+    if current_user.role != 'admin' and int(current_user.user_id) != user_id:
+        raise HTTPException(status_code=403, detail="权限不足")
     
-    templates = query.all()
+    from services.user_service import UserService
+    schools = UserService.get_user_schools(db, user_id)
+    return {"code": 200, "message": "获取成功", "data": schools}
+
+
+@router.post("/users/{user_id}/schools")
+async def assign_user_school(
+    user_id: int,
+    school_id: int,
+    current_user: TokenData = Depends(get_current_user),
+    db: Session = Depends(get_db_session)
+):
+    """为用户授权学校（管理员权限）"""
+    if current_user.role != 'admin':
+        raise HTTPException(status_code=403, detail="权限不足")
     
-    # 按category分组
-    categories = {}
-    for t in templates:
-        if t.category not in categories:
-            categories[t.category] = {
-                "category": t.category,
-                "category_name": t.category_name,
-                "category_icon": t.category_icon,
-                "count": 0
-            }
-        categories[t.category]["count"] += 1
+    # 检查是否已授权
+    existing = db.query(UserSchool).filter(
+        UserSchool.user_id == user_id,
+        UserSchool.school_id == school_id
+    ).first()
     
-    return {
-        "code": 200,
-        "message": "获取成功",
-        "data": list(categories.values())
-    }
+    if existing:
+        return {"code": 400, "message": "已授权该学校", "data": None}
+    
+    user_school = UserSchool(user_id=user_id, school_id=school_id)
+    db.add(user_school)
+    db.commit()
+    
+    return {"code": 200, "message": "授权成功", "data": None}
+
+
+@router.delete("/users/{user_id}/schools/{school_id}")
+async def remove_user_school(
+    user_id: int,
+    school_id: int,
+    current_user: TokenData = Depends(get_current_user),
+    db: Session = Depends(get_db_session)
+):
+    """取消用户学校授权（管理员权限）"""
+    if current_user.role != 'admin':
+        raise HTTPException(status_code=403, detail="权限不足")
+    
+    user_school = db.query(UserSchool).filter(
+        UserSchool.user_id == user_id,
+        UserSchool.school_id == school_id
+    ).first()
+    
+    if not user_school:
+        raise HTTPException(status_code=404, detail="授权记录不存在")
+    
+    db.delete(user_school)
+    db.commit()
+    return {"code": 200, "message": "取消授权成功", "data": None}
