@@ -297,6 +297,72 @@
             margin-top: 12px;
         }
         
+        /* 统计图表 */
+        .chart-container {
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+        }
+        .chart-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #1a1a2e;
+            margin-bottom: 20px;
+        }
+        
+        /* 趋势图 */
+        .trend-chart {
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-between;
+            height: 200px;
+            gap: 10px;
+        }
+        .trend-bar {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            height: 100%;
+        }
+        .trend-label {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 8px;
+        }
+        .trend-value {
+            flex: 1;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-end;
+        }
+        .trend-bar-bg {
+            width: 100%;
+            height: 120px;
+            background: #f0f2f5;
+            border-radius: 6px;
+            position: relative;
+            overflow: hidden;
+        }
+        .trend-bar-success {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(to top, #1890ff, #40a9ff);
+            border-radius: 6px;
+            transition: height 0.3s;
+        }
+        .trend-count {
+            font-size: 14px;
+            font-weight: 600;
+            color: #1890ff;
+            margin-top: 8px;
+        }
+        
         /* 分页 */
         .pagination-container {
             margin-top: 20px;
@@ -537,6 +603,68 @@
                             <h4>{{ templates.length }}</h4>
                             <span>查询模板</span>
                         </div>
+                    </div>
+                </div>
+
+                <!-- 数据统计 -->
+                <div v-show="activeMenu === 'dashboard'">
+                    <!-- 统计卡片 -->
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-icon blue">📊</div>
+                            <div class="stat-info">
+                                <h4>{{ dashboardStats.total_queries || 0 }}</h4>
+                                <span>总查询数</span>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon green">📈</div>
+                            <div class="stat-info">
+                                <h4>{{ dashboardStats.today_queries || 0 }}</h4>
+                                <span>今日查询</span>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon orange">✅</div>
+                            <div class="stat-info">
+                                <h4>{{ dashboardStats.success_rate || 0 }}%</h4>
+                                <span>成功率</span>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon purple">👥</div>
+                            <div class="stat-info">
+                                <h4>{{ dashboardStats.active_users || 0 }}</h4>
+                                <span>活跃用户</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 查询趋势 -->
+                    <div class="chart-container">
+                        <div class="chart-title">📈 近7天查询趋势</div>
+                        <div class="trend-chart">
+                            <div v-for="item in queryTrend" :key="item.date" class="trend-bar">
+                                <div class="trend-label">{{ item.date }}</div>
+                                <div class="trend-value">
+                                    <div class="trend-bar-bg">
+                                        <div class="trend-bar-success" :style="{ width: (item.count > 0 ? (item.success / item.count * 100) : 0) + '%' }"></div>
+                                    </div>
+                                    <span class="trend-count">{{ item.count }}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 热门查询 -->
+                    <div class="chart-container" style="margin-top: 20px;">
+                        <div class="chart-title">🔥 热门查询 TOP 10</div>
+                        <el-table :data="topQueries" stripe size="small">
+                            <el-table-column type="index" label="#" width="50"></el-table-column>
+                            <el-table-column prop="name" label="查询名称" min-width="200"></el-table-column>
+                            <el-table-column prop="count" label="次数" width="100"></el-table-column>
+                            <el-table-column prop="avg_time" label="平均耗时(ms)" width="120"></el-table-column>
+                        </el-table>
                     </div>
                 </div>
 
@@ -1106,6 +1234,11 @@
                 // 版本号
                 const appVersion = ref('1.0.0.30');
                 
+                // 统计数据
+                const dashboardStats = ref({});
+                const queryTrend = ref([]);
+                const topQueries = ref([]);
+                
                 // 获取版本号
                 const loadVersion = async () => {
                     try {
@@ -1130,8 +1263,9 @@
                 const userInfo = ref({});
 
                 // 菜单
-                const activeMenu = ref('users');
+                const activeMenu = ref('dashboard');
                 const menuItems = [
+                    { key: 'dashboard', name: '数据统计', icon: '📊' },
                     { key: 'users', name: '用户管理', icon: '👥' },
                     { key: 'schools', name: '学校管理', icon: '🏫' },
                     { key: 'databases', name: '数据库配置', icon: '🗄️' },
@@ -1324,6 +1458,39 @@
                     loadDatabases();
                     loadTemplates();
                     loadSystemConfigs();
+                    loadDashboardStats();
+                };
+                
+                // 加载仪表盘统计
+                const loadDashboardStats = async () => {
+                    try {
+                        const res = await request('/stats/dashboard');
+                        if (res.code === 200) {
+                            dashboardStats.value = res.data;
+                        }
+                    } catch (e) {
+                        console.error(e);
+                    }
+                    
+                    // 加载查询趋势
+                    try {
+                        const res = await request('/stats/trend?days=7');
+                        if (res.code === 200) {
+                            queryTrend.value = res.data;
+                        }
+                    } catch (e) {
+                        console.error(e);
+                    }
+                    
+                    // 加载热门查询
+                    try {
+                        const res = await request('/stats/top-queries?limit=10');
+                        if (res.code === 200) {
+                            topQueries.value = res.data;
+                        }
+                    } catch (e) {
+                        console.error(e);
+                    }
                 };
 
                 // 用户管理
@@ -1806,6 +1973,9 @@
                 return {
                     isLoggedIn,
                     appVersion,
+                    dashboardStats,
+                    queryTrend,
+                    topQueries,
                     loginForm,
                     loginLoading,
                     loginRules,

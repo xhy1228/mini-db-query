@@ -67,6 +67,24 @@
       <text wx:if="{{!loading}}">登 录</text>
       <text wx:else>登录中...</text>
     </button>
+    
+    <!-- 分割线 -->
+    <view class="divider-line">
+      <view class="line"></view>
+      <text class="text">或</text>
+      <view class="line"></view>
+    </view>
+    
+    <!-- 微信登录按钮 -->
+    <button 
+      class="wechat-btn" 
+      bindtap="doWechatLogin"
+      loading="{{loading}}"
+      disabled="{{loading}}"
+    >
+      <text class="wechat-icon">💚</text>
+      <text>微信一键登录</text>
+    </button>
 
     <!-- 其他选项 -->
     <view class="other-options">
@@ -81,4 +99,47 @@
     <text>© 2026 多源数据查询系统</text>
   </view>
 
+</view>
+
+<!-- 绑定手机号弹窗 -->
+<view class="bind-modal" wx:if="{{showBindPhone}}">
+  <view class="bind-mask" bindtap="cancelBind"></view>
+  <view class="bind-content glass-card">
+    <view class="bind-title">绑定手机号</view>
+    <view class="bind-hint">首次使用微信登录，请绑定手机号完成注册</view>
+    
+    <!-- 手机号输入 -->
+    <view class="form-item">
+      <view class="input-icon">📱</view>
+      <input 
+        class="input-field" 
+        type="number" 
+        maxlength="11"
+        placeholder="请输入手机号" 
+        placeholder-class="placeholder"
+        bindinput="onBindPhoneInput"
+        value="{{bindPhone}}"
+      />
+    </view>
+    
+    <!-- 密码输入 -->
+    <view class="form-item">
+      <view class="input-icon">🔒</view>
+      <input 
+        class="input-field" 
+        type="password" 
+        maxlength="20"
+        placeholder="请设置密码" 
+        placeholder-class="placeholder"
+        bindinput="onBindPasswordInput"
+        value="{{bindPassword}}"
+      />
+    </view>
+    
+    <!-- 按钮组 -->
+    <view class="bind-buttons">
+      <button class="cancel-btn" bindtap="cancelBind">取消</button>
+      <button class="confirm-btn" bindtap="doBindPhone" loading="{{loading}}">确认绑定</button>
+    </view>
+  </view>
 </view>
