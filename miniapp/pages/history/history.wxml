@@ -1,0 +1,57 @@
+<!-- pages/history/history.wxml -->
+<view class="container">
+  
+  <!-- 顶部装饰 -->
+  <view class="header-decoration">
+    <view class="decoration-circle circle-1"></view>
+    <view class="decoration-circle circle-2"></view>
+  </view>
+
+  <!-- 页面标题 -->
+  <view class="page-header">
+    <text class="page-title">查询历史</text>
+    <text class="page-subtitle">最近30条查询记录</text>
+  </view>
+
+  <!-- 历史列表 -->
+  <view class="history-list" wx:if="{{historyList.length > 0}}">
+    <view 
+      class="history-item tech-card animate-fade-in" 
+      wx:for="{{historyList}}" 
+      wx:key="id"
+      bindtap="onHistoryTap"
+      data-item="{{item}}"
+    >
+      <view class="history-icon">
+        <text>{{item.mode === 'smart' ? '🧠' : '📝'}}</text>
+      </view>
+      <view class="history-content">
+        <view class="history-title">{{item.name || 'SQL查询'}}</view>
+        <view class="history-sql">{{item.sql}}</view>
+        <view class="history-meta">
+          <text class="meta-time">{{item.time}}</text>
+          <text class="meta-count">{{item.count}}条</text>
+          <text class="meta-db">{{item.config}}</text>
+        </view>
+      </view>
+      <view class="history-arrow">
+        <text>›</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 空状态 -->
+  <view class="empty-state" wx:if="{{historyList.length === 0}}">
+    <text class="empty-icon">📋</text>
+    <text class="empty-text">暂无查询记录</text>
+    <text class="empty-hint">执行查询后将在此显示</text>
+  </view>
+
+  <!-- 清空按钮 -->
+  <view class="clear-area" wx:if="{{historyList.length > 0}}">
+    <button class="clear-btn" bindtap="clearHistory">
+      <text>🗑️ 清空历史</text>
+    </button>
+  </view>
+
+</view>
