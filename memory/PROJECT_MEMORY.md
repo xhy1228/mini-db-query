@@ -2,6 +2,27 @@
 
 ## 版本历史
 
+### v1.0.0.19 (2026-03-17)
+**管理后台完整功能**
+
+#### 新增 API
+- `/api/manage/schools` - 学校管理 CRUD
+- `/api/manage/databases` - 数据库配置 CRUD
+- `/api/manage/templates` - 查询模板 CRUD
+- `/api/manage/databases/{id}/test` - 数据库连接测试
+- `/api/manage/categories` - 业务大类统计
+
+#### 管理后台功能
+| 模块 | 状态 | 说明 |
+|------|------|------|
+| 用户管理 | ✅ | 增删改查、权限分配 |
+| 学校管理 | ✅ | 增删改查 |
+| 数据库配置 | ✅ | 增删改查、连接测试 |
+| 查询模板 | ✅ | 增删改查 |
+| 操作日志 | ✅ | 分页查询、详情查看 |
+
+---
+
 ### v1.0.0.18 (2026-03-17)
 **重大更新: "先部署，后配置"架构**
 
@@ -40,11 +61,6 @@
 - `backend/admin/setup.html` - 配置页面
 - `scripts/init_database.sql` - 独立初始化脚本
 
-#### 修改文件
-- `scripts/install.bat` - 移除数据库步骤
-- `backend/main.py` - 支持无数据库启动
-- `backend/core/config.py` - DATABASE_URL 可为空
-
 #### 访问地址
 | 地址 | 说明 |
 |------|------|
@@ -52,17 +68,11 @@
 | http://localhost:26316/admin | 管理后台 |
 | http://localhost:26316/docs | API 文档 |
 
-#### 默认账号
-| 角色 | 账号 | 密码 |
-|------|------|------|
-| 超级管理员 | admin | 123456 |
-| 示例用户 | 13800138000 | 123456 |
-
 ---
 
 ## 技术栈
 - 后端: Python 3.10+ FastAPI
-- 前端: 微信小程序
+- 前端: 微信小程序 + Element Plus
 - 认证: JWT
 - 数据库: MySQL 8.0.2+ (系统自身)
 - 支持数据源: MySQL, Oracle, SQL Server
