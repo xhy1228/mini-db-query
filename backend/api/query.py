@@ -266,7 +266,7 @@ async def smart_query(request: SmartQueryRequest,
         # 构建数据库连接配置
         config = {
             'db_type': db_config.db_type,
-            'database': db_config.database,
+            'db_name': db_config.db_name,
         }
         
         # 非SQLite数据库需要更多配置
@@ -526,7 +526,7 @@ async def direct_sql_query(
     try:
         config = {
             'db_type': db_config.db_type,
-            'database': db_config.database,
+            'db_name': db_config.db_name,
         }
         
         if db_config.db_type != 'SQLite':
@@ -660,7 +660,7 @@ async def export_query_result(
     try:
         config = {
             'db_type': db_config.db_type,
-            'database': db_config.database,
+            'db_name': db_config.db_name,
         }
         
         if db_config.db_type != 'SQLite':
@@ -962,7 +962,7 @@ async def test_database(db_id: int,
             'port': config.port,
             'username': config.username,
             'password': plain_password,
-            'database': config.database,
+            'db_name': config.db_name,
             'service_name': config.service_name
         })
         

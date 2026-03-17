@@ -29,7 +29,7 @@ def update_database_config():
             db_config.port = 0
             db_config.username = ''
             db_config.password = ''
-            db_config.database = './data/test_query.db'
+            db_config.db_name = './data/test_query.db'
             db_config.description = 'SQLite测试数据库，包含示例学生、消费、门禁数据'
             
             print("✅ 数据库配置已更新为SQLite")

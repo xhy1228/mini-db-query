@@ -105,7 +105,7 @@ class ConnectionManager:
                     'connect_time': datetime.now(),
                     'db_type': config.get('db_type', 'MySQL'),
                     'host': config.get('host', ''),
-                    'database': config.get('database', '')
+                    'db_name': config.get('db_name', '')
                 }
                 self._update_last_active(config_name)
                 logger.info(f"创建新连接: {config_name}")

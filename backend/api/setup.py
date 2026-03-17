@@ -22,7 +22,7 @@ class DatabaseConfig(BaseModel):
     port: int = 3306
     user: str
     password: str
-    database: str
+    db_name: str
 
 
 class DatabaseConfigResponse(BaseModel):
@@ -87,7 +87,7 @@ async def test_database_connection(config: DatabaseConfig):
     try:
         from sqlalchemy import create_engine, text
         
-        database_url = f"mysql+pymysql://{config.user}:{config.password}@{config.host}:{config.port}/{config.database}?charset=utf8mb4"
+        database_url = f"mysql+pymysql://{config.user}:{config.password}@{config.host}:{config.port}/{config.db_name}?charset=utf8mb4"
         
         engine = create_engine(database_url, connect_args={"connect_timeout": 5})
         with engine.connect() as conn:
@@ -113,7 +113,7 @@ async def save_database_config(config: DatabaseConfig):
     """保存数据库配置"""
     try:
         # 测试连接
-        database_url = f"mysql+pymysql://{config.user}:{config.password}@{config.host}:{config.port}/{config.database}?charset=utf8mb4"
+        database_url = f"mysql+pymysql://{config.user}:{config.password}@{config.host}:{config.port}/{config.db_name}?charset=utf8mb4"
         
         from sqlalchemy import create_engine, text
         engine = create_engine(database_url, connect_args={"connect_timeout": 5})
@@ -159,7 +159,7 @@ async def save_database_config(config: DatabaseConfig):
             connection_info={
                 "host": config.host,
                 "port": config.port,
-                "database": config.database,
+                "db_name": config.db_name,
                 "mysql_version": version
             }
         )
