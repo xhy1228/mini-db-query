@@ -77,7 +77,7 @@ echo.
 echo [Step 3/5] Installing dependencies...
 
 python -m pip install --upgrade pip >> "%INSTALL_LOG%" 2>&1
-pip install fastapi uvicorn sqlalchemy pymysql pydantic-settings python-jose bcrypt passlib pandas pyyaml openpyxl aiofiles httpx cryptography oracledb pyodbc psutil >> "%INSTALL_LOG%" 2>&1
+pip install fastapi uvicorn sqlalchemy pymysql pydantic-settings python-jose bcrypt passlib pandas pyyaml openpyxl aiofiles httpx cryptography oracledb pyodbc psutil python-multipart >> "%INSTALL_LOG%" 2>&1
 
 echo [OK] Dependencies installed
 
@@ -170,14 +170,14 @@ echo.
 echo ============================================
 echo.
 
-set /p START_NOW="Start server now? (Y/N): "
-if /i "%START_NOW%"=="Y" (
-    cd /d "%BACKEND_DIR%"
-    start "Mini DB Query Server" cmd /c "call venv\Scripts\activate.bat && python main.py"
-    timeout /t 3 /nobreak >nul
-    start http://localhost:26316
-)
+REM 直接启动服务，不再询问
+echo Starting server...
+cd /d "%BACKEND_DIR%"
+start "Mini DB Query Server" cmd /c "call venv\Scripts\activate.bat && python main.py"
+timeout /t 3 /nobreak >nul
+start http://localhost:26316
 
+echo.
 echo Thank you for installing Mini DB Query!
 echo.
 pause
