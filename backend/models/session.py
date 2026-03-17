@@ -8,11 +8,12 @@ Deploy first, configure database later
 import os
 import sys
 import logging
+import json
+from urllib.parse import quote_plus
 from sqlalchemy import create_engine, text, event
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.pool import QueuePool
 from typing import Generator, Optional
-import re
 
 logger = logging.getLogger(__name__)
 
@@ -23,10 +24,59 @@ DATABASE_URL = None
 MYSQL_INFO = {}
 
 
+def _get_encrypted_config() -> Optional[dict]:
+    """获取加密存储的配置"""
+    env_file = os.path.join(os.path.dirname(__file__), '..', '.env')
+    if not os.path.exists(env_file):
+        return None
+    
+    try:
+        with open(env_file, 'r', encoding='utf-8') as f:
+            for line in f:
+                if line.startswith('ENCRYPTED_DB_CONFIG='):
+                    encrypted_str = line.split('=', 1)[1].strip()
+                    if not encrypted_str:
+                        return None
+                    
+                    try:
+                        from core.security import decrypt_password
+                        decrypted = decrypt_password(encrypted_str)
+                        return json.loads(decrypted)
+                    except Exception as e:
+                        logger.error(f"解密配置失败: {e}")
+                        return None
+    except Exception as e:
+        logger.error(f"读取配置文件失败: {e}")
+    
+    return None
+
+
+def _build_database_url(config_dict: dict) -> str:
+    """构建数据库URL"""
+    password = config_dict.get('password', '')
+    encoded_password = quote_plus(password)
+    return f"mysql+pymysql://{config_dict['user']}:{encoded_password}@{config_dict['host']}:{config_dict['port']}/{config_dict['db_name']}?charset=utf8mb4"
+
+
 def _load_config():
     """加载配置"""
     global DATABASE_URL, MYSQL_INFO
     
+    # 优先从加密配置读取
+    encrypted_config = _get_encrypted_config()
+    if encrypted_config:
+        DATABASE_URL = _build_database_url(encrypted_config)
+        MYSQL_INFO = {
+            'user': encrypted_config.get('user', ''),
+            'password': '***',  # 隐藏密码
+            'host': encrypted_config.get('host', ''),
+            'port': encrypted_config.get('port', 3306),
+            'db_name': encrypted_config.get('db_name', '')
+        }
+        logger.info(f"MySQL Configuration (encrypted): {MYSQL_INFO.get('host')}:{MYSQL_INFO.get('port')}/{MYSQL_INFO.get('db_name')}")
+        return
+    
+    # 回退到环境变量
     try:
         from core.config import settings
         DATABASE_URL = settings.DATABASE_URL or ""
@@ -35,7 +85,7 @@ def _load_config():
         DATABASE_URL = ""
     
     if DATABASE_URL and DATABASE_URL.startswith('mysql'):
-        # 解析MySQL连接信息
+        import re
         pattern = r'mysql\+pymysql://([^:]+):([^@]+)@([^:]+):(\d+)/([^?]+)'
         match = re.match(pattern, DATABASE_URL)
         if match:
