@@ -1,6 +1,42 @@
 # Mini DB Query - 问题记录与解决方案
 
-## v1.0.0.18 及之前版本的问题
+## 发布流程检查清单
+
+### ⚠️ 重要：每次发布必须完成的步骤
+
+1. ✅ 代码提交到 GitHub
+2. ✅ 创建 Git Tag
+3. ✅ **创建 GitHub Release** ← 容易遗漏！
+4. ✅ **上传发布包到 Release** ← 容易遗漏！
+5. ✅ 确认 Release 页面可下载
+
+### 发布命令模板
+
+```bash
+# 1. 提交代码
+git add . && git commit -m "xxx" && git push origin main
+
+# 2. 创建 Tag
+git tag -a v1.0.0.XX-时间戳 -m "版本说明" && git push origin v1.0.0.XX-时间戳
+
+# 3. 创建 GitHub Release (必须！)
+curl -X POST \
+  -H "Authorization: token TOKEN" \
+  -H "Content-Type: application/json" \
+  https://api.github.com/repos/xhy1228/mini-db-query/releases \
+  -d '{"tag_name": "v1.0.0.XX", "name": "版本标题", "body": "说明", "draft": false}'
+
+# 4. 上传发布包 (必须！)
+curl -X POST \
+  -H "Authorization: token TOKEN" \
+  -H "Content-Type: application/zip" \
+  "https://uploads.github.com/repos/xhy1228/mini-db-query/releases/RELEASE_ID/assets?name=xxx.zip" \
+  --data-binary @xxx.zip
+```
+
+---
+
+## v1.0.0.21 及之前版本的问题
 
 ### 问题1: install.bat 仍包含数据库配置步骤
 **现象**: 
