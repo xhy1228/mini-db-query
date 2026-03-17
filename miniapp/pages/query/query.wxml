@@ -1,0 +1,179 @@
+<!-- pages/query/query.wxml -->
+<view class="container">
+
+  <!-- 顶部导航 -->
+  <view class="page-header">
+    <text class="page-title">数据查询</text>
+    <text class="school-name" wx:if="{{selectedSchool}}">{{selectedSchool.name}}</text>
+    <text class="school-hint" wx:else>请先选择学校</text>
+  </view>
+
+  <!-- 步骤1: 选择业务大类 -->
+  <view class="section" wx:if="{{!selectedCategory}}">
+    <view class="section-header">
+      <text class="section-title">📂 选择业务大类</text>
+    </view>
+    
+    <view class="category-list" wx:if="{{categories.length > 0}}">
+      <view 
+        class="category-card tech-card" 
+        wx:for="{{categories}}" 
+        wx:key="id"
+        data-category="{{item}}"
+        bindtap="onCategoryTap"
+      >
+        <view class="category-main">
+          <text class="category-icon">{{item.icon}}</text>
+          <view class="category-info">
+            <text class="category-name">{{item.name}}</text>
+            <text class="category-count">{{item.count}}个查询</text>
+          </view>
+        </view>
+        <view class="category-arrow">›</view>
+      </view>
+    </view>
+
+    <view class="empty-state" wx:if="{{categories.length === 0}}">
+      <text class="empty-icon">📭</text>
+      <text class="empty-text">暂无业务大类</text>
+    </view>
+  </view>
+
+  <!-- 步骤2: 选择查询模板 -->
+  <view class="section" wx:if="{{selectedCategory && !selectedTemplate}}">
+    <view class="section-header">
+      <view class="back-btn" bindtap="goBack">
+        <text>‹ 返回</text>
+      </view>
+      <text class="section-title">{{selectedCategory.icon}} {{selectedCategory.name}}</text>
+    </view>
+    
+    <view class="template-list" wx:if="{{templates.length > 0}}">
+      <view 
+        class="template-card tech-card" 
+        wx:for="{{templates}}" 
+        wx:key="id"
+        data-template="{{item}}"
+        bindtap="onTemplateTap"
+      >
+        <view class="template-info">
+          <text class="template-name">{{item.name}}</text>
+          <text class="template-desc">{{item.description}}</text>
+          <view class="template-fields">
+            <text class="field-tag" wx:for="{{item.fields}}" wx:for-item="field" wx:key="id">
+              {{field.label}}
+            </text>
+          </view>
+        </view>
+        <view class="template-arrow">›</view>
+      </view>
+    </view>
+
+    <view class="empty-state" wx:if="{{templates.length === 0}}">
+      <text class="empty-icon">📭</text>
+      <text class="empty-text">暂无查询模板</text>
+    </view>
+  </view>
+
+  <!-- 步骤3: 输入查询条件 -->
+  <view class="section" wx:if="{{selectedTemplate}}">
+    <view class="section-header">
+      <view class="back-btn" bindtap="goBack">
+        <text>‹ 返回</text>
+      </view>
+      <text class="section-title">{{selectedTemplate.name}}</text>
+    </view>
+    
+    <!-- 查询条件表单 -->
+    <view class="query-form glass-card">
+      <view class="form-title">查询条件</view>
+      
+      <view class="form-item" wx:for="{{conditions}}" wx:key="index" wx:for-index="idx" wx:for-item="cond">
+        <text class="form-label">{{selectedTemplate.fields[idx].label}}</text>
+        <view class="form-operator">{{cond.operator}}</view>
+        <input 
+          class="form-input" 
+          placeholder="请输入{{selectedTemplate.fields[idx].label}}"
+          placeholder-class="placeholder"
+          data-index="{{idx}}"
+          bindinput="onConditionInput"
+          value="{{cond.value}}"
+        />
+      </view>
+      
+      <!-- 时间范围 -->
+      <block wx:if="{{selectedTemplate.time_field}}">
+        <view class="form-divider"></view>
+        <text class="form-subtitle">⏰ 时间范围（可选）</text>
+        
+        <view class="time-row">
+          <view class="time-item">
+            <text class="time-label">开始时间</text>
+            <picker mode="date" bindchange="onStartTimeChange">
+              <view class="time-picker {{startTime ? 'has-value' : ''}}">
+                {{startTime || '选择日期'}}
+              </view>
+            </picker>
+          </view>
+          
+          <view class="time-item">
+            <text class="time-label">结束时间</text>
+            <picker mode="date" bindchange="onEndTimeChange">
+              <view class="time-picker {{endTime ? 'has-value' : ''}}">
+                {{endTime || '选择日期'}}
+              </view>
+            </picker>
+          </view>
+        </view>
+      </block>
+    </view>
+
+    <!-- 查询按钮 -->
+    <button 
+      class="query-btn" 
+      bindtap="doQuery"
+      loading="{{loading}}"
+      disabled="{{loading}}"
+    >
+      <text wx:if="{{!loading}}">🔍 开始查询</text>
+      <text wx:else>查询中...</text>
+    </button>
+
+    <!-- 查询结果 -->
+    <view class="result-section" wx:if="{{queried}}">
+      <view class="result-header">
+        <text class="result-title">查询结果</text>
+        <text class="result-count" wx:if="{{result.length > 0}}">共{{result.length}}条</text>
+      </view>
+
+      <!-- 有结果 -->
+      <view class="result-table" wx:if="{{result.length > 0}}">
+        <scroll-view scroll-x class="table-scroll">
+          <view class="table">
+            <!-- 表头 -->
+            <view class="table-header">
+              <view class="th" wx:for="{{resultColumns}}" wx:key="*this">
+                {{item}}
+              </view>
+            </view>
+            <!-- 表体 -->
+            <view class="table-body">
+              <view class="tr" wx:for="{{result}}" wx:for-item="row" wx:key="index">
+                <view class="td" wx:for="{{resultColumns}}" wx:for-item="col" wx:key="*this">
+                  {{row[col]}}
+                </view>
+              </view>
+            </view>
+          </view>
+        </scroll-view>
+      </view>
+
+      <!-- 无结果 -->
+      <view class="result-empty" wx:if="{{result.length === 0}}">
+        <text class="empty-icon">📭</text>
+        <text class="empty-text">未查询到数据</text>
+      </view>
+    </view>
+  </view>
+
+</view>
