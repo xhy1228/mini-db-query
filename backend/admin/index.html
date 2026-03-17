@@ -289,6 +289,14 @@
             border-radius: 50%;
         }
         
+        /* 字段配置区域 */
+        .field-config-container {
+            background: #f9fafb;
+            border-radius: 8px;
+            padding: 16px;
+            margin-top: 12px;
+        }
+        
         /* 分页 */
         .pagination-container {
             margin-top: 20px;
@@ -946,6 +954,63 @@
                         </el-form-item>
                     </el-col>
                 </el-row>
+                
+                <!-- 字段配置可视化 -->
+                <el-divider content-position="left">查询字段配置</el-divider>
+                <div class="field-config-container">
+                    <el-button type="primary" size="small" @click="addTemplateField" style="margin-bottom: 12px;">➕ 添加字段</el-button>
+                    <el-table :data="templateForm.fields" border size="small" v-if="templateForm.fields && templateForm.fields.length > 0">
+                        <el-table-column label="字段ID" width="120">
+                            <template #default="{ row }">
+                                <el-input v-model="row.id" size="small" placeholder="如: name"></el-input>
+                            </template>
+                        </el-table-column>
+                        <el-table-column label="显示名称" width="120">
+                            <template #default="{ row }">
+                                <el-input v-model="row.label" size="small" placeholder="如: 姓名"></el-input>
+                            </template>
+                        </el-table-column>
+                        <el-table-column label="数据库列" width="120">
+                            <template #default="{ row }">
+                                <el-input v-model="row.column" size="small" placeholder="如: CUSTNAME"></el-input>
+                            </template>
+                        </el-table-column>
+                        <el-table-column label="类型" width="110">
+                            <template #default="{ row }">
+                                <el-select v-model="row.type" size="small">
+                                    <el-option label="文本" value="text"></el-option>
+                                    <el-option label="数字" value="number"></el-option>
+                                    <el-option label="日期" value="date"></el-option>
+                                    <el-option label="下拉" value="select"></el-option>
+                                </el-select>
+                            </template>
+                        </el-table-column>
+                        <el-table-column label="操作符" width="100">
+                            <template #default="{ row }">
+                                <el-select v-model="row.operator" size="small">
+                                    <el-option label="=" value="="></el-option>
+                                    <el-option label="LIKE" value="LIKE"></el-option>
+                                    <el-option label=">" value=">"></el-option>
+                                    <el-option label="<" value="<"></el-option>
+                                    <el-option label=">=" value=">="></el-option>
+                                    <el-option label="<=" value="<="></el-option>
+                                    <el-option label="!=" value="!="></el-option>
+                                </el-select>
+                            </template>
+                        </el-table-column>
+                        <el-table-column label="必填" width="60">
+                            <template #default="{ row }">
+                                <el-checkbox v-model="row.required"></el-checkbox>
+                            </template>
+                        </el-table-column>
+                        <el-table-column label="操作" width="80">
+                            <template #default="{ $index }">
+                                <el-button type="danger" size="small" @click="removeTemplateField($index)">🗑️</el-button>
+                            </template>
+                        </el-table-column>
+                    </el-table>
+                    <el-empty v-else description="暂无字段配置，点击上方按钮添加" :image-size="60"></el-empty>
+                </div>
             </el-form>
             <template #footer>
                 <el-button @click="templateDialogVisible = false">取消</el-button>
@@ -1153,6 +1218,7 @@
                     category_icon: '',
                     name: '',
                     sql_template: '',
+                    fields: [],
                     time_field: '',
                     default_limit: 500
                 });
@@ -1536,6 +1602,7 @@
                         templateForm.category_icon = template.category_icon;
                         templateForm.name = template.name;
                         templateForm.sql_template = template.sql_template;
+                        templateForm.fields = template.fields || [];
                         templateForm.time_field = template.time_field;
                         templateForm.default_limit = template.default_limit || 500;
                     } else {
@@ -1546,10 +1613,31 @@
                         templateForm.category_icon = '';
                         templateForm.name = '';
                         templateForm.sql_template = '';
+                        templateForm.fields = [];
                         templateForm.time_field = '';
                         templateForm.default_limit = 500;
                     }
                     templateDialogVisible.value = true;
+                };
+                
+                // 添加模板字段
+                const addTemplateField = () => {
+                    if (!templateForm.fields) {
+                        templateForm.fields = [];
+                    }
+                    templateForm.fields.push({
+                        id: '',
+                        label: '',
+                        column: '',
+                        type: 'text',
+                        operator: '=',
+                        required: false
+                    });
+                };
+                
+                // 移除模板字段
+                const removeTemplateField = (index) => {
+                    templateForm.fields.splice(index, 1);
                 };
 
                 const handleSaveTemplate = async () => {
@@ -1774,6 +1862,8 @@
                     templateFormRef,
                     loadTemplates,
                     showTemplateDialog,
+                    addTemplateField,
+                    removeTemplateField,
                     handleSaveTemplate,
                     handleDeleteTemplate,
                     systemConfigs,
