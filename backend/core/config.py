@@ -85,7 +85,7 @@ class Settings(BaseSettings):
                 'password': '***',  # 隐藏密码
                 'host': match.group(3),
                 'port': int(match.group(4)),
-                'database': match.group(5)
+                'db_name': match.group(5)
             }
         return {}
 

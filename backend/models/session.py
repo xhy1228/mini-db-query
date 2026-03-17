@@ -44,9 +44,9 @@ def _load_config():
                 'password': '***',  # 隐藏密码
                 'host': match.group(3),
                 'port': int(match.group(4)),
-                'database': match.group(5).split('?')[0]
+                'db_name': match.group(5).split('?')[0]
             }
-            logger.info(f"MySQL Configuration: {MYSQL_INFO.get('host')}:{MYSQL_INFO.get('port')}/{MYSQL_INFO.get('database')}")
+            logger.info(f"MySQL Configuration: {MYSQL_INFO.get('host')}:{MYSQL_INFO.get('port')}/{MYSQL_INFO.get('db_name')}")
 
 
 def _create_engine():
@@ -192,7 +192,7 @@ def get_db_info() -> dict:
         'type': 'MySQL' if DATABASE_URL and DATABASE_URL.startswith('mysql') else None,
         'host': MYSQL_INFO.get('host'),
         'port': MYSQL_INFO.get('port'),
-        'database': MYSQL_INFO.get('database'),
+        'db_name': MYSQL_INFO.get('db_name'),
         'version': None
     }
     

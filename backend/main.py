@@ -109,7 +109,7 @@ def main():
         if db_configured:
             mysql_info = settings.mysql_info
             if mysql_info:
-                logger.info(f"MySQL: {mysql_info.get('host')}:{mysql_info.get('port')}/{mysql_info.get('database')}")
+                logger.info(f"MySQL: {mysql_info.get('host')}:{mysql_info.get('port')}/{mysql_info.get('db_name')}")
             
             db_connected, db_msg = check_database_connection()
             if db_connected:

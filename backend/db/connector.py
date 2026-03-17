@@ -422,7 +422,7 @@ def get_connector(connector_type: str, config: Optional[Dict[str, Any]] = None) 
     # SQLite不需要检查这些字段
     if connector_type != 'SQLite':
         # 检查必要字段
-        required_fields = ['host', 'port', 'username', 'password', 'database']
+        required_fields = ['host', 'port', 'username', 'password', 'db_name']
         missing_fields = [f for f in required_fields if not config.get(f)]
         if missing_fields:
             raise ValueError(f"配置缺少必要字段: {', '.join(missing_fields)}")
