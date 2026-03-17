@@ -51,6 +51,69 @@ def _get_encrypted_config() -> Optional[dict]:
     return None
 
 
+def build_database_url_from_config(config_dict: dict) -> str:
+    """从配置字典构建数据库URL"""
+    password = config_dict.get('password', '')
+    encoded_password = quote_plus(password)
+    return f"mysql+pymysql://{config_dict['user']}:{encoded_password}@{config_dict['host']}:{config_dict['port']}/{config_dict['db_name']}?charset=utf8mb4"
+
+
+def reload_engine(new_url: str, mysql_info: dict) -> bool:
+    """重新加载数据库引擎"""
+    global engine, SessionLocal
+    
+    logger.info(f"Reloading database engine with: {mysql_info.get('host')}:{mysql_info.get('port')}/{mysql_info.get('db_name')}")
+    
+    # 关闭旧连接
+    if engine:
+        try:
+            engine.dispose()
+        except:
+            pass
+    
+    try:
+        engine = create_engine(
+            new_url,
+            poolclass=QueuePool,
+            pool_size=10,
+            max_overflow=20,
+            pool_timeout=30,
+            pool_recycle=3600,
+            pool_pre_ping=True,
+            echo=False,
+            connect_args={'charset': 'utf8mb4'}
+        )
+        
+        # 测试连接
+        with engine.connect() as conn:
+            result = conn.execute(text("SELECT VERSION()"))
+            version = result.scalar()
+            logger.info(f"MySQL reconnected: {version}")
+        
+        # 创建会话工厂
+        SessionLocal = sessionmaker(
+            autocommit=False,
+            autoflush=False,
+            bind=engine
+        )
+        
+        # 更新全局变量
+        global DATABASE_URL, MYSQL_INFO
+        DATABASE_URL = new_url
+        MYSQL_INFO = mysql_info
+        
+        logger.info("Database engine reloaded successfully")
+        return True
+        
+    except Exception as e:
+        logger.error(f"Failed to reload database engine: {e}")
+        engine = None
+        SessionLocal = None
+        return False
+    
+    return None
+
+
 def _build_database_url(config_dict: dict) -> str:
     """构建数据库URL"""
     password = config_dict.get('password', '')
