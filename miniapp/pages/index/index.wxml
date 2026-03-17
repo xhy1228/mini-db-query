@@ -23,6 +23,56 @@
     </view>
   </view>
 
+  <!-- 今日统计 -->
+  <view class="section stats-section" wx:if="{{stats}}">
+    <view class="stats-grid">
+      <view class="stat-item glass-card">
+        <text class="stat-value">{{stats.today_queries || 0}}</text>
+        <text class="stat-label">今日查询</text>
+      </view>
+      <view class="stat-item glass-card">
+        <text class="stat-value">{{stats.total_queries || 0}}</text>
+        <text class="stat-label">总查询数</text>
+      </view>
+      <view class="stat-item glass-card">
+        <text class="stat-value">{{stats.success_rate || 0}}%</text>
+        <text class="stat-label">成功率</text>
+      </view>
+      <view class="stat-item glass-card">
+        <text class="stat-value">{{stats.active_users || 0}}</text>
+        <text class="stat-label">活跃用户</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 最近查询 -->
+  <view class="section recent-section" wx:if="{{recentQueries.length > 0}}">
+    <view class="section-header">
+      <view class="section-title">
+        <text class="title-icon">🕐</text>
+        <text>最近查询</text>
+      </view>
+      <view class="section-more" bindtap="goToHistory">
+        <text>查看全部</text>
+        <text>›</text>
+      </view>
+    </view>
+    <view class="recent-list">
+      <view class="recent-item glass-card" wx:for="{{recentQueries}}" wx:key="id">
+        <view class="recent-info">
+          <text class="recent-name">{{item.query_name || '查询'}}</text>
+          <text class="recent-time">{{item.timeText}}</text>
+        </view>
+        <view class="recent-meta">
+          <text class="recent-count">{{item.result_count || 0}}条</text>
+          <text class="recent-status {{item.status === 'success' ? 'success' : 'failed'}}">
+            {{item.status === 'success' ? '成功' : '失败'}}
+          </text>
+        </view>
+      </view>
+    </view>
+  </view>
+
   <!-- 学校选择 -->
   <view class="section school-section">
     <view class="section-header">

@@ -17,6 +17,16 @@ Page({
     // 业务大类
     categories: [],
     
+    // 统计数据
+    stats: {
+      total_queries: 0,
+      today_queries: 0,
+      success_rate: 0
+    },
+    
+    // 最近查询
+    recentQueries: [],
+    
     // 加载状态
     loading: true
   },
@@ -69,6 +79,12 @@ Page({
           this.selectSchool(schools[0])
         }
       }
+      
+      // 加载统计数据
+      this.loadStats()
+      
+      // 加载最近查询
+      this.loadRecentQueries()
     } catch (error) {
       console.error('加载数据失败:', error)
       this.setData({ loading: false })
@@ -78,6 +94,47 @@ Page({
         schools: this.getMockSchools()
       })
     }
+  },
+
+  // 加载统计数据
+  async loadStats() {
+    try {
+      const res = await get('/stats/dashboard')
+      if (res.code === 200) {
+        this.setData({ stats: res.data })
+      }
+    } catch (error) {
+      console.error('加载统计失败:', error)
+    }
+  },
+
+  // 加载最近查询
+  async loadRecentQueries() {
+    try {
+      const res = await get('/user/history?limit=5')
+      if (res.code === 200) {
+        const recentQueries = (res.data || []).map(item => ({
+          ...item,
+          timeText: this.formatRecentTime(item.created_at)
+        }))
+        this.setData({ recentQueries })
+      }
+    } catch (error) {
+      console.error('加载最近查询失败:', error)
+    }
+  },
+
+  // 格式化最近查询时间
+  formatRecentTime(timeStr) {
+    if (!timeStr) return ''
+    const date = new Date(timeStr)
+    const now = new Date()
+    const diff = now - date
+    
+    if (diff < 60000) return '刚刚'
+    if (diff < 3600000) return `${Math.floor(diff/60000)}分钟前`
+    if (diff < 86400000) return `${Math.floor(diff/3600000)}小时前`
+    return `${Math.floor(diff/86400000)}天前`
   },
 
   // 获取模拟学校数据
@@ -146,6 +203,11 @@ Page({
   // 跳转到查询页
   goToQuery() {
     wx.switchTab({ url: '/pages/query/query' })
+  },
+
+  // 跳转到历史页
+  goToHistory() {
+    wx.switchTab({ url: '/pages/history/history' })
   },
 
   // 下拉刷新

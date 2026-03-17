@@ -106,6 +106,19 @@
         <view class="form-divider"></view>
         <text class="form-subtitle">⏰ 时间范围（可选）</text>
         
+        <!-- 快捷时间选择 -->
+        <view class="quick-time-row">
+          <view 
+            class="quick-time-item {{selectedQuickTime === item ? 'active' : ''}}" 
+            wx:for="{{quickTimeOptions}}" 
+            wx:key="*this"
+            data-index="{{index}}"
+            bindtap="selectQuickTime"
+          >
+            <text>{{item}}</text>
+          </view>
+        </view>
+        
         <view class="time-row">
           <view class="time-item">
             <text class="time-label">开始时间</text>
@@ -143,7 +156,13 @@
     <view class="result-section" wx:if="{{queried}}">
       <view class="result-header">
         <text class="result-title">查询结果</text>
-        <text class="result-count" wx:if="{{result.length > 0}}">共{{result.length}}条</text>
+        <view class="result-actions">
+          <text class="result-count" wx:if="{{result.length > 0}}">共{{result.length}}条</text>
+          <view class="export-btn" wx:if="{{result.length > 0}}" bindtap="exportResult">
+            <text wx:if="{{!exporting}}">📥 导出</text>
+            <text wx:else>导出中...</text>
+          </view>
+        </view>
       </view>
 
       <!-- 有结果 -->
