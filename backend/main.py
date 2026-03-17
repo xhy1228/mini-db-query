@@ -203,11 +203,12 @@ def main():
             )
 
         # 注册路由
-        from api import auth, query, logs, manage
+        from api import auth, query, logs, manage, stats
         app.include_router(auth.router, prefix="/api")
         app.include_router(query.router, prefix="/api")
         app.include_router(logs.router, prefix="/api")
         app.include_router(manage.router, prefix="/api/manage")
+        app.include_router(stats.router, prefix="/api")
         
         # Setup API - 必须在静态文件之前
         from api.setup import router as setup_router

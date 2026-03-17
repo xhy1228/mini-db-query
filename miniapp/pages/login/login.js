@@ -1,14 +1,19 @@
 // pages/login/login.js
 // 登录页面
 
-const { post, setToken } = require('../../utils/request')
+const { post, get, setToken } = require('../../utils/request')
 
 Page({
   data: {
     phone: '',
     password: '',
     showPassword: false,
-    loading: false
+    loading: false,
+    // 微信登录相关
+    showBindPhone: false,
+    openid: '',
+    bindPhone: '',
+    bindPassword: ''
   },
 
   onLoad(options) {
@@ -40,7 +45,140 @@ Page({
     this.setData({ showPassword: !this.data.showPassword })
   },
 
-  // 登录
+  // 微信登录
+  async doWechatLogin() {
+    this.setData({ loading: true })
+    
+    try {
+      // 获取微信登录code
+      const loginRes = await wx.login()
+      if (!loginRes.code) {
+        wx.showToast({ title: '微信登录失败', icon: 'none' })
+        return
+      }
+      
+      // 调用后端微信登录接口
+      const res = await post('/wechat/login', {
+        code: loginRes.code
+      })
+      
+      if (res.code === 200) {
+        if (res.data.is_new) {
+          // 新用户，需要绑定手机号
+          this.setData({
+            showBindPhone: true,
+            openid: res.data.openid
+          })
+          wx.showToast({
+            title: '请绑定手机号',
+            icon: 'none'
+          })
+        } else {
+          // 已绑定用户，直接登录成功
+          wx.setStorageSync('token', res.data.token)
+          wx.setStorageSync('userInfo', res.data.user)
+          wx.setStorageSync('userRole', res.data.role)
+          
+          wx.showToast({
+            title: '登录成功',
+            icon: 'success',
+            duration: 1500
+          })
+          
+          setTimeout(() => {
+            wx.switchTab({ url: '/pages/index/index' })
+          }, 1500)
+        }
+      } else {
+        wx.showToast({
+          title: res.message || '微信登录失败',
+          icon: 'none'
+        })
+      }
+    } catch (error) {
+      console.error('微信登录失败:', error)
+      wx.showToast({
+        title: '网络错误，请重试',
+        icon: 'none'
+      })
+    } finally {
+      this.setData({ loading: false })
+    }
+  },
+
+  // 绑定手机号输入
+  onBindPhoneInput(e) {
+    this.setData({ bindPhone: e.detail.value })
+  },
+  
+  onBindPasswordInput(e) {
+    this.setData({ bindPassword: e.detail.value })
+  },
+
+  // 提交绑定手机号
+  async doBindPhone() {
+    const { openid, bindPhone, bindPassword } = this.data
+    
+    if (!bindPhone) {
+      wx.showToast({ title: '请输入手机号', icon: 'none' })
+      return
+    }
+    if (!bindPassword) {
+      wx.showToast({ title: '请输入密码', icon: 'none' })
+      return
+    }
+    
+    this.setData({ loading: true })
+    
+    try {
+      const res = await post('/wechat/bind', {
+        openid: openid,
+        phone: bindPhone,
+        password: bindPassword
+      })
+      
+      if (res.code === 200) {
+        wx.setStorageSync('token', res.data.token)
+        wx.setStorageSync('userInfo', res.data.user)
+        wx.setStorageSync('userRole', res.data.role)
+        
+        wx.showToast({
+          title: '绑定成功',
+          icon: 'success',
+          duration: 1500
+        })
+        
+        setTimeout(() => {
+          wx.switchTab({ url: '/pages/index/index' })
+        }, 1500)
+      } else {
+        wx.showToast({
+          title: res.message || '绑定失败',
+          icon: 'none'
+        })
+      }
+    } catch (error) {
+      console.error('绑定失败:', error)
+      wx.showToast({
+        title: '网络错误，请重试',
+        icon: 'none'
+      })
+    } finally {
+      this.setData({ loading: false })
+    }
+  },
+  
+  // 取消绑定
+  cancelBind() {
+    this.setData({
+      showBindPhone: false,
+      openid: '',
+      bindPhone: '',
+      bindPassword: ''
+    })
+  },
+
+  // 账号密码登录
   async doLogin() {
     const { phone, password } = this.data
 
