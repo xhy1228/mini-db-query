@@ -43,7 +43,6 @@ class TestConnectionResponse(BaseModel):
 def build_database_url(config_dict: dict) -> str:
     """构建数据库URL，对密码进行URL编码"""
     password = config_dict.get('password', '')
-    # 对密码进行URL编码，处理特殊字符
     encoded_password = quote_plus(password)
     return f"mysql+pymysql://{config_dict['user']}:{encoded_password}@{config_dict['host']}:{config_dict['port']}/{config_dict['db_name']}?charset=utf8mb4"
 
@@ -58,13 +57,11 @@ def get_encrypted_config() -> Optional[dict]:
         for line in f:
             if line.startswith('ENCRYPTED_DB_CONFIG='):
                 try:
-                    # 读取加密配置
                     encrypted_str = line.split('=', 1)[1].strip()
                     if not encrypted_str:
                         return None
                     
                     from core.security import decrypt_password
-                    # 解密
                     decrypted = decrypt_password(encrypted_str)
                     return json.loads(decrypted)
                 except Exception as e:
@@ -98,9 +95,6 @@ def save_encrypted_config(config_dict: dict) -> bool:
             if line.startswith('ENCRYPTED_DB_CONFIG='):
                 new_lines.append(f'ENCRYPTED_DB_CONFIG={encrypted}\n')
                 config_saved = True
-            elif line.startswith('DATABASE_URL='):
-                # 保留旧的 DATABASE_URL 但不推荐使用
-                new_lines.append(f'# {line}')
             else:
                 new_lines.append(line)
         
@@ -114,6 +108,30 @@ def save_encrypted_config(config_dict: dict) -> bool:
         return True
     except Exception as e:
         logger.error(f"保存加密配置失败: {e}")
+        return False
+
+
+def reload_database_connection(config_dict: dict) -> bool:
+    """重新加载数据库连接"""
+    try:
+        from models.session import reload_engine, build_database_url_from_config
+        
+        # 构建数据库URL
+        database_url = build_database_url_from_config(config_dict)
+        
+        # MySQL 信息
+        mysql_info = {
+            'user': config_dict.get('user'),
+            'password': '***',
+            'host': config_dict.get('host'),
+            'port': config_dict.get('port'),
+            'db_name': config_dict.get('db_name')
+        }
+        
+        # 重新加载引擎
+        return reload_engine(database_url, mysql_info)
+    except Exception as e:
+        logger.error(f"重新加载数据库连接失败: {e}")
         return False
 
 
@@ -219,14 +237,13 @@ async def save_database_config(config: DatabaseConfig):
         if not save_encrypted_config(config_dict):
             raise Exception("Failed to save encrypted config")
         
-        # 更新当前配置
-        from core.config import Settings
-        global settings
-        settings = Settings()
+        # 重新加载数据库连接
+        if not reload_database_connection(config_dict):
+            logger.warning("配置保存成功，但数据库连接重载失败，请重启服务")
         
         return DatabaseConfigResponse(
             success=True,
-            message="Configuration saved successfully (encrypted)",
+            message="Configuration saved successfully (encrypted). Database connection reloaded.",
             connection_info={
                 "host": config.host,
                 "port": config.port,
