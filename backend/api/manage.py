@@ -543,3 +543,146 @@ async def remove_user_school(
     db.delete(user_school)
     db.commit()
     return {"code": 200, "message": "取消授权成功", "data": None}
+
+
+# ========== 系统配置管理 API ==========
+
+class SystemConfigUpdate(BaseModel):
+    """更新系统配置"""
+    config_value: str
+
+
+@router.get("/system/configs")
+async def list_system_configs(
+    category: Optional[str] = None,
+    current_user: TokenData = Depends(get_current_user),
+    db: Session = Depends(get_db_session)
+):
+    """获取系统配置列表"""
+    from models.database import SystemConfig
+    
+    query = db.query(SystemConfig)
+    if category:
+        query = query.filter(SystemConfig.category == category)
+    
+    configs = query.all()
+    
+    # 管理员可以看到完整配置，普通用户只能看到隐藏后的
+    hide_secret = current_user.role != 'admin'
+    
+    return {
+        "code": 200,
+        "message": "获取成功",
+        "data": [c.to_dict(hide_secret=hide_secret) for c in configs]
+    }
+
+
+@router.get("/system/configs/{config_key}")
+async def get_system_config(
+    config_key: str,
+    current_user: TokenData = Depends(get_current_user),
+    db: Session = Depends(get_db_session)
+):
+    """获取单个系统配置"""
+    from models.database import SystemConfig
+    
+    config = db.query(SystemConfig).filter(SystemConfig.config_key == config_key).first()
+    if not config:
+        raise HTTPException(status_code=404, detail="配置不存在")
+    
+    # 管理员可以看到完整配置
+    hide_secret = current_user.role != 'admin'
+    
+    return {"code": 200, "message": "获取成功", "data": config.to_dict(hide_secret=hide_secret)}
+
+
+@router.put("/system/configs/{config_key}")
+async def update_system_config(
+    config_key: str,
+    request: SystemConfigUpdate,
+    current_user: TokenData = Depends(get_current_user),
+    db: Session = Depends(get_db_session)
+):
+    """更新系统配置（管理员权限）"""
+    if current_user.role != 'admin':
+        raise HTTPException(status_code=403, detail="权限不足")
+    
+    from models.database import SystemConfig
+    
+    config = db.query(SystemConfig).filter(SystemConfig.config_key == config_key).first()
+    if not config:
+        raise HTTPException(status_code=404, detail="配置不存在")
+    
+    # 如果是敏感配置，加密存储
+    if config.config_type == 'secret' and request.config_value:
+        config.config_value = encrypt_password(request.config_value)
+    else:
+        config.config_value = request.config_value
+    
+    db.commit()
+    db.refresh(config)
+    
+    return {"code": 200, "message": "更新成功", "data": config.to_dict(hide_secret=True)}
+
+
+@router.post("/system/configs")
+async def create_system_config(
+    config_key: str,
+    display_name: str,
+    config_value: str = "",
+    config_type: str = "text",
+    description: str = "",
+    category: str = "system",
+    current_user: TokenData = Depends(get_current_user),
+    db: Session = Depends(get_db_session)
+):
+    """创建系统配置（管理员权限）"""
+    if current_user.role != 'admin':
+        raise HTTPException(status_code=403, detail="权限不足")
+    
+    from models.database import SystemConfig
+    
+    # 检查是否已存在
+    existing = db.query(SystemConfig).filter(SystemConfig.config_key == config_key).first()
+    if existing:
+        return {"code": 400, "message": "配置键已存在", "data": None}
+    
+    # 如果是敏感配置，加密存储
+    if config_type == 'secret' and config_value:
+        config_value = encrypt_password(config_value)
+    
+    config = SystemConfig(
+        config_key=config_key,
+        config_value=config_value,
+        config_type=config_type,
+        display_name=display_name,
+        description=description,
+        category=category
+    )
+    db.add(config)
+    db.commit()
+    db.refresh(config)
+    
+    return {"code": 200, "message": "创建成功", "data": config.to_dict(hide_secret=True)}
+
+
+@router.delete("/system/configs/{config_key}")
+async def delete_system_config(
+    config_key: str,
+    current_user: TokenData = Depends(get_current_user),
+    db: Session = Depends(get_db_session)
+):
+    """删除系统配置（管理员权限）"""
+    if current_user.role != 'admin':
+        raise HTTPException(status_code=403, detail="权限不足")
+    
+    from models.database import SystemConfig
+    
+    config = db.query(SystemConfig).filter(SystemConfig.config_key == config_key).first()
+    if not config:
+        raise HTTPException(status_code=404, detail="配置不存在")
+    
+    db.delete(config)
+    db.commit()
+    return {"code": 200, "message": "删除成功", "data": None}
+

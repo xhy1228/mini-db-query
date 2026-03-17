@@ -158,6 +158,34 @@ CREATE TABLE IF NOT EXISTS `operation_logs` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='操作日志表';
 
 -- ============================================
+-- Table: system_configs (系统配置表)
+-- ============================================
+CREATE TABLE IF NOT EXISTS `system_configs` (
+    `id` INT NOT NULL AUTO_INCREMENT COMMENT '主键',
+    `config_key` VARCHAR(100) NOT NULL COMMENT '配置键',
+    `config_value` TEXT COMMENT '配置值(加密)',
+    `config_type` VARCHAR(50) DEFAULT 'text' COMMENT '类型: text/secret/json',
+    `display_name` VARCHAR(100) COMMENT '显示名称',
+    `description` TEXT COMMENT '描述',
+    `category` VARCHAR(50) DEFAULT 'system' COMMENT '分类: wechat/system/security',
+    `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_config_key` (`config_key`),
+    KEY `idx_category` (`category`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='系统配置表';
+
+-- ============================================
+-- Default Data: System Configs
+-- ============================================
+INSERT INTO `system_configs` (`config_key`, `config_value`, `config_type`, `display_name`, `description`, `category`) VALUES
+('wechat_appid', '', 'secret', '微信小程序AppID', '微信小程序的AppID', 'wechat'),
+('wechat_secret', '', 'secret', '微信小程序Secret', '微信小程序的AppSecret', 'wechat'),
+('jwt_expire_minutes', '10080', 'text', 'Token有效期(分钟)', 'JWT Token有效期，默认7天', 'security'),
+('max_query_rows', '10000', 'text', '最大查询条数', '单次查询返回的最大数据条数', 'system'),
+('query_timeout', '30', 'text', '查询超时(秒)', '查询超时时间', 'system');
+
+-- ============================================
 -- Default Data: Schools
 -- ============================================
 INSERT INTO `schools` (`name`, `code`, `description`, `status`) VALUES
