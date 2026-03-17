@@ -90,6 +90,20 @@ g:\mini-db-query\mini-db-query-v1.0.0.18-xxx-windows\dist\backend\venv\...
 
 ---
 
+### 问题4: install.bat 询问启动服务 (v1.0.0.22修复)
+**现象**: 安装完成后询问 `Start server now? (Y/N):`
+
+**解决方案**: 直接启动服务，不再询问
+
+---
+
+### 问题5: 缺少 python-multipart 依赖 (v1.0.0.22修复)
+**现象**: `Form data requires "python-multipart" to be installed`
+
+**解决方案**: 在 install.bat 的 pip install 中添加 `python-multipart`
+
+---
+
 ## 安装流程设计原则
 
 ### "先部署后配置"架构
@@ -134,6 +148,8 @@ g:\mini-db-query\mini-db-query-v1.0.0.18-xxx-windows\dist\backend\venv\...
 | 版本 | 状态 | 说明 |
 |------|------|------|
 | v1.0.0.17及之前 | ❌废弃 | 包含数据库配置步骤 |
-| v1.0.0.18 | ✅修复 | 移除数据库配置步骤 |
-| v1.0.0.19 | ✅完善 | 添加管理API |
-| v1.0.0.20 | ✅当前 | Bug修复 |
+| v1.0.0.18 | ⚠️过时 | 移除数据库配置步骤 |
+| v1.0.0.19 | ⚠️过时 | 添加管理API |
+| v1.0.0.20 | ⚠️过时 | Bug修复 |
+| v1.0.0.21 | ⚠️过时 | .env.example修复 |
+| v1.0.0.22 | ✅当前 | install.bat直接启动+python-multipart |
