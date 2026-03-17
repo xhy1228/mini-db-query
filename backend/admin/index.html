@@ -314,7 +314,7 @@
                             </el-table-column>
                             <el-table-column prop="host" label="主机地址" width="150"></el-table-column>
                             <el-table-column prop="port" label="端口" width="80"></el-table-column>
-                            <el-table-column prop="database" label="数据库" width="120"></el-table-column>
+                            <el-table-column prop="db_name" label="数据库" width="120"></el-table-column>
                             <el-table-column prop="status" label="状态" width="100">
                                 <template #default="{ row }">
                                     <span :class="['status-tag', row.status === 'active' ? 'status-active' : 'status-inactive']">
@@ -534,14 +534,14 @@
                 <el-form-item label="密码" prop="password" v-if="databaseForm.db_type !== 'SQLite'">
                     <el-input v-model="databaseForm.password" type="password" placeholder="请输入密码" show-password></el-input>
                 </el-form-item>
-                <el-form-item label="数据库名" prop="database" v-if="databaseForm.db_type !== 'SQLite'">
-                    <el-input v-model="databaseForm.database" placeholder="请输入数据库名"></el-input>
+                <el-form-item label="数据库名" prop="db_name" v-if="databaseForm.db_type !== 'SQLite'">
+                    <el-input v-model="databaseForm.db_name" placeholder="请输入数据库名"></el-input>
                 </el-form-item>
                 <el-form-item label="服务名" v-if="databaseForm.db_type === 'Oracle'">
                     <el-input v-model="databaseForm.service_name" placeholder="Oracle服务名"></el-input>
                 </el-form-item>
-                <el-form-item label="数据库文件" prop="database" v-if="databaseForm.db_type === 'SQLite'">
-                    <el-input v-model="databaseForm.database" placeholder="数据库文件路径，如 ./data/test.db"></el-input>
+                <el-form-item label="数据库文件" prop="db_name" v-if="databaseForm.db_type === 'SQLite'">
+                    <el-input v-model="databaseForm.db_name" placeholder="数据库文件路径，如 ./data/test.db"></el-input>
                 </el-form-item>
                 <el-form-item label="描述">
                     <el-input v-model="databaseForm.description" type="textarea" placeholder="请输入描述"></el-input>
@@ -699,7 +699,7 @@
                     port: 3306,
                     username: '',
                     password: '',
-                    database: '',
+                    db_name: '',
                     service_name: '',
                     description: ''
                 });
@@ -1066,7 +1066,7 @@
                         databaseForm.port = db.port || 3306;
                         databaseForm.username = db.username || '';
                         databaseForm.password = '';
-                        databaseForm.database = db.database || '';
+                        databaseForm.db_name = db.db_name || '';
                         databaseForm.service_name = db.service_name || '';
                         databaseForm.description = db.description || '';
                     } else {
@@ -1078,7 +1078,7 @@
                         databaseForm.port = 3306;
                         databaseForm.username = '';
                         databaseForm.password = '';
-                        databaseForm.database = '';
+                        databaseForm.db_name = '';
                         databaseForm.service_name = '';
                         databaseForm.description = '';
                     }
