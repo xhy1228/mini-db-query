@@ -702,6 +702,55 @@
                     </div>
                 </div>
 
+                <!-- 系统配置 -->
+                <div v-show="activeMenu === 'system'">
+                    <div class="search-bar">
+                        <el-select v-model="systemSearch.category" placeholder="分类" style="width: 150px" clearable>
+                            <el-option label="微信小程序" value="wechat"></el-option>
+                            <el-option label="系统配置" value="system"></el-option>
+                            <el-option label="安全配置" value="security"></el-option>
+                        </el-select>
+                        <el-button type="primary" @click="loadSystemConfigs">🔍 搜索</el-button>
+                        <el-button type="success" @click="showSystemConfigDialog()">➕ 新增配置</el-button>
+                    </div>
+                    <div class="table-container">
+                        <el-table :data="systemConfigs" stripe style="width: 100%">
+                            <el-table-column prop="config_key" label="配置键" min-width="180">
+                                <template #default="{ row }">
+                                    <code style="background: #f5f5f5; padding: 2px 6px; border-radius: 4px;">{{ row.config_key }}</code>
+                                </template>
+                            </el-table-column>
+                            <el-table-column prop="display_name" label="显示名称" min-width="150"></el-table-column>
+                            <el-table-column prop="config_value" label="配置值" min-width="200">
+                                <template #default="{ row }">
+                                    <span v-if="row.config_type === 'secret'" style="font-family: monospace;">{{ row.config_value }}</span>
+                                    <span v-else>{{ row.config_value }}</span>
+                                </template>
+                            </el-table-column>
+                            <el-table-column prop="config_type" label="类型" width="100">
+                                <template #default="{ row }">
+                                    <el-tag size="small" :type="row.config_type === 'secret' ? 'danger' : (row.config_type === 'json' ? 'warning' : 'info')">
+                                        {{ row.config_type === 'secret' ? '敏感' : (row.config_type === 'json' ? 'JSON' : '文本') }}
+                                    </el-tag>
+                                </template>
+                            </el-table-column>
+                            <el-table-column prop="category" label="分类" width="120">
+                                <template #default="{ row }">
+                                    <el-tag size="small" :type="row.category === 'wechat' ? 'success' : (row.category === 'security' ? 'warning' : '')">
+                                        {{ row.category === 'wechat' ? '微信' : (row.category === 'security' ? '安全' : '系统') }}
+                                    </el-tag>
+                                </template>
+                            </el-table-column>
+                            <el-table-column label="操作" min-width="160" fixed="right">
+                                <template #default="{ row }">
+                                    <el-button size="small" @click="showSystemConfigDialog(row)">✏️ 编辑</el-button>
+                                    <el-button size="small" type="danger" @click="handleDeleteSystemConfig(row)">🗑️ 删除</el-button>
+                                </template>
+                            </el-table-column>
+                        </el-table>
+                    </div>
+                </div>
+
                 <!-- 操作日志 -->
                 <div v-show="activeMenu === 'logs'">
                     <div class="search-bar">
@@ -938,6 +987,47 @@
                 </el-descriptions-item>
             </el-descriptions>
         </el-dialog>
+
+        <!-- 系统配置对话框 -->
+        <el-dialog v-model="systemConfigDialogVisible" :title="systemConfigForm.config_key ? '✏️ 编辑配置' : '➕ 新增配置'" width="500px">
+            <el-form :model="systemConfigForm" ref="systemConfigFormRef" label-width="100px">
+                <el-form-item label="配置键" v-if="!systemConfigForm.config_key">
+                    <el-input v-model="systemConfigForm.new_key" placeholder="如: wechat_appid"></el-input>
+                </el-form-item>
+                <el-form-item label="显示名称" v-if="!systemConfigForm.config_key">
+                    <el-input v-model="systemConfigForm.display_name" placeholder="如: 微信小程序AppID"></el-input>
+                </el-form-item>
+                <el-form-item label="配置值">
+                    <el-input 
+                        v-model="systemConfigForm.config_value" 
+                        :type="systemConfigForm.config_type === 'secret' ? 'password' : 'text'"
+                        placeholder="请输入配置值"
+                        show-password
+                    ></el-input>
+                </el-form-item>
+                <el-form-item label="类型" v-if="!systemConfigForm.config_key">
+                    <el-select v-model="systemConfigForm.config_type" style="width: 100%">
+                        <el-option label="文本" value="text"></el-option>
+                        <el-option label="敏感信息" value="secret"></el-option>
+                        <el-option label="JSON" value="json"></el-option>
+                    </el-select>
+                </el-form-item>
+                <el-form-item label="分类" v-if="!systemConfigForm.config_key">
+                    <el-select v-model="systemConfigForm.category" style="width: 100%">
+                        <el-option label="微信小程序" value="wechat"></el-option>
+                        <el-option label="系统配置" value="system"></el-option>
+                        <el-option label="安全配置" value="security"></el-option>
+                    </el-select>
+                </el-form-item>
+                <el-form-item label="描述" v-if="!systemConfigForm.config_key">
+                    <el-input v-model="systemConfigForm.description" type="textarea" placeholder="配置说明"></el-input>
+                </el-form-item>
+            </el-form>
+            <template #footer>
+                <el-button @click="systemConfigDialogVisible = false">取消</el-button>
+                <el-button type="primary" @click="handleSaveSystemConfig">保存</el-button>
+            </template>
+        </el-dialog>
     </div>
 
     <script>
@@ -981,6 +1071,7 @@
                     { key: 'schools', name: '学校管理', icon: '🏫' },
                     { key: 'databases', name: '数据库配置', icon: '🗄️' },
                     { key: 'templates', name: '查询模板', icon: '📝' },
+                    { key: 'system', name: '系统配置', icon: '⚙️' },
                     { key: 'logs', name: '操作日志', icon: '📋' }
                 ];
                 const currentMenuName = computed(() => {
@@ -1073,6 +1164,21 @@
                 };
                 const templateFormRef = ref(null);
 
+                // 系统配置
+                const systemConfigs = ref([]);
+                const systemSearch = reactive({ category: '' });
+                const systemConfigDialogVisible = ref(false);
+                const systemConfigForm = reactive({
+                    config_key: '',
+                    new_key: '',
+                    display_name: '',
+                    config_value: '',
+                    config_type: 'text',
+                    category: 'system',
+                    description: ''
+                });
+                const systemConfigFormRef = ref(null);
+
                 // 操作日志
                 const logs = ref([]);
                 const logSearch = reactive({
@@ -1151,6 +1257,7 @@
                     loadSchools();
                     loadDatabases();
                     loadTemplates();
+                    loadSystemConfigs();
                 };
 
                 // 用户管理
@@ -1515,6 +1622,90 @@
                     });
                 };
 
+                // 系统配置管理
+                const loadSystemConfigs = async () => {
+                    try {
+                        const params = new URLSearchParams();
+                        if (systemSearch.category) params.append('category', systemSearch.category);
+                        
+                        const res = await request(`/manage/system/configs?${params}`);
+                        if (res.code === 200) {
+                            systemConfigs.value = res.data || [];
+                        }
+                    } catch (e) {
+                        console.error(e);
+                    }
+                };
+
+                const showSystemConfigDialog = (config) => {
+                    if (config) {
+                        systemConfigForm.config_key = config.config_key;
+                        systemConfigForm.new_key = '';
+                        systemConfigForm.display_name = config.display_name || '';
+                        systemConfigForm.config_value = '';
+                        systemConfigForm.config_type = config.config_type || 'text';
+                        systemConfigForm.category = config.category || 'system';
+                        systemConfigForm.description = config.description || '';
+                    } else {
+                        systemConfigForm.config_key = '';
+                        systemConfigForm.new_key = '';
+                        systemConfigForm.display_name = '';
+                        systemConfigForm.config_value = '';
+                        systemConfigForm.config_type = 'text';
+                        systemConfigForm.category = 'system';
+                        systemConfigForm.description = '';
+                    }
+                    systemConfigDialogVisible.value = true;
+                };
+
+                const handleSaveSystemConfig = async () => {
+                    try {
+                        let url, method, body;
+                        
+                        if (systemConfigForm.config_key) {
+                            // 编辑
+                            url = `/manage/system/configs/${systemConfigForm.config_key}`;
+                            method = 'PUT';
+                            body = JSON.stringify({ config_value: systemConfigForm.config_value });
+                        } else {
+                            // 新增
+                            url = '/manage/system/configs';
+                            method = 'POST';
+                            body = JSON.stringify({
+                                config_key: systemConfigForm.new_key,
+                                display_name: systemConfigForm.display_name,
+                                config_value: systemConfigForm.config_value,
+                                config_type: systemConfigForm.config_type,
+                                category: systemConfigForm.category,
+                                description: systemConfigForm.description
+                            });
+                        }
+                        
+                        const res = await request(url, { method, body });
+                        
+                        if (res.code === 200) {
+                            ElementPlus.ElMessage.success('保存成功');
+                            systemConfigDialogVisible.value = false;
+                            loadSystemConfigs();
+                        } else {
+                            ElementPlus.ElMessage.error(res.message || '保存失败');
+                        }
+                    } catch (e) {
+                        ElementPlus.ElMessage.error('保存失败');
+                    }
+                };
+
+                const handleDeleteSystemConfig = async (config) => {
+                    try {
+                        await ElementPlus.ElMessageBox.confirm(`确定删除配置 ${config.config_key}?`, '提示', { type: 'warning' });
+                        const res = await request(`/manage/system/configs/${config.config_key}`, { method: 'DELETE' });
+                        if (res.code === 200) {
+                            ElementPlus.ElMessage.success('删除成功');
+                            loadSystemConfigs();
+                        }
+                    } catch (e) {}
+                };
+
                 // 初始化
                 onMounted(() => {
                     // 加载版本号
@@ -1585,6 +1776,15 @@
                     showTemplateDialog,
                     handleSaveTemplate,
                     handleDeleteTemplate,
+                    systemConfigs,
+                    systemSearch,
+                    systemConfigDialogVisible,
+                    systemConfigForm,
+                    systemConfigFormRef,
+                    loadSystemConfigs,
+                    showSystemConfigDialog,
+                    handleSaveSystemConfig,
+                    handleDeleteSystemConfig,
                     logs,
                     logSearch,
                     logPagination,

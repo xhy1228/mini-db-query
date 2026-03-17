@@ -211,6 +211,52 @@ class QueryLog(Base):
         }
 
 
+class SystemConfig(Base):
+    """系统配置表"""
+    __tablename__ = 'system_configs'
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    config_key = Column(String(100), unique=True, nullable=False, comment='配置键')
+    config_value = Column(Text, comment='配置值(加密)')
+    config_type = Column(String(50), default='text', comment='类型: text/secret/json')
+    display_name = Column(String(100), comment='显示名称')
+    description = Column(Text, comment='描述')
+    category = Column(String(50), default='system', comment='分类: wechat/system/security')
+    created_at = Column(DateTime, default=datetime.now, comment='创建时间')
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now, comment='更新时间')
+    
+    def to_dict(self, hide_secret=True):
+        """转换为字典，敏感信息隐藏显示"""
+        value = self.config_value
+        
+        # 解密
+        if self.config_type == 'secret' and self.config_value:
+            try:
+                from core.security import decrypt_password
+                value = decrypt_password(self.config_value)
+                
+                # 隐藏中间部分
+                if hide_secret and len(value) > 4:
+                    if 'secret' in self.config_key.lower() or 'key' in self.config_key.lower():
+                        # 显示前4位和后4位
+                        value = value[:4] + '*' * (len(value) - 8) + value[-4:] if len(value) > 8 else value[:2] + '*' * (len(value) - 2)
+                    elif 'appid' in self.config_key.lower():
+                        value = value[:4] + '*' * (len(value) - 4)
+            except:
+                value = '******'
+        
+        return {
+            'id': self.id,
+            'config_key': self.config_key,
+            'config_value': value,
+            'config_type': self.config_type,
+            'display_name': self.display_name,
+            'description': self.description,
+            'category': self.category,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+        }
+
+
 # 数据库初始化函数
 def init_database(engine):
     """初始化数据库表"""
