@@ -129,6 +129,9 @@ class User(Base):
     password = Column(String(255), nullable=False, comment='密码(加密)')
     name = Column(String(100), nullable=False, comment='姓名')
     id_card = Column(String(255), comment='身份证号(加密)')
+    openid = Column(String(100), unique=True, nullable=True, comment='微信openid')
+    unionid = Column(String(100), unique=True, nullable=True, comment='微信unionid')
+    avatar = Column(String(500), nullable=True, comment='头像URL')
     role = Column(String(20), default='user', comment='角色: admin/user')
     status = Column(String(20), default='active', comment='状态')
     last_login = Column(DateTime, comment='最后登录时间')
@@ -144,6 +147,8 @@ class User(Base):
             'id': self.id,
             'phone': self.phone,
             'name': self.name,
+            'openid': self.openid,
+            'avatar': self.avatar,
             'role': self.role,
             'status': self.status,
             'last_login': self.last_login.isoformat() if self.last_login else None,

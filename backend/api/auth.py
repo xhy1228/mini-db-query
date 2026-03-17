@@ -27,6 +27,20 @@ class LoginRequest(BaseModel):
     password: str = Field(..., description="密码(身份证后6位)")
 
 
+class WechatLoginRequest(BaseModel):
+    """微信登录请求"""
+    code: str = Field(..., description="微信登录code")
+    encrypted_data: Optional[str] = Field(None, description="加密数据")
+    iv: Optional[str] = Field(None, description="初始向量")
+
+
+class BindPhoneRequest(BaseModel):
+    """绑定手机号请求"""
+    openid: str = Field(..., description="微信openid")
+    phone: str = Field(..., description="手机号")
+    password: str = Field(..., description="密码")
+
+
 class LoginResponse(BaseModel):
     """登录响应"""
     code: int
@@ -72,6 +86,206 @@ async def login(request: LoginRequest, db: Session = Depends(get_db_session)):
             "role": result["role"]
         }
     }
+
+
+@router.post("/wechat/login", response_model=LoginResponse)
+async def wechat_login(request: WechatLoginRequest, db: Session = Depends(get_db_session)):
+    """
+    微信小程序登录
+    
+    - **code**: 微信登录code（wx.login获取）
+    
+    返回：用户信息 + JWT Token（如果是已绑定用户）
+    """
+    import httpx
+    import logging
+    from models.database import SystemConfig
+    
+    logger = logging.getLogger(__name__)
+    
+    # 获取微信配置
+    appid_config = db.query(SystemConfig).filter(SystemConfig.config_key == 'wechat_appid').first()
+    secret_config = db.query(SystemConfig).filter(SystemConfig.config_key == 'wechat_secret').first()
+    
+    if not appid_config or not secret_config:
+        return {
+            "code": 500,
+            "message": "微信小程序未配置，请联系管理员",
+            "data": None
+        }
+    
+    # 解密配置
+    try:
+        from core.security import decrypt_password
+        appid = decrypt_password(appid_config.config_value)
+        secret = decrypt_password(secret_config.config_value)
+    except:
+        return {
+            "code": 500,
+            "message": "微信配置解密失败",
+            "data": None
+        }
+    
+    # 调用微信接口获取 openid
+    url = f"https://api.weixin.qq.com/sns/jscode2session?appid={appid}&secret={secret}&js_code={request.code}&grant_type=authorization_code"
+    
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(url, timeout=10)
+            data = response.json()
+    except Exception as e:
+        logger.error(f"微信接口调用失败: {e}")
+        return {
+            "code": 500,
+            "message": "微信接口调用失败",
+            "data": None
+        }
+    
+    if 'errcode' in data and data['errcode'] != 0:
+        logger.error(f"微信登录失败: {data}")
+        return {
+            "code": 400,
+            "message": data.get('errmsg', '微信登录失败'),
+            "data": None
+        }
+    
+    openid = data.get('openid')
+    session_key = data.get('session_key')
+    
+    if not openid:
+        return {
+            "code": 400,
+            "message": "获取openid失败",
+            "data": None
+        }
+    
+    # 查找是否已绑定用户
+    user = UserService.get_by_openid(db, openid)
+    
+    if user:
+        # 已绑定，直接登录
+        from core.security import create_access_token
+        from datetime import datetime
+        
+        # 更新最后登录时间
+        user.last_login = datetime.now()
+        db.commit()
+        
+        # 生成token
+        access_token = create_access_token({
+            "sub": str(user.id),
+            "phone": user.phone,
+            "role": user.role,
+            "name": user.name
+        })
+        
+        return {
+            "code": 200,
+            "message": "登录成功",
+            "data": {
+                "token": access_token,
+                "token_type": "bearer",
+                "user": user.to_dict(),
+                "role": user.role,
+                "is_new": False
+            }
+        }
+    else:
+        # 未绑定，返回 openid 让用户绑定手机号
+        return {
+            "code": 200,
+            "message": "请绑定手机号",
+            "data": {
+                "openid": openid,
+                "session_key": session_key,
+                "is_new": True
+            }
+        }
+
+
+@router.post("/wechat/bind", response_model=LoginResponse)
+async def bind_phone(request: BindPhoneRequest, db: Session = Depends(get_db_session)):
+    """
+    绑定手机号
+    
+    - **openid**: 微信openid
+    - **phone**: 手机号
+    - **password**: 密码
+    
+    返回：用户信息 + JWT Token
+    """
+    # 检查手机号是否已存在
+    existing_user = UserService.get_by_phone(db, request.phone)
+    
+    if existing_user:
+        # 手机号已存在，绑定 openid
+        if existing_user.openid:
+            return {
+                "code": 400,
+                "message": "该手机号已绑定其他微信",
+                "data": None
+            }
+        
+        existing_user.openid = request.openid
+        db.commit()
+        
+        # 生成token
+        from core.security import create_access_token
+        from datetime import datetime
+        
+        existing_user.last_login = datetime.now()
+        db.commit()
+        
+        access_token = create_access_token({
+            "sub": str(existing_user.id),
+            "phone": existing_user.phone,
+            "role": existing_user.role,
+            "name": existing_user.name
+        })
+        
+        return {
+            "code": 200,
+            "message": "绑定成功",
+            "data": {
+                "token": access_token,
+                "token_type": "bearer",
+                "user": existing_user.to_dict(),
+                "role": existing_user.role
+            }
+        }
+    else:
+        # 手机号不存在，创建新用户
+        from core.security import get_password_hash, create_access_token
+        from datetime import datetime
+        
+        user = UserService.create_user(
+            db,
+            phone=request.phone,
+            password=request.password,
+            name=f"用户{request.phone[-4:]}",
+            role='user'
+        )
+        user.openid = request.openid
+        user.last_login = datetime.now()
+        db.commit()
+        
+        access_token = create_access_token({
+            "sub": str(user.id),
+            "phone": user.phone,
+            "role": user.role,
+            "name": user.name
+        })
+        
+        return {
+            "code": 200,
+            "message": "注册成功",
+            "data": {
+                "token": access_token,
+                "token_type": "bearer",
+                "user": user.to_dict(),
+                "role": user.role
+            }
+        }
 
 
 @router.get("/me", response_model=UserInfoResponse)

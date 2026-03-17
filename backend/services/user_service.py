@@ -74,6 +74,11 @@ class UserService:
         return db.query(User).filter(User.phone == phone).first()
     
     @staticmethod
+    def get_by_openid(db: Session, openid: str) -> Optional[User]:
+        """根据微信openid获取用户"""
+        return db.query(User).filter(User.openid == openid).first()
+    
+    @staticmethod
     def create_user(db: Session, phone: str, password: str, name: str, 
                    id_card: str = None, role: str = 'user') -> User:
         """创建用户"""
