@@ -45,7 +45,7 @@ class DatabaseCreate(BaseModel):
     port: Optional[int] = 3306
     username: Optional[str] = ""
     password: Optional[str] = ""
-    database: Optional[str] = ""
+    db_name: Optional[str] = ""
     service_name: Optional[str] = None
     driver: Optional[str] = None
     description: Optional[str] = None
@@ -60,7 +60,7 @@ class DatabaseUpdate(BaseModel):
     port: Optional[int] = None
     username: Optional[str] = None
     password: Optional[str] = None
-    database: Optional[str] = None
+    db_name: Optional[str] = None
     service_name: Optional[str] = None
     driver: Optional[str] = None
     description: Optional[str] = None
@@ -243,7 +243,7 @@ async def create_database(
         port=request.port or 3306,
         username=request.username or "",
         password=request.password or "",
-        database=request.database or "",
+        db_name=request.db_name or "",
         service_name=request.service_name,
         driver=request.driver,
         description=request.description
@@ -327,7 +327,7 @@ async def test_database_connection(
         
         # 构建连接URL
         if db_config.db_type == 'MySQL':
-            url = f"mysql+pymysql://{db_config.username}:{db_config.password}@{db_config.host}:{db_config.port}/{db_config.database}?charset=utf8mb4"
+            url = f"mysql+pymysql://{db_config.username}:{db_config.password}@{db_config.host}:{db_config.port}/{db_config.db_name}?charset=utf8mb4"
         elif db_config.db_type == 'Oracle':
             url = f"oracle+oracledb://{db_config.username}:{db_config.password}@{db_config.host}:{db_config.port}/?service_name={db_config.service_name}"
         else:

@@ -53,7 +53,7 @@ class DatabaseConfig(Base):
     port = Column(Integer, nullable=False, comment='端口')
     username = Column(String(100), nullable=False, comment='用户名')
     password = Column(Text, nullable=False, comment='密码(加密)')
-    database = Column(String(100), comment='数据库名')
+    db_name = Column(String(100), comment='数据库名')
     service_name = Column(String(100), comment='Oracle服务名')
     driver = Column(String(100), comment='ODBC驱动')
     description = Column(Text, comment='描述')
@@ -73,7 +73,7 @@ class DatabaseConfig(Base):
             'host': self.host,
             'port': self.port,
             'username': self.username,
-            'database': self.database,
+            'db_name': self.db_name,
             'description': self.description,
             'status': self.status
         }

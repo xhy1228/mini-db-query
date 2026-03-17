@@ -71,7 +71,7 @@ def parse_connection_error(error: Exception, db_type: str, config: Dict[str, Any
     error_type = "unknown"
     host = config.get('host', 'unknown')
     port = config.get('port', 'unknown')
-    database = config.get('database', 'unknown')
+    database = config.get('db_name', 'unknown')
     username = config.get('username', 'unknown')
     
     # 网络相关错误
@@ -251,7 +251,7 @@ class DatabaseConnector:
             # 测试连接是否有效
             with self.engine.connect() as conn:
                 conn.execute(text("SELECT 1 FROM DUAL" if self.config.get('db_type') == 'Oracle' else "SELECT 1"))
-            logger.info(f"数据库连接成功: {self.config.get('db_type')}:{self.config.get('host')}/{self.config.get('database')}")
+            logger.info(f"数据库连接成功: {self.config.get('db_type')}:{self.config.get('host')}/{self.config.get('db_name')}")
             return True
         except ImportError as e:
             logger.error(f"缺少依赖: {e}")
@@ -328,9 +328,9 @@ class MySQLConnector(DatabaseConnector):
         connection_string = (
             f"mysql+pymysql://{db_config.get('username')}:"
             f"{password}@{db_config.get('host')}:"
-            f"{db_config.get('port')}/{db_config.get('database')}?charset=utf8mb4"
+            f"{db_config.get('port')}/{db_config.get('db_name')}?charset=utf8mb4"
         )
-        logger.debug(f"创建MySQL连接: {db_config.get('host')}:{db_config.get('port')}/{db_config.get('database')}")
+        logger.debug(f"创建MySQL连接: {db_config.get('host')}:{db_config.get('port')}/{db_config.get('db_name')}")
         return create_engine(connection_string, pool_pre_ping=True, pool_recycle=3600)
     
 
@@ -357,7 +357,7 @@ class OracleConnector(DatabaseConnector):
         # 构建DSN
         host = db_config.get('host', 'localhost')
         port = db_config.get('port', 1521)
-        database = db_config.get('database', '')
+        database = db_config.get('db_name', '')
         
         # 支持两种格式: host:port/service_name 或完整DSN
         dsn = f"{host}:{port}/{database}"
@@ -388,7 +388,7 @@ class SQLServerConnector(DatabaseConnector):
         connection_string = (
             f"mssql+pyodbc://{db_config.get('username')}:"
             f"{password}@{db_config.get('host')}:"
-            f"{db_config.get('port')}/{db_config.get('database')}?"
+            f"{db_config.get('port')}/{db_config.get('db_name')}?"
             f"driver=ODBC+Driver+17+for+SQL+Server"
         )
         return create_engine(connection_string, pool_pre_ping=True)
@@ -399,7 +399,7 @@ class SQLiteConnector(DatabaseConnector):
     
     def _create_engine(self) -> Engine:
         db_config = self.config
-        database = db_config.get('database', '')
+        database = db_config.get('db_name', '')
         
         # 支持相对路径和绝对路径
         connection_string = f"sqlite:///{database}"

@@ -1,6 +1,6 @@
 -- ============================================
 -- Mini DB Query - Database Initialization Script
--- Version: v1.0.0.18
+-- Version: v1.0.0.25
 -- MySQL 8.0.2+ Required
 -- ============================================
 
@@ -28,6 +28,7 @@ CREATE TABLE IF NOT EXISTS `schools` (
 
 -- ============================================
 -- Table: database_configs (数据库配置表)
+-- 注意: db_name 替代了保留字 database
 -- ============================================
 CREATE TABLE IF NOT EXISTS `database_configs` (
     `id` INT NOT NULL AUTO_INCREMENT COMMENT '主键',
@@ -38,7 +39,7 @@ CREATE TABLE IF NOT EXISTS `database_configs` (
     `port` INT NOT NULL COMMENT '端口',
     `username` VARCHAR(100) NOT NULL COMMENT '用户名',
     `password` TEXT NOT NULL COMMENT '密码(加密)',
-    `database` VARCHAR(100) COMMENT '数据库名',
+    `db_name` VARCHAR(100) COMMENT '数据库名',
     `service_name` VARCHAR(100) COMMENT 'Oracle服务名',
     `driver` VARCHAR(100) COMMENT 'ODBC驱动',
     `description` TEXT COMMENT '描述',
@@ -117,7 +118,7 @@ CREATE TABLE IF NOT EXISTS `query_logs` (
     `query_type` VARCHAR(50) COMMENT '查询类型: smart_sql/direct_sql/template',
     `query_params` JSON COMMENT '查询参数',
     `database_id` INT COMMENT '数据库配置ID',
-    `database_name` VARCHAR(100) COMMENT '数据库名称',
+    `db_name` VARCHAR(100) COMMENT '数据库名称',
     `sql_executed` TEXT COMMENT '执行的SQL',
     `sql_content` TEXT COMMENT 'SQL内容',
     `parameters` JSON COMMENT '查询参数(新)',
@@ -135,6 +136,28 @@ CREATE TABLE IF NOT EXISTS `query_logs` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='查询日志表';
 
 -- ============================================
+-- Table: operation_logs (操作日志表)
+-- ============================================
+CREATE TABLE IF NOT EXISTS `operation_logs` (
+    `id` INT NOT NULL AUTO_INCREMENT COMMENT '主键',
+    `user_id` INT COMMENT '用户ID',
+    `username` VARCHAR(50) COMMENT '用户名',
+    `action` VARCHAR(50) NOT NULL COMMENT '操作类型: login/logout/query/export/config',
+    `resource_type` VARCHAR(50) COMMENT '资源类型: user/database/school/template',
+    `resource_id` VARCHAR(100) COMMENT '资源ID',
+    `details` TEXT COMMENT '操作详情',
+    `ip_address` VARCHAR(50) COMMENT 'IP地址',
+    `user_agent` VARCHAR(500) COMMENT '用户代理',
+    `status` VARCHAR(20) DEFAULT 'success' COMMENT '状态: success/failed',
+    `error_message` TEXT COMMENT '错误信息',
+    `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    PRIMARY KEY (`id`),
+    KEY `idx_user_id` (`user_id`),
+    KEY `idx_action` (`action`),
+    KEY `idx_created_at` (`created_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='操作日志表';
+
+-- ============================================
 -- Default Data: Schools
 -- ============================================
 INSERT INTO `schools` (`name`, `code`, `description`, `status`) VALUES
@@ -143,10 +166,8 @@ INSERT INTO `schools` (`name`, `code`, `description`, `status`) VALUES
 
 -- ============================================
 -- Default Data: Admin User
--- Password: 123456 (hashed)
+-- Password: 123456 (bcrypt hashed)
 -- ============================================
--- 注意: 密码使用 bcrypt 加密，这里是 123456 的加密结果
--- 实际密码需要在程序中通过 get_password_hash('123456') 生成
 INSERT INTO `users` (`phone`, `password`, `name`, `id_card`, `role`, `status`) VALUES
 ('admin', '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY5NU7y.VRV6vW2', '超级管理员', NULL, 'admin', 'active'),
 ('13800138000', '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY5NU7y.VRV6vW2', '张三', NULL, 'user', 'active'),
@@ -190,28 +211,6 @@ INSERT INTO `query_templates` (`school_id`, `category`, `category_name`, `catego
  'SELECT user_no, user_name, phone, wechat_openid, bind_time FROM wx_user WHERE 1=1', 
  '[{"id": "user_no", "label": "用户编号", "column": "user_no", "type": "text", "operator": "="}, {"id": "phone", "label": "手机号", "column": "phone", "type": "text", "operator": "="}]', 
  'bind_time', 100, 'active');
-
--- ============================================
--- Table: operation_logs (操作日志表)
--- ============================================
-CREATE TABLE IF NOT EXISTS `operation_logs` (
-    `id` INT NOT NULL AUTO_INCREMENT COMMENT '主键',
-    `user_id` INT COMMENT '用户ID',
-    `username` VARCHAR(50) COMMENT '用户名',
-    `action` VARCHAR(50) NOT NULL COMMENT '操作类型: login/logout/query/export/config',
-    `resource_type` VARCHAR(50) COMMENT '资源类型: user/database/school/template',
-    `resource_id` VARCHAR(100) COMMENT '资源ID',
-    `details` TEXT COMMENT '操作详情',
-    `ip_address` VARCHAR(50) COMMENT 'IP地址',
-    `user_agent` VARCHAR(500) COMMENT '用户代理',
-    `status` VARCHAR(20) DEFAULT 'success' COMMENT '状态: success/failed',
-    `error_message` TEXT COMMENT '错误信息',
-    `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    PRIMARY KEY (`id`),
-    KEY `idx_user_id` (`user_id`),
-    KEY `idx_action` (`action`),
-    KEY `idx_created_at` (`created_at`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='操作日志表';
 
 -- ============================================
 -- Verification
