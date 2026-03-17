@@ -185,30 +185,29 @@ INSERT INTO `user_schools` (`user_id`, `school_id`, `permissions`) VALUES
 
 -- ============================================
 -- Default Data: Query Templates (示例)
--- 注意: icon使用简单字符，避免MySQL字符集问题
 -- ============================================
 INSERT INTO `query_templates` (`school_id`, `category`, `category_name`, `category_icon`, `name`, `description`, `sql_template`, `fields`, `time_field`, `default_limit`, `status`) VALUES
-(1, 'student', '学生业务', 'student', '学生信息查询', '查询学生基本信息', 
+(1, 'student', '学生业务', '🎓', '学生信息查询', '查询学生基本信息', 
  'SELECT CUSTNAME as 姓名, STUDENTID as 学号, IDCARD as 身份证号 FROM CARD_CUSTOMERS WHERE 1=1', 
  '[{"id": "name", "label": "姓名", "column": "CUSTNAME", "type": "text", "operator": "LIKE"}, {"id": "student_id", "label": "学号", "column": "STUDENTID", "type": "text", "operator": "="}]', 
  NULL, 100, 'active'),
 
-(1, 'consume', '消费业务', 'consume', '消费明细查询', '查询消费流水明细', 
+(1, 'consume', '消费业务', '💰', '消费明细查询', '查询消费流水明细', 
  'SELECT CARDID as 卡号, TRANAMT as 金额, TRATIME as 时间 FROM DATA_CARD_CONSUME WHERE 1=1', 
  '[{"id": "card_id", "label": "卡号", "column": "CARDID", "type": "text", "operator": "="}]', 
  'TRATIME', 500, 'active'),
 
-(1, 'consume', '消费业务', 'consume', '充值明细查询', '查询充值流水明细', 
+(1, 'consume', '消费业务', '💰', '充值明细查询', '查询充值流水明细', 
  'SELECT CARDID as 卡号, CASH as 金额, CASH_TIME as 时间 FROM DATA_ONLINE_CASH WHERE 1=1', 
  '[{"id": "card_id", "label": "卡号", "column": "CARDID", "type": "text", "operator": "="}]', 
  'CASH_TIME', 500, 'active'),
 
-(1, 'access', '门禁业务', 'access', '门禁记录查询', '查询门禁进出记录', 
+(1, 'access', '门禁业务', '🚪', '门禁记录查询', '查询门禁进出记录', 
  'SELECT CARDID as 卡号, INOUTTIME as 时间, DEVICENAME as 设备 FROM ACCESS_INOUT_RECORD WHERE 1=1', 
  '[{"id": "card_id", "label": "卡号", "column": "CARDID", "type": "text", "operator": "="}]', 
  'INOUTTIME', 500, 'active'),
 
-(1, 'wechat', '微信业务', 'wechat', '微信绑定查询', '查询微信用户绑定信息', 
+(1, 'wechat', '微信业务', '💬', '微信绑定查询', '查询微信用户绑定信息', 
  'SELECT user_no, user_name, phone, wechat_openid, bind_time FROM wx_user WHERE 1=1', 
  '[{"id": "user_no", "label": "用户编号", "column": "user_no", "type": "text", "operator": "="}, {"id": "phone", "label": "手机号", "column": "phone", "type": "text", "operator": "="}]', 
  'bind_time', 100, 'active');
