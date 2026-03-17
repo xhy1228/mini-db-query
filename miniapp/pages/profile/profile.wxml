@@ -1,0 +1,75 @@
+<!-- pages/profile/profile.wxml -->
+<view class="container">
+
+  <!-- 顶部装饰 -->
+  <view class="header-bg">
+    <view class="bg-circle bg-circle-1"></view>
+    <view class="bg-circle bg-circle-2"></view>
+  </view>
+
+  <!-- 用户卡片 -->
+  <view class="user-card glass-card">
+    <view class="avatar-container">
+      <view class="avatar">
+        <text>👤</text>
+      </view>
+    </view>
+    <view class="user-info">
+      <text class="username">{{userInfo.name || '用户'}}</text>
+      <view class="user-meta">
+        <text class="user-phone">{{userInfo.phone || '未设置'}}</text>
+        <text class="user-role-tag {{isAdmin ? 'admin' : ''}}">
+          {{isAdmin ? '管理员' : '普通用户'}}
+        </text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 快捷操作 -->
+  <view class="quick-actions glass-card">
+    <view class="action-item" data-action="history" bindtap="onQuickAction">
+      <view class="action-icon">
+        <text>📋</text>
+      </view>
+      <text class="action-label">查询历史</text>
+    </view>
+    <view class="action-item" data-action="query" bindtap="onQuickAction">
+      <view class="action-icon">
+        <text>🔍</text>
+      </view>
+      <text class="action-label">开始查询</text>
+    </view>
+    <view class="action-item" data-action="about" bindtap="onQuickAction">
+      <view class="action-icon">
+        <text>ℹ️</text>
+      </view>
+      <text class="action-label">关于</text>
+    </view>
+  </view>
+
+  <!-- 功能列表 -->
+  <view class="menu-section glass-card">
+    <view class="menu-item" data-menu="about" bindtap="onMenuTap">
+      <view class="menu-left">
+        <text class="menu-icon">ℹ️</text>
+        <text class="menu-text">关于我们</text>
+      </view>
+      <text class="menu-arrow">›</text>
+    </view>
+    
+    <view class="menu-item" data-menu="logout" bindtap="onMenuTap">
+      <view class="menu-left">
+        <text class="menu-icon">🚪</text>
+        <text class="menu-text" style="color: #ff4d4f;">退出登录</text>
+      </view>
+      <text class="menu-arrow">›</text>
+    </view>
+  </view>
+
+  <!-- 版本信息 -->
+  <view class="version-info">
+    <text>多源数据查询小程序 v{{version}}</text>
+    <text>Powered by FastAPI</text>
+  </view>
+
+</view>
