@@ -263,6 +263,19 @@ def main():
                 "version": settings.APP_VERSION,
                 "database": db_status
             }
+        
+        # 获取版本信息
+        @app.get("/api/version")
+        async def get_version():
+            """获取程序版本信息"""
+            return {
+                "code": 200,
+                "message": "success",
+                "data": {
+                    "version": settings.APP_VERSION,
+                    "app_name": settings.APP_NAME
+                }
+            }
 
         # 根路径 - 根据配置状态重定向
         @app.get("/", response_class=HTMLResponse)

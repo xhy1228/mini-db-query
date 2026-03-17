@@ -182,6 +182,20 @@
         .sidebar-menu-item span {
             font-size: 14px;
         }
+        .sidebar-footer {
+            padding: 20px;
+            text-align: center;
+            border-top: 1px solid rgba(255,255,255,0.1);
+        }
+        .version-tag {
+            display: inline-block;
+            padding: 6px 16px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 20px;
+            color: rgba(255,255,255,0.6);
+            font-size: 12px;
+            font-weight: 500;
+        }
         
         /* 主内容区 */
         .main-content {
@@ -404,7 +418,7 @@
                         </svg>
                     </div>
                     <h2 class="login-title">多源数据查询</h2>
-                    <p class="login-subtitle">管理平台 v1.0</p>
+                    <p class="login-subtitle">管理平台 v{{ appVersion }}</p>
                 </div>
                 <el-form :model="loginForm" :rules="loginRules" ref="loginFormRef">
                     <el-form-item prop="phone">
@@ -465,6 +479,9 @@
                         <span>{{ item.icon }}</span>
                         <span>{{ item.name }}</span>
                     </div>
+                </div>
+                <div class="sidebar-footer">
+                    <span class="version-tag">v{{ appVersion }}</span>
                 </div>
             </div>
 
@@ -930,6 +947,22 @@
             setup() {
                 const API_BASE = '/api';
                 const isLoggedIn = ref(!!localStorage.getItem('token'));
+                
+                // 版本号
+                const appVersion = ref('1.0.0.30');
+                
+                // 获取版本号
+                const loadVersion = async () => {
+                    try {
+                        const res = await fetch(API_BASE + '/version');
+                        const data = await res.json();
+                        if (data.code === 200 && data.data.version) {
+                            appVersion.value = data.data.version;
+                        }
+                    } catch (e) {
+                        console.error('获取版本失败:', e);
+                    }
+                };
                 
                 // 登录
                 const loginForm = reactive({ phone: '', password: '' });
@@ -1484,6 +1517,8 @@
 
                 // 初始化
                 onMounted(() => {
+                    // 加载版本号
+                    loadVersion();
                     if (isLoggedIn.value) {
                         loadInitialData();
                     }
@@ -1491,6 +1526,7 @@
 
                 return {
                     isLoggedIn,
+                    appVersion,
                     loginForm,
                     loginLoading,
                     loginRules,
