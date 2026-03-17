@@ -16,6 +16,9 @@ from .database import (
 )
 from .session import get_db_session, init_db, engine, SessionLocal
 
+# 导入 OperationLog（定义在 services/log_service.py）
+from services.log_service import OperationLog
+
 __all__ = [
     'Base',
     'School',
@@ -24,6 +27,7 @@ __all__ = [
     'User',
     'UserSchool',
     'QueryLog',
+    'OperationLog',
     'init_database',
     'create_default_admin',
     'get_db_session',

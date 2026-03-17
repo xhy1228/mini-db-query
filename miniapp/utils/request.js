@@ -1,7 +1,7 @@
 // utils/request.js
 // 网络请求封装
 
-const BASE_URL = 'http://localhost:8000/api'  // 开发环境
+const BASE_URL = 'http://localhost:26316/api'  // 开发环境（服务端口26316）
 // const BASE_URL = 'https://your-domain.com/api'  // 生产环境
 
 /**
