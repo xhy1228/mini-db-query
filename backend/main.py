@@ -265,11 +265,16 @@ def main():
             }
 
         # 根路径 - 根据配置状态重定向
-        @app.get("/")
+        @app.get("/", response_class=HTMLResponse)
         async def root():
-            """根路径"""
+            """根路径 - 返回管理界面或重定向到配置页"""
             if not db_configured:
                 return RedirectResponse(url="/setup")
+            # 数据库已配置，返回管理界面
+            html_path = Path(__file__).parent / "admin" / "index.html"
+            if html_path.exists():
+                return HTMLResponse(content=html_path.read_text(encoding='utf-8'))
+            # 如果找不到管理页面，返回API信息
             return {
                 "name": settings.APP_NAME,
                 "version": settings.APP_VERSION,
