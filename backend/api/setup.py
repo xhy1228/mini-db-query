@@ -11,6 +11,7 @@ from typing import Optional
 import os
 import re
 import logging
+from urllib.parse import quote_plus
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["setup"])
@@ -37,6 +38,13 @@ class TestConnectionResponse(BaseModel):
     success: bool
     message: str
     version: Optional[str] = None
+
+
+def build_database_url(host: str, port: int, user: str, password: str, db_name: str) -> str:
+    """构建数据库URL，对密码进行URL编码"""
+    # 对密码进行URL编码，处理特殊字符
+    encoded_password = quote_plus(password)
+    return f"mysql+pymysql://{user}:{encoded_password}@{host}:{port}/{db_name}?charset=utf8mb4"
 
 
 @router.get("/setup/status")
@@ -87,7 +95,8 @@ async def test_database_connection(config: DatabaseConfig):
     try:
         from sqlalchemy import create_engine, text
         
-        database_url = f"mysql+pymysql://{config.user}:{config.password}@{config.host}:{config.port}/{config.db_name}?charset=utf8mb4"
+        # 使用URL编码构建连接字符串
+        database_url = build_database_url(config.host, config.port, config.user, config.password, config.db_name)
         
         engine = create_engine(database_url, connect_args={"connect_timeout": 5})
         with engine.connect() as conn:
@@ -112,8 +121,8 @@ async def test_database_connection(config: DatabaseConfig):
 async def save_database_config(config: DatabaseConfig):
     """保存数据库配置"""
     try:
-        # 测试连接
-        database_url = f"mysql+pymysql://{config.user}:{config.password}@{config.host}:{config.port}/{config.db_name}?charset=utf8mb4"
+        # 使用URL编码构建连接字符串
+        database_url = build_database_url(config.host, config.port, config.user, config.password, config.db_name)
         
         from sqlalchemy import create_engine, text
         engine = create_engine(database_url, connect_args={"connect_timeout": 5})
