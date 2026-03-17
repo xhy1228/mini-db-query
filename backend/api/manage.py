@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 from typing import Optional, List
 from datetime import datetime
+from urllib.parse import quote_plus
 
 from models import get_db_session
 from models.database import School, DatabaseConfig, QueryTemplate, UserSchool
@@ -325,11 +326,13 @@ async def test_database_connection(
     try:
         from sqlalchemy import create_engine, text
         
-        # 构建连接URL
+        # 构建连接URL，对密码进行URL编码
         if db_config.db_type == 'MySQL':
-            url = f"mysql+pymysql://{db_config.username}:{db_config.password}@{db_config.host}:{db_config.port}/{db_config.db_name}?charset=utf8mb4"
+            encoded_password = quote_plus(db_config.password)
+            url = f"mysql+pymysql://{db_config.username}:{encoded_password}@{db_config.host}:{db_config.port}/{db_config.db_name}?charset=utf8mb4"
         elif db_config.db_type == 'Oracle':
-            url = f"oracle+oracledb://{db_config.username}:{db_config.password}@{db_config.host}:{db_config.port}/?service_name={db_config.service_name}"
+            encoded_password = quote_plus(db_config.password)
+            url = f"oracle+oracledb://{db_config.username}:{encoded_password}@{db_config.host}:{db_config.port}/?service_name={db_config.service_name}"
         else:
             return {"code": 400, "message": f"暂不支持 {db_config.db_type} 连接测试", "data": None}
         
