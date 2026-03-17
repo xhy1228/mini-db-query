@@ -8,7 +8,7 @@ Page({
   data: {
     userInfo: null,
     isAdmin: false,
-    version: '1.2.0',
+    version: '1.0.0',
     serverUrl: '',
     // 统计数据
     stats: {
@@ -21,6 +21,7 @@ Page({
     this.loadUserInfo()
     this.loadStats()
     this.getServerUrl()
+    this.loadVersion()
   },
 
   onShow() {
@@ -67,6 +68,18 @@ Page({
     this.setData({
       serverUrl: request.BASE_URL || ''
     })
+  },
+
+  // 加载版本号
+  async loadVersion() {
+    try {
+      const res = await get('/version')
+      if (res.code === 200 && res.data.version) {
+        this.setData({ version: res.data.version })
+      }
+    } catch (error) {
+      console.error('获取版本失败:', error)
+    }
   },
 
   // 退出登录

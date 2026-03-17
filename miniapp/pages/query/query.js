@@ -22,11 +22,18 @@ Page({
     startTime: '',
     endTime: '',
     
+    // 快捷时间
+    quickTimeOptions: ['今天', '近7天', '近30天', '本月'],
+    selectedQuickTime: '',
+    
     // 查询结果
     loading: false,
     result: [],
     resultColumns: [],
-    queried: false
+    queried: false,
+    
+    // 导出中
+    exporting: false
   },
 
   onLoad(options) {
@@ -186,11 +193,84 @@ Page({
 
   // 选择时间
   onStartTimeChange(e) {
-    this.setData({ startTime: e.detail.value })
+    this.setData({ startTime: e.detail.value, selectedQuickTime: '' })
   },
 
   onEndTimeChange(e) {
-    this.setData({ endTime: e.detail.value })
+    this.setData({ endTime: e.detail.value, selectedQuickTime: '' })
+  },
+
+  // 选择快捷时间
+  selectQuickTime(e) {
+    const index = e.currentTarget.dataset.index
+    const option = this.data.quickTimeOptions[index]
+    const now = new Date()
+    let startTime = ''
+    let endTime = now.toISOString().split('T')[0]
+    
+    switch(option) {
+      case '今天':
+        startTime = endTime
+        break
+      case '近7天':
+        const d7 = new Date(now - 7 * 24 * 60 * 60 * 1000)
+        startTime = d7.toISOString().split('T')[0]
+        break
+      case '近30天':
+        const d30 = new Date(now - 30 * 24 * 60 * 60 * 1000)
+        startTime = d30.toISOString().split('T')[0]
+        break
+      case '本月':
+        const firstDay = new Date(now.getFullYear(), now.getMonth(), 1)
+        startTime = firstDay.toISOString().split('T')[0]
+        break
+    }
+    
+    this.setData({
+      selectedQuickTime: option,
+      startTime: startTime,
+      endTime: endTime
+    })
+  },
+
+  // 导出结果
+  async exportResult() {
+    if (!this.data.result || this.data.result.length === 0) {
+      wx.showToast({ title: '无数据可导出', icon: 'none' })
+      return
+    }
+    
+    this.setData({ exporting: true })
+    
+    try {
+      const res = await post('/user/export', {
+        school_id: this.data.selectedSchool.id,
+        template_id: this.data.selectedTemplate.id,
+        conditions: this.data.conditions.filter(c => c.value.trim()),
+        start_time: this.data.startTime ? `${this.data.startTime} 00:00:00` : null,
+        end_time: this.data.endTime ? `${this.data.endTime} 23:59:59` : null
+      })
+      
+      if (res.code === 200) {
+        wx.showModal({
+          title: '导出成功',
+          content: `已导出${res.data.count}条数据\n下载链接已复制到剪贴板`,
+          showCancel: false,
+          success: () => {
+            wx.setClipboardData({
+              data: res.data.url
+            })
+          }
+        })
+      } else {
+        wx.showToast({ title: res.message || '导出失败', icon: 'none' })
+      }
+    } catch (error) {
+      console.error('导出失败:', error)
+      wx.showToast({ title: '导出失败', icon: 'none' })
+    } finally {
+      this.setData({ exporting: false })
+    }
   },
 
   // 执行查询
