@@ -192,6 +192,28 @@ INSERT INTO `query_templates` (`school_id`, `category`, `category_name`, `catego
  'bind_time', 100, 'active');
 
 -- ============================================
+-- Table: operation_logs (操作日志表)
+-- ============================================
+CREATE TABLE IF NOT EXISTS `operation_logs` (
+    `id` INT NOT NULL AUTO_INCREMENT COMMENT '主键',
+    `user_id` INT COMMENT '用户ID',
+    `username` VARCHAR(50) COMMENT '用户名',
+    `action` VARCHAR(50) NOT NULL COMMENT '操作类型: login/logout/query/export/config',
+    `resource_type` VARCHAR(50) COMMENT '资源类型: user/database/school/template',
+    `resource_id` VARCHAR(100) COMMENT '资源ID',
+    `details` TEXT COMMENT '操作详情',
+    `ip_address` VARCHAR(50) COMMENT 'IP地址',
+    `user_agent` VARCHAR(500) COMMENT '用户代理',
+    `status` VARCHAR(20) DEFAULT 'success' COMMENT '状态: success/failed',
+    `error_message` TEXT COMMENT '错误信息',
+    `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    PRIMARY KEY (`id`),
+    KEY `idx_user_id` (`user_id`),
+    KEY `idx_action` (`action`),
+    KEY `idx_created_at` (`created_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='操作日志表';
+
+-- ============================================
 -- Verification
 -- ============================================
 SELECT 'Tables created successfully!' as status;
