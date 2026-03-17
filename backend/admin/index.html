@@ -1035,6 +1035,9 @@
             </el-form>
             <template #footer>
                 <el-button @click="databaseDialogVisible = false">取消</el-button>
+                <el-button type="warning" @click="testDatabaseFormConnection" :loading="testingConnection">
+                    🔌 测试连接
+                </el-button>
                 <el-button type="primary" @click="handleSaveDatabase">保存</el-button>
             </template>
         </el-dialog>
@@ -1320,6 +1323,7 @@
                 const databases = ref([]);
                 const dbSearch = reactive({ school_id: null });
                 const databaseDialogVisible = ref(false);
+                const testingConnection = ref(false);
                 const databaseForm = reactive({
                     id: null,
                     school_id: null,
@@ -1698,6 +1702,64 @@
                     databaseDialogVisible.value = true;
                 };
 
+                // 测试表单中的数据库连接
+                const testDatabaseFormConnection = async () => {
+                    // 验证必填字段
+                    if (!databaseForm.host && databaseForm.db_type !== 'SQLite') {
+                        ElementPlus.ElMessage.warning('请填写主机地址');
+                        return;
+                    }
+                    if (!databaseForm.port && databaseForm.db_type !== 'SQLite') {
+                        ElementPlus.ElMessage.warning('请填写端口');
+                        return;
+                    }
+                    if (!databaseForm.username && databaseForm.db_type !== 'SQLite') {
+                        ElementPlus.ElMessage.warning('请填写用户名');
+                        return;
+                    }
+                    if (!databaseForm.db_name) {
+                        ElementPlus.ElMessage.warning(databaseForm.db_type === 'SQLite' ? '请填写数据库文件路径' : '请填写数据库名');
+                        return;
+                    }
+                    
+                    testingConnection.value = true;
+                    
+                    try {
+                        // 调用测试接口
+                        const res = await request('/manage/databases/test', {
+                            method: 'POST',
+                            body: JSON.stringify({
+                                db_type: databaseForm.db_type,
+                                host: databaseForm.host || 'localhost',
+                                port: databaseForm.port || 3306,
+                                username: databaseForm.username || '',
+                                password: databaseForm.password || '',
+                                db_name: databaseForm.db_name || '',
+                                service_name: databaseForm.service_name || ''
+                            })
+                        });
+                        
+                        if (res.code === 200) {
+                            ElementPlus.ElMessage.success({
+                                message: '连接成功！数据库版本: ' + (res.data.version || '未知'),
+                                duration: 3000
+                            });
+                        } else {
+                            ElementPlus.ElMessage.error({
+                                message: '连接失败: ' + (res.message || '未知错误'),
+                                duration: 5000
+                            });
+                        }
+                    } catch (e) {
+                        ElementPlus.ElMessage.error({
+                            message: '连接失败: ' + (e.message || '网络错误'),
+                            duration: 5000
+                        });
+                    } finally {
+                        testingConnection.value = false;
+                    }
+                };
+
                 const handleSaveDatabase = async () => {
                     try {
                         await databaseFormRef.value.validate();
@@ -2016,6 +2078,7 @@
                     databases,
                     dbSearch,
                     databaseDialogVisible,
+                    testingConnection,
                     databaseForm,
                     databaseRules,
                     databaseFormRef,
@@ -2023,6 +2086,7 @@
                     showDatabaseDialog,
                     handleSaveDatabase,
                     testDbConnection,
+                    testDatabaseFormConnection,
                     handleDeleteDatabase,
                     templates,
                     templateSearch,

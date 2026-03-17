@@ -320,6 +320,95 @@ async def delete_database(
     return {"code": 200, "message": "删除成功", "data": None}
 
 
+class TestConnectionRequest(BaseModel):
+    """测试连接请求"""
+    db_type: str
+    host: Optional[str] = "localhost"
+    port: Optional[int] = 3306
+    username: Optional[str] = ""
+    password: Optional[str] = ""
+    db_name: Optional[str] = ""
+    service_name: Optional[str] = None
+
+
+@router.post("/databases/test")
+async def test_new_database_connection(
+    request: TestConnectionRequest,
+    current_user: TokenData = Depends(get_current_user),
+    session: Session = Depends(get_db_session)
+):
+    """测试新数据库连接（保存前测试）"""
+    if current_user.role != 'admin':
+        raise HTTPException(status_code=403, detail="权限不足")
+    
+    try:
+        from sqlalchemy import create_engine, text
+        
+        # 构建连接URL，对密码进行URL编码
+        if request.db_type == 'MySQL':
+            encoded_password = quote_plus(request.password)
+            url = f"mysql+pymysql://{request.username}:{encoded_password}@{request.host}:{request.port}/{request.db_name}?charset=utf8mb4"
+            engine = create_engine(url, connect_args={"connect_timeout": 5})
+            with engine.connect() as conn:
+                result = conn.execute(text("SELECT VERSION()"))
+                version = result.scalar()
+            
+            return {
+                "code": 200,
+                "message": "连接成功",
+                "data": {
+                    "connected": True,
+                    "version": version
+                }
+            }
+        elif request.db_type == 'Oracle':
+            encoded_password = quote_plus(request.password)
+            url = f"oracle+oracledb://{request.username}:{encoded_password}@{request.host}:{request.port}/?service_name={request.service_name}"
+            engine = create_engine(url, connect_args={"connect_timeout": 5})
+            with engine.connect() as conn:
+                result = conn.execute(text("SELECT * FROM v$version WHERE banner LIKE 'Oracle%'"))
+                row = result.fetchone()
+                version = row[0] if row else "Oracle"
+            
+            return {
+                "code": 200,
+                "message": "连接成功",
+                "data": {
+                    "connected": True,
+                    "version": version
+                }
+            }
+        elif request.db_type == 'SQLite':
+            url = f"sqlite:///{request.db_name}"
+            engine = create_engine(url)
+            with engine.connect() as conn:
+                result = conn.execute(text("SELECT sqlite_version()"))
+                version = result.scalar()
+            
+            return {
+                "code": 200,
+                "message": "连接成功",
+                "data": {
+                    "connected": True,
+                    "version": version
+                }
+            }
+        else:
+            return {"code": 400, "message": f"暂不支持 {request.db_type} 连接测试", "data": None}
+        
+    except Exception as e:
+        import logging
+        logging.error(f"数据库连接测试失败: {e}")
+        return {
+            "code": 400,
+            "message": f"连接失败: {str(e)}",
+            "data": {
+                "connected": False,
+                "error": str(e)
+            }
+        }
+
+
 @router.post("/databases/{db_id}/test")
 async def test_database_connection(
     db_id: int,
