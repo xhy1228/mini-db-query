@@ -275,10 +275,7 @@ async def smart_query(request: SmartQueryRequest,
             
             # 尝试解密密码，如果失败则使用原始密码（兼容旧数据）
             try:
-                try:
                 plain_password = decrypt_password(db_config.password)
-            except Exception:
-                plain_password = db_config.password
             except Exception:
                 plain_password = db_config.password
             
