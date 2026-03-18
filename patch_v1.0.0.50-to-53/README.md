@@ -24,10 +24,12 @@
 
 ```
 patch_v1.0.0.50-to-53/
-├── index.html              → admin/index.html (覆盖)
+├── index.html                    → admin/index.html (覆盖)
 └── backend/
-    ├── main.py             → backend/main.py (覆盖)
-    └── version.py          → backend/version.py (覆盖)
+    ├── main.py                   → backend/main.py (覆盖)
+    ├── version.py                → backend/version.py (覆盖)
+    └── api/
+        └── stats.py              → backend/api/stats.py (新增)
 ```
 
 ### 步骤3：重启服务
@@ -48,3 +50,4 @@ start.bat
 
 1. 升级后请按 `Ctrl+F5` 强制刷新浏览器缓存
 2. 如果看不到"系统配置"菜单，请确认文件已正确覆盖
+3. **必须复制 stats.py 文件到 backend/api/ 目录**
