@@ -651,10 +651,13 @@
                     <el-input 
                         v-model="configForm.config_value" 
                         :type="configForm.config_type === 'secret' ? 'password' : 'text'"
-                        :placeholder="configForm.config_type === 'secret' ? '请输入密钥（输入后显示为星号）' : '请输入配置值'"
+                        :placeholder="configForm.config_type === 'secret' ? '请输入新的密钥值（为空则不修改）' : '请输入配置值'"
                         show-password
                         :rows="3">
                     </el-input>
+                    <div v-if="configForm.config_type === 'secret'" style="color: #909399; font-size: 12px; margin-top: 5px;">
+                        提示：密钥类型配置不显示原值，请输入新值修改，留空则不修改
+                    </div>
                 </el-form-item>
                 <el-form-item label="说明">
                     <el-input :value="configForm.description" disabled type="textarea" :rows="2"></el-input>
@@ -1359,6 +1362,12 @@
                 };
 
                 const saveConfig = async () => {
+                    // 如果是 secret 类型且输入为空，不修改
+                    if (configForm.config_type === 'secret' && !configForm.config_value) {
+                        ElMessage.warning('密钥不能为空，如需保持原值请勿修改');
+                        return;
+                    }
+                    
                     try {
                         const res = await request(`/manage/system/configs/${configForm.config_key}`, {
                             method: 'PUT',
