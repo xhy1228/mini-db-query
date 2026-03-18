@@ -68,3 +68,8 @@ desktop.ini
 # Temp
 *.tmp
 *.temp
+
+# Release packages
+*.zip
+*.tar.gz
+*.tar
