@@ -38,7 +38,8 @@ function handleResponse(res) {
     return Promise.reject(new Error(res.data?.message || '请求失败'))
   }
 
-  return res.data
+  // 成功时也返回 Promise
+  return Promise.resolve(res.data)
 }
 
 /**
