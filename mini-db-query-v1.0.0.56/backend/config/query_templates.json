@@ -1,0 +1,98 @@
+{
+  "categories": {
+    "student": {
+      "name": "学生业务",
+      "icon": "🎓",
+      "description": "学生信息相关查询",
+      "queries": {
+        "student_info": {
+          "name": "学生信息查询",
+          "description": "查询学生基本信息",
+          "db_config": "ccard_oracle",
+          "table": "CARD_CUSTOMERS",
+          "fields": [
+            {"id": "name", "label": "姓名", "column": "CUSTNAME", "type": "text", "operator": "LIKE"},
+            {"id": "student_id", "label": "学号", "column": "STUDENTID", "type": "text", "operator": "="},
+            {"id": "id_card", "label": "身份证号", "column": "IDCARD", "type": "text", "operator": "="}
+          ],
+          "select_columns": ["CUSTNAME as 姓名", "STUDENTID as 学号", "IDCARD as 身份证号", "CARDID as 卡号", "CARDSTATE as 卡状态"],
+          "time_field": null,
+          "default_limit": 100
+        }
+      }
+    },
+    "consume": {
+      "name": "消费业务",
+      "icon": "💰",
+      "description": "消费记录相关查询",
+      "queries": {
+        "consume_detail": {
+          "name": "消费明细查询",
+          "description": "查询消费流水明细",
+          "db_config": "ccard_oracle",
+          "table": "DATA_CARD_CONSUME",
+          "fields": [
+            {"id": "card_id", "label": "卡号", "column": "CARDID", "type": "text", "operator": "="},
+            {"id": "student_id", "label": "学号", "column": "STUDENTID", "type": "text", "operator": "="}
+          ],
+          "select_columns": ["CARDID as 卡号", "STUDENTID as 学号", "TRANAMT as 交易金额", "TRATIME as 交易时间", "SHOPNAME as 商户名称"],
+          "time_field": "TRATIME",
+          "default_limit": 500
+        },
+        "recharge_detail": {
+          "name": "充值明细查询",
+          "description": "查询充值流水明细",
+          "db_config": "ccard_oracle",
+          "table": "DATA_ONLINE_CASH",
+          "fields": [
+            {"id": "card_id", "label": "卡号", "column": "CARDID", "type": "text", "operator": "="},
+            {"id": "student_id", "label": "学号", "column": "STUDENTID", "type": "text", "operator": "="}
+          ],
+          "select_columns": ["CARDID as 卡号", "TRANAMT as 充值金额", "TRATIME as 充值时间", "PAYTYPE as 支付方式"],
+          "time_field": "TRATIME",
+          "default_limit": 500
+        }
+      }
+    },
+    "access": {
+      "name": "门禁业务",
+      "icon": "🚪",
+      "description": "门禁记录相关查询",
+      "queries": {
+        "access_record": {
+          "name": "进出门记录查询",
+          "description": "查询门禁进出记录",
+          "db_config": "ccard_oracle",
+          "table": "ACCESS_INOUT_RECORD",
+          "fields": [
+            {"id": "card_id", "label": "卡号", "column": "CARDID", "type": "text", "operator": "="},
+            {"id": "student_id", "label": "学号", "column": "STUDENTID", "type": "text", "operator": "="}
+          ],
+          "select_columns": ["CARDID as 卡号", "INOUTTIME as 进出时间", "INOUTFLAG as 进出标识", "DEVICENAME as 设备名称"],
+          "time_field": "INOUTTIME",
+          "default_limit": 500
+        }
+      }
+    },
+    "wechat": {
+      "name": "微信业务",
+      "icon": "💬",
+      "description": "微信相关查询",
+      "queries": {
+        "wechat_user": {
+          "name": "微信绑定查询",
+          "description": "查询微信用户绑定信息",
+          "db_config": "wechat_mysql",
+          "table": "wx_user",
+          "fields": [
+            {"id": "nickname", "label": "昵称", "column": "nickname", "type": "text", "operator": "LIKE"},
+            {"id": "phone", "label": "手机号", "column": "phone", "type": "text", "operator": "="}
+          ],
+          "select_columns": ["nickname as 昵称", "phone as 手机号", "create_time as 绑定时间", "status as 状态"],
+          "time_field": "create_time",
+          "default_limit": 100
+        }
+      }
+    }
+  }
+}
