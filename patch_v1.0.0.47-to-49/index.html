@@ -1,0 +1,1431 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>多源数据查询 - 管理平台</title>
+    <!-- Element Plus CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/element-plus/dist/index.css">
+    <!-- Vue 3 -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <!-- Element Plus -->
+    <script src="https://unpkg.com/element-plus"></script>
+    <!-- Element Plus Icons -->
+    <script src="https://unpkg.com/@element-plus/icons-vue"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: #f5f7fa;
+        }
+        .login-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .login-box {
+            width: 400px;
+            padding: 40px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+        .login-title {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #303133;
+            font-size: 24px;
+        }
+        .main-container {
+            display: flex;
+            min-height: 100vh;
+        }
+        .sidebar {
+            width: 220px;
+            background: #304156;
+            color: white;
+            flex-shrink: 0;
+        }
+        .sidebar-header {
+            padding: 20px;
+            text-align: center;
+            border-bottom: 1px solid #3a4a5b;
+        }
+        .sidebar-header h2 {
+            font-size: 18px;
+            color: #fff;
+        }
+        .sidebar-menu {
+            padding: 10px 0;
+        }
+        .sidebar-menu-item {
+            padding: 15px 20px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            transition: all 0.3s;
+        }
+        .sidebar-menu-item:hover {
+            background: #263445;
+        }
+        .sidebar-menu-item.active {
+            background: #409eff;
+        }
+        .sidebar-menu-item i {
+            margin-right: 10px;
+            font-size: 18px;
+        }
+        .main-content {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            position: relative;
+        }
+        .version-info {
+            position: fixed;
+            bottom: 10px;
+            right: 20px;
+            font-size: 12px;
+            color: #909399;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 4px 12px;
+            border-radius: 4px;
+            border: 1px solid #e4e7ed;
+            z-index: 100;
+        }
+        .content-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #ebeef5;
+        }
+        .content-header h3 {
+            font-size: 20px;
+            color: #303133;
+        }
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .search-bar {
+            margin-bottom: 20px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .table-container {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+        }
+        .pagination-container {
+            margin-top: 20px;
+            display: flex;
+            justify-content: flex-end;
+        }
+        .status-tag {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+        .status-active {
+            background: #e1f3d8;
+            color: #67c23a;
+        }
+        .status-inactive {
+            background: #fef0f0;
+            color: #f56c6c;
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <!-- 登录页面 -->
+        <div v-if="!isLoggedIn" class="login-container">
+            <div class="login-box">
+                <h2 class="login-title">多源数据查询管理系统</h2>
+                <el-form :model="loginForm" :rules="loginRules" ref="loginFormRef">
+                    <el-form-item prop="phone">
+                        <el-input 
+                            v-model="loginForm.phone" 
+                            placeholder="请输入账号"
+                            prefix-icon="User"
+                            size="large">
+                        </el-input>
+                    </el-form-item>
+                    <el-form-item prop="password">
+                        <el-input 
+                            v-model="loginForm.password" 
+                            type="password"
+                            placeholder="请输入密码"
+                            prefix-icon="Lock"
+                            size="large"
+                            show-password
+                            @keyup.enter="handleLogin">
+                        </el-input>
+                    </el-form-item>
+                    <el-form-item>
+                        <el-button 
+                            type="primary" 
+                            size="large" 
+                            style="width: 100%"
+                            :loading="loginLoading"
+                            @click="handleLogin">
+                            登录
+                        </el-button>
+                    </el-form-item>
+                </el-form>
+            </div>
+        </div>
+
+        <!-- 主界面 -->
+        <div v-else class="main-container">
+            <!-- 侧边栏 -->
+            <div class="sidebar">
+                <div class="sidebar-header">
+                    <h2>管理平台</h2>
+                </div>
+                <div class="sidebar-menu">
+                    <div 
+                        v-for="item in menuItems" 
+                        :key="item.key"
+                        :class="['sidebar-menu-item', { active: activeMenu === item.key }]"
+                        @click="activeMenu = item.key">
+                        <el-icon><component :is="item.icon"></component></el-icon>
+                        <span>{{ item.name }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 主内容区 -->
+            <div class="main-content">
+                <div class="content-header">
+                    <h3>{{ currentMenuName }}</h3>
+                    <div class="user-info">
+                        <span>{{ userInfo.name }}</span>
+                        <el-tag size="small" :type="userInfo.role === 'admin' ? 'danger' : 'info'">
+                            {{ userInfo.role === 'admin' ? '管理员' : '用户' }}
+                        </el-tag>
+                        <el-button size="small" @click="handleLogout">退出</el-button>
+                    </div>
+                </div>
+
+                <!-- 版本号 -->
+                <div class="version-info">
+                    版本: {{ version }}
+                </div>
+
+                <!-- 用户管理 -->
+                <div v-show="activeMenu === 'users'">
+                    <div class="search-bar">
+                        <el-input v-model="userSearch.phone" placeholder="手机号" style="width: 150px" clearable></el-input>
+                        <el-input v-model="userSearch.name" placeholder="姓名" style="width: 150px" clearable></el-input>
+                        <el-select v-model="userSearch.role" placeholder="角色" style="width: 120px" clearable>
+                            <el-option label="管理员" value="admin"></el-option>
+                            <el-option label="普通用户" value="user"></el-option>
+                        </el-select>
+                        <el-button type="primary" @click="loadUsers">搜索</el-button>
+                        <el-button type="success" @click="showUserDialog()">新增用户</el-button>
+                    </div>
+                    <div class="table-container">
+                        <el-table :data="users" stripe style="width: 100%">
+                            <el-table-column prop="id" label="ID" width="80"></el-table-column>
+                            <el-table-column prop="phone" label="手机号" width="150"></el-table-column>
+                            <el-table-column prop="name" label="姓名" width="120"></el-table-column>
+                            <el-table-column prop="role" label="角色" width="100">
+                                <template #default="{ row }">
+                                    <el-tag :type="row.role === 'admin' ? 'danger' : 'info'" size="small">
+                                        {{ row.role === 'admin' ? '管理员' : '用户' }}
+                                    </el-tag>
+                                </template>
+                            </el-table-column>
+                            <el-table-column prop="status" label="状态" width="100">
+                                <template #default="{ row }">
+                                    <span :class="['status-tag', row.status === 'active' ? 'status-active' : 'status-inactive']">
+                                        {{ row.status === 'active' ? '正常' : '禁用' }}
+                                    </span>
+                                </template>
+                            </el-table-column>
+                            <el-table-column prop="created_at" label="创建时间" width="180">
+                                <template #default="{ row }">
+                                    {{ formatDate(row.created_at) }}
+                                </template>
+                            </el-table-column>
+                            <el-table-column label="操作" min-width="200">
+                                <template #default="{ row }">
+                                    <el-button size="small" @click="showUserDialog(row)">编辑</el-button>
+                                    <el-button size="small" type="warning" @click="showPermissionDialog(row)">权限</el-button>
+                                    <el-button size="small" type="danger" @click="deleteUser(row)">删除</el-button>
+                                </template>
+                            </el-table-column>
+                        </el-table>
+                    </div>
+                </div>
+
+                <!-- 学校管理 -->
+                <div v-show="activeMenu === 'schools'">
+                    <div class="search-bar">
+                        <el-input v-model="schoolSearch.name" placeholder="学校名称" style="width: 200px" clearable></el-input>
+                        <el-button type="primary" @click="loadSchools">搜索</el-button>
+                        <el-button type="success" @click="showSchoolDialog()">新增学校</el-button>
+                    </div>
+                    <div class="table-container">
+                        <el-table :data="schools" stripe style="width: 100%">
+                            <el-table-column prop="id" label="ID" width="80"></el-table-column>
+                            <el-table-column prop="name" label="学校名称" min-width="200"></el-table-column>
+                            <el-table-column prop="code" label="学校编码" width="150"></el-table-column>
+                            <el-table-column prop="status" label="状态" width="100">
+                                <template #default="{ row }">
+                                    <span :class="['status-tag', row.status === 'active' ? 'status-active' : 'status-inactive']">
+                                        {{ row.status === 'active' ? '正常' : '禁用' }}
+                                    </span>
+                                </template>
+                            </el-table-column>
+                            <el-table-column prop="created_at" label="创建时间" width="180">
+                                <template #default="{ row }">
+                                    {{ formatDate(row.created_at) }}
+                                </template>
+                            </el-table-column>
+                            <el-table-column label="操作" min-width="150">
+                                <template #default="{ row }">
+                                    <el-button size="small" @click="showSchoolDialog(row)">编辑</el-button>
+                                    <el-button size="small" type="danger" @click="deleteSchool(row)">删除</el-button>
+                                </template>
+                            </el-table-column>
+                        </el-table>
+                    </div>
+                </div>
+
+                <!-- 数据库配置 -->
+                <div v-show="activeMenu === 'databases'">
+                    <div class="search-bar">
+                        <el-select v-model="dbSearch.school_id" placeholder="选择学校" style="width: 200px" clearable>
+                            <el-option 
+                                v-for="school in schools" 
+                                :key="school.id" 
+                                :label="school.name" 
+                                :value="school.id">
+                            </el-option>
+                        </el-select>
+                        <el-button type="primary" @click="loadDatabases">搜索</el-button>
+                        <el-button type="success" @click="showDatabaseDialog()">新增配置</el-button>
+                    </div>
+                    <div class="table-container">
+                        <el-table :data="databases" stripe style="width: 100%">
+                            <el-table-column prop="id" label="ID" width="80"></el-table-column>
+                            <el-table-column prop="name" label="配置名称" width="150"></el-table-column>
+                            <el-table-column prop="db_type" label="数据库类型" width="120">
+                                <template #default="{ row }">
+                                    <el-tag size="small">{{ row.db_type }}</el-tag>
+                                </template>
+                            </el-table-column>
+                            <el-table-column prop="host" label="主机地址" width="150"></el-table-column>
+                            <el-table-column prop="port" label="端口" width="80"></el-table-column>
+                            <el-table-column prop="database" label="数据库" width="120"></el-table-column>
+                            <el-table-column prop="status" label="状态" width="100">
+                                <template #default="{ row }">
+                                    <span :class="['status-tag', row.status === 'active' ? 'status-active' : 'status-inactive']">
+                                        {{ row.status === 'active' ? '正常' : '禁用' }}
+                                    </span>
+                                </template>
+                            </el-table-column>
+                            <el-table-column label="操作" min-width="200">
+                                <template #default="{ row }">
+                                    <el-button size="small" @click="showDatabaseDialog(row)">编辑</el-button>
+                                    <el-button size="small" type="success" @click="testConnection(row)">测试连接</el-button>
+                                    <el-button size="small" type="danger" @click="deleteDatabase(row)">删除</el-button>
+                                </template>
+                            </el-table-column>
+                        </el-table>
+                    </div>
+                </div>
+
+                <!-- 查询模板 -->
+                <div v-show="activeMenu === 'templates'">
+                    <div class="search-bar">
+                        <el-select v-model="templateSearch.school_id" placeholder="选择学校" style="width: 200px" clearable>
+                            <el-option 
+                                v-for="school in schools" 
+                                :key="school.id" 
+                                :label="school.name" 
+                                :value="school.id">
+                            </el-option>
+                        </el-select>
+                        <el-input v-model="templateSearch.category" placeholder="业务大类" style="width: 150px" clearable></el-input>
+                        <el-button type="primary" @click="loadTemplates">搜索</el-button>
+                        <el-button type="success" @click="showTemplateDialog()">新增模板</el-button>
+                    </div>
+                    <div class="table-container">
+                        <el-table :data="templates" stripe style="width: 100%">
+                            <el-table-column prop="id" label="ID" width="80"></el-table-column>
+                            <el-table-column prop="name" label="模板名称" min-width="150"></el-table-column>
+                            <el-table-column prop="category" label="业务大类" width="120"></el-table-column>
+                            <el-table-column prop="category_name" label="大类名称" width="120"></el-table-column>
+                            <el-table-column prop="time_field" label="时间字段" width="120"></el-table-column>
+                            <el-table-column prop="status" label="状态" width="100">
+                                <template #default="{ row }">
+                                    <span :class="['status-tag', row.status === 'active' ? 'status-active' : 'status-inactive']">
+                                        {{ row.status === 'active' ? '正常' : '禁用' }}
+                                    </span>
+                                </template>
+                            </el-table-column>
+                            <el-table-column label="操作" min-width="150">
+                                <template #default="{ row }">
+                                    <el-button size="small" @click="showTemplateDialog(row)">编辑</el-button>
+                                    <el-button size="small" type="danger" @click="deleteTemplate(row)">删除</el-button>
+                                </template>
+                            </el-table-column>
+                        </el-table>
+                    </div>
+                </div>
+
+                <!-- 操作日志 -->
+                <div v-show="activeMenu === 'logs'">
+                    <div class="search-bar">
+                        <el-select v-model="logSearch.school_id" placeholder="选择学校" style="width: 200px" clearable>
+                            <el-option 
+                                v-for="school in schools" 
+                                :key="school.id" 
+                                :label="school.name" 
+                                :value="school.id">
+                            </el-option>
+                        </el-select>
+                        <el-select v-model="logSearch.status" placeholder="状态" style="width: 120px" clearable>
+                            <el-option label="成功" value="success"></el-option>
+                            <el-option label="失败" value="failed"></el-option>
+                        </el-select>
+                        <el-date-picker
+                            v-model="logSearch.dateRange"
+                            type="daterange"
+                            range-separator="至"
+                            start-placeholder="开始日期"
+                            end-placeholder="结束日期"
+                            value-format="YYYY-MM-DD"
+                            style="width: 260px">
+                        </el-date-picker>
+                        <el-button type="primary" @click="loadLogs">搜索</el-button>
+                    </div>
+                    <div class="table-container">
+                        <el-table :data="logs" stripe style="width: 100%">
+                            <el-table-column prop="id" label="ID" width="80"></el-table-column>
+                            <el-table-column prop="query_name" label="查询名称" min-width="150"></el-table-column>
+                            <el-table-column prop="school_name" label="学校" width="150"></el-table-column>
+                            <el-table-column prop="result_count" label="结果数" width="100"></el-table-column>
+                            <el-table-column prop="query_time" label="耗时(ms)" width="100"></el-table-column>
+                            <el-table-column prop="status" label="状态" width="100">
+                                <template #default="{ row }">
+                                    <el-tag :type="row.status === 'success' ? 'success' : 'danger'" size="small">
+                                        {{ row.status === 'success' ? '成功' : '失败' }}
+                                    </el-tag>
+                                </template>
+                            </el-table-column>
+                            <el-table-column prop="created_at" label="时间" width="180">
+                                <template #default="{ row }">
+                                    {{ formatDate(row.created_at) }}
+                                </template>
+                            </el-table-column>
+                            <el-table-column label="操作" width="100">
+                                <template #default="{ row }">
+                                    <el-button size="small" @click="showLogDetail(row)">详情</el-button>
+                                </template>
+                            </el-table-column>
+                        </el-table>
+                        <div class="pagination-container">
+                            <el-pagination
+                                v-model:current-page="logPagination.page"
+                                v-model:page-size="logPagination.pageSize"
+                                :total="logPagination.total"
+                                :page-sizes="[10, 20, 50, 100]"
+                                layout="total, sizes, prev, pager, next"
+                                @size-change="loadLogs"
+                                @current-change="loadLogs">
+                            </el-pagination>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 用户编辑对话框 -->
+        <el-dialog v-model="userDialogVisible" :title="userForm.id ? '编辑用户' : '新增用户'" width="500px">
+            <el-form :model="userForm" :rules="userRules" ref="userFormRef" label-width="80px">
+                <el-form-item label="手机号" prop="phone">
+                    <el-input v-model="userForm.phone" placeholder="请输入手机号"></el-input>
+                </el-form-item>
+                <el-form-item label="姓名" prop="name">
+                    <el-input v-model="userForm.name" placeholder="请输入姓名"></el-input>
+                </el-form-item>
+                <el-form-item label="密码" prop="password">
+                    <el-input v-model="userForm.password" type="password" placeholder="留空则使用默认密码" show-password></el-input>
+                </el-form-item>
+                <el-form-item label="角色" prop="role">
+                    <el-select v-model="userForm.role" style="width: 100%">
+                        <el-option label="管理员" value="admin"></el-option>
+                        <el-option label="普通用户" value="user"></el-option>
+                    </el-select>
+                </el-form-item>
+                <el-form-item label="状态" prop="status">
+                    <el-select v-model="userForm.status" style="width: 100%">
+                        <el-option label="正常" value="active"></el-option>
+                        <el-option label="禁用" value="inactive"></el-option>
+                    </el-select>
+                </el-form-item>
+            </el-form>
+            <template #footer>
+                <el-button @click="userDialogVisible = false">取消</el-button>
+                <el-button type="primary" @click="saveUser">保存</el-button>
+            </template>
+        </el-dialog>
+
+        <!-- 权限设置对话框 -->
+        <el-dialog v-model="permissionDialogVisible" title="设置学校权限" width="600px">
+            <el-transfer
+                v-model="selectedSchools"
+                :data="allSchools"
+                :titles="['可选学校', '已授权学校']"
+                :props="{ key: 'id', label: 'name' }">
+            </el-transfer>
+            <template #footer>
+                <el-button @click="permissionDialogVisible = false">取消</el-button>
+                <el-button type="primary" @click="savePermissions">保存</el-button>
+            </template>
+        </el-dialog>
+
+        <!-- 学校编辑对话框 -->
+        <el-dialog v-model="schoolDialogVisible" :title="schoolForm.id ? '编辑学校' : '新增学校'" width="500px">
+            <el-form :model="schoolForm" :rules="schoolRules" ref="schoolFormRef" label-width="80px">
+                <el-form-item label="学校名称" prop="name">
+                    <el-input v-model="schoolForm.name" placeholder="请输入学校名称"></el-input>
+                </el-form-item>
+                <el-form-item label="学校编码" prop="code">
+                    <el-input v-model="schoolForm.code" placeholder="请输入学校编码"></el-input>
+                </el-form-item>
+                <el-form-item label="描述">
+                    <el-input v-model="schoolForm.description" type="textarea" placeholder="请输入描述"></el-input>
+                </el-form-item>
+            </el-form>
+            <template #footer>
+                <el-button @click="schoolDialogVisible = false">取消</el-button>
+                <el-button type="primary" @click="saveSchool">保存</el-button>
+            </template>
+        </el-dialog>
+
+        <!-- 数据库配置对话框 -->
+        <el-dialog v-model="databaseDialogVisible" :title="databaseForm.id ? '编辑配置' : '新增配置'" width="600px">
+            <el-form :model="databaseForm" :rules="databaseRules" ref="databaseFormRef" label-width="100px">
+                <el-form-item label="关联学校" prop="school_id">
+                    <el-select v-model="databaseForm.school_id" placeholder="选择学校" style="width: 100%">
+                        <el-option v-for="school in schools" :key="school.id" :label="school.name" :value="school.id"></el-option>
+                    </el-select>
+                </el-form-item>
+                <el-form-item label="配置名称" prop="name">
+                    <el-input v-model="databaseForm.name" placeholder="请输入配置名称"></el-input>
+                </el-form-item>
+                <el-form-item label="数据库类型" prop="db_type">
+                    <el-select v-model="databaseForm.db_type" style="width: 100%">
+                        <el-option label="MySQL" value="MySQL"></el-option>
+                        <el-option label="Oracle" value="Oracle"></el-option>
+                        <el-option label="SQL Server" value="SQLServer"></el-option>
+                        <el-option label="SQLite" value="SQLite"></el-option>
+                    </el-select>
+                </el-form-item>
+                <el-form-item label="主机地址" prop="host" v-if="databaseForm.db_type !== 'SQLite'">
+                    <el-input v-model="databaseForm.host" placeholder="请输入主机地址"></el-input>
+                </el-form-item>
+                <el-form-item label="端口" prop="port" v-if="databaseForm.db_type !== 'SQLite'">
+                    <el-input v-model.number="databaseForm.port" placeholder="请输入端口"></el-input>
+                </el-form-item>
+                <el-form-item label="用户名" prop="username" v-if="databaseForm.db_type !== 'SQLite'">
+                    <el-input v-model="databaseForm.username" placeholder="请输入用户名"></el-input>
+                </el-form-item>
+                <el-form-item label="密码" prop="password" v-if="databaseForm.db_type !== 'SQLite'">
+                    <el-input v-model="databaseForm.password" type="password" placeholder="请输入密码" show-password></el-input>
+                </el-form-item>
+                <el-form-item label="数据库名" prop="database" v-if="databaseForm.db_type !== 'SQLite'">
+                    <el-input v-model="databaseForm.database" placeholder="请输入数据库名"></el-input>
+                </el-form-item>
+                <el-form-item label="服务名" v-if="databaseForm.db_type === 'Oracle'">
+                    <el-input v-model="databaseForm.service_name" placeholder="Oracle服务名"></el-input>
+                </el-form-item>
+                <el-form-item label="数据库文件" prop="database" v-if="databaseForm.db_type === 'SQLite'">
+                    <el-input v-model="databaseForm.database" placeholder="数据库文件路径，如 ./data/test.db"></el-input>
+                </el-form-item>
+                <el-form-item label="描述">
+                    <el-input v-model="databaseForm.description" type="textarea" placeholder="请输入描述"></el-input>
+                </el-form-item>
+            </el-form>
+            <template #footer>
+                <el-button @click="databaseDialogVisible = false">取消</el-button>
+                <el-button type="primary" @click="saveDatabase">保存</el-button>
+            </template>
+        </el-dialog>
+
+        <!-- 查询模板对话框 -->
+        <el-dialog v-model="templateDialogVisible" :title="templateForm.id ? '编辑模板' : '新增模板'" width="700px">
+            <el-form :model="templateForm" :rules="templateRules" ref="templateFormRef" label-width="100px">
+                <el-form-item label="关联学校" prop="school_id">
+                    <el-select v-model="templateForm.school_id" placeholder="选择学校" style="width: 100%">
+                        <el-option v-for="school in schools" :key="school.id" :label="school.name" :value="school.id"></el-option>
+                    </el-select>
+                </el-form-item>
+                <el-form-item label="业务大类" prop="category">
+                    <el-input v-model="templateForm.category" placeholder="业务大类编码，如 student"></el-input>
+                </el-form-item>
+                <el-form-item label="大类名称">
+                    <el-input v-model="templateForm.category_name" placeholder="业务大类名称，如 学生信息"></el-input>
+                </el-form-item>
+                <el-form-item label="大类图标">
+                    <el-input v-model="templateForm.category_icon" placeholder="图标emoji，如 📋"></el-input>
+                </el-form-item>
+                <el-form-item label="模板名称" prop="name">
+                    <el-input v-model="templateForm.name" placeholder="请输入模板名称"></el-input>
+                </el-form-item>
+                <el-form-item label="SQL模板" prop="sql_template">
+                    <el-input v-model="templateForm.sql_template" type="textarea" :rows="5" placeholder="SELECT * FROM table WHERE 1=1"></el-input>
+                </el-form-item>
+                <el-form-item label="时间字段">
+                    <el-input v-model="templateForm.time_field" placeholder="时间字段名，用于时间范围查询"></el-input>
+                </el-form-item>
+                <el-form-item label="默认限制">
+                    <el-input-number v-model="templateForm.default_limit" :min="1" :max="10000"></el-input-number>
+                </el-form-item>
+            </el-form>
+            <template #footer>
+                <el-button @click="templateDialogVisible = false">取消</el-button>
+                <el-button type="primary" @click="saveTemplate">保存</el-button>
+            </template>
+        </el-dialog>
+
+        <!-- 日志详情对话框 -->
+        <el-dialog v-model="logDetailVisible" title="查询详情" width="700px">
+            <el-descriptions :column="2" border>
+                <el-descriptions-item label="查询名称">{{ logDetail.query_name }}</el-descriptions-item>
+                <el-descriptions-item label="状态">
+                    <el-tag :type="logDetail.status === 'success' ? 'success' : 'danger'">
+                        {{ logDetail.status === 'success' ? '成功' : '失败' }}
+                    </el-tag>
+                </el-descriptions-item>
+                <el-descriptions-item label="结果数">{{ logDetail.result_count }}</el-descriptions-item>
+                <el-descriptions-item label="耗时">{{ logDetail.query_time }} ms</el-descriptions-item>
+                <el-descriptions-item label="时间" :span="2">{{ formatDate(logDetail.created_at) }}</el-descriptions-item>
+                <el-descriptions-item label="SQL" :span="2">
+                    <pre style="white-space: pre-wrap; word-break: break-all; margin: 0;">{{ logDetail.sql_executed }}</pre>
+                </el-descriptions-item>
+                <el-descriptions-item label="错误信息" :span="2" v-if="logDetail.error_message">
+                    <span style="color: #f56c6c;">{{ logDetail.error_message }}</span>
+                </el-descriptions-item>
+            </el-descriptions>
+        </el-dialog>
+    </div>
+
+    <script>
+        const { createApp, ref, reactive, computed, onMounted, watch } = Vue;
+        const { ElMessage, ElMessageBox } = ElementPlus;
+
+        // API基础URL - 根据实际情况修改
+        const API_BASE = window.location.origin + '/api';
+
+        const app = createApp({
+            setup() {
+                // 状态
+                const isLoggedIn = ref(false);
+                const loginLoading = ref(false);
+                const version = ref('加载中...');
+                const loginForm = reactive({
+                    phone: '',
+                    password: ''
+                });
+                const loginRules = {
+                    phone: [{ required: true, message: '请输入账号', trigger: 'blur' }],
+                    password: [{ required: true, message: '请输入密码', trigger: 'blur' }]
+                };
+                const loginFormRef = ref(null);
+                const userInfo = ref({});
+
+                // 菜单
+                const activeMenu = ref('users');
+                const menuItems = [
+                    { key: 'users', name: '用户管理', icon: 'User' },
+                    { key: 'schools', name: '学校管理', icon: 'OfficeBuilding' },
+                    { key: 'databases', name: '数据库配置', icon: 'Coin' },
+                    { key: 'templates', name: '查询模板', icon: 'Document' },
+                    { key: 'logs', name: '操作日志', icon: 'List' }
+                ];
+                const currentMenuName = computed(() => {
+                    const item = menuItems.find(m => m.key === activeMenu.value);
+                    return item ? item.name : '';
+                });
+
+                // 用户管理
+                const users = ref([]);
+                const userSearch = reactive({ phone: '', name: '', role: '' });
+                const userDialogVisible = ref(false);
+                const userForm = reactive({
+                    id: null,
+                    phone: '',
+                    name: '',
+                    password: '',
+                    role: 'user',
+                    status: 'active'
+                });
+                const userRules = {
+                    phone: [{ required: true, message: '请输入手机号', trigger: 'blur' }],
+                    name: [{ required: true, message: '请输入姓名', trigger: 'blur' }]
+                };
+                const userFormRef = ref(null);
+                const permissionDialogVisible = ref(false);
+                const currentUserForPerm = ref(null);
+                const selectedSchools = ref([]);
+                const allSchools = ref([]);
+
+                // 学校管理
+                const schools = ref([]);
+                const schoolSearch = reactive({ name: '' });
+                const schoolDialogVisible = ref(false);
+                const schoolForm = reactive({
+                    id: null,
+                    name: '',
+                    code: '',
+                    description: ''
+                });
+                const schoolRules = {
+                    name: [{ required: true, message: '请输入学校名称', trigger: 'blur' }],
+                    code: [{ required: true, message: '请输入学校编码', trigger: 'blur' }]
+                };
+                const schoolFormRef = ref(null);
+
+                // 数据库配置
+                const databases = ref([]);
+                const dbSearch = reactive({ school_id: null });
+                const databaseDialogVisible = ref(false);
+                const databaseForm = reactive({
+                    id: null,
+                    school_id: null,
+                    name: '',
+                    db_type: 'MySQL',
+                    host: 'localhost',
+                    port: 3306,
+                    username: '',
+                    password: '',
+                    database: '',
+                    service_name: '',
+                    description: ''
+                });
+                const databaseRules = {
+                    school_id: [{ required: true, message: '请选择学校', trigger: 'change' }],
+                    name: [{ required: true, message: '请输入配置名称', trigger: 'blur' }],
+                    db_type: [{ required: true, message: '请选择数据库类型', trigger: 'change' }]
+                };
+                const databaseFormRef = ref(null);
+
+                // 查询模板
+                const templates = ref([]);
+                const templateSearch = reactive({ school_id: null, category: '' });
+                const templateDialogVisible = ref(false);
+                const templateForm = reactive({
+                    id: null,
+                    school_id: null,
+                    category: '',
+                    category_name: '',
+                    category_icon: '',
+                    name: '',
+                    sql_template: '',
+                    time_field: '',
+                    default_limit: 500
+                });
+                const templateRules = {
+                    school_id: [{ required: true, message: '请选择学校', trigger: 'change' }],
+                    category: [{ required: true, message: '请输入业务大类', trigger: 'blur' }],
+                    name: [{ required: true, message: '请输入模板名称', trigger: 'blur' }],
+                    sql_template: [{ required: true, message: '请输入SQL模板', trigger: 'blur' }]
+                };
+                const templateFormRef = ref(null);
+
+                // 操作日志
+                const logs = ref([]);
+                const logSearch = reactive({
+                    school_id: null,
+                    status: '',
+                    dateRange: null
+                });
+                const logPagination = reactive({
+                    page: 1,
+                    pageSize: 20,
+                    total: 0
+                });
+                const logDetailVisible = ref(false);
+                const logDetail = ref({});
+
+                // API请求方法
+                const request = async (url, options = {}) => {
+                    const token = localStorage.getItem('token');
+                    const headers = {
+                        'Content-Type': 'application/json',
+                        ...options.headers
+                    };
+                    if (token) {
+                        headers['Authorization'] = `Bearer ${token}`;
+                    }
+                    
+                    const response = await fetch(API_BASE + url, {
+                        ...options,
+                        headers
+                    });
+                    
+                    if (response.status === 401) {
+                        localStorage.removeItem('token');
+                        isLoggedIn.value = false;
+                        throw new Error('登录已过期');
+                    }
+                    
+                    return response.json();
+                };
+
+                // 获取版本号
+                const loadVersion = async () => {
+                    try {
+                        const res = await request('/version');
+                        if (res.code === 200) {
+                            version.value = res.data.version;
+                        }
+                    } catch (e) {
+                        version.value = '未知';
+                    }
+                };
+
+                // 登录
+                const handleLogin = async () => {
+                    try {
+                        await loginFormRef.value.validate();
+                        loginLoading.value = true;
+                        
+                        const res = await request('/login', {
+                            method: 'POST',
+                            body: JSON.stringify(loginForm)
+                        });
+                        
+                        if (res.code === 200) {
+                            localStorage.setItem('token', res.data.token);
+                            userInfo.value = res.data.user;
+                            userInfo.value.role = res.data.role;
+                            isLoggedIn.value = true;
+                            ElMessage.success('登录成功');
+                            
+                            // 加载初始数据
+                            loadVersion();
+                            loadSchools();
+                            loadUsers();
+                        } else {
+                            ElMessage.error(res.message || '登录失败');
+                        }
+                    } catch (e) {
+                        if (e.message !== '登录已过期') {
+                            ElMessage.error('登录请求失败');
+                        }
+                    } finally {
+                        loginLoading.value = false;
+                    }
+                };
+
+                // 退出登录
+                const handleLogout = () => {
+                    localStorage.removeItem('token');
+                    isLoggedIn.value = false;
+                    loginForm.phone = '';
+                    loginForm.password = '';
+                };
+
+                // 格式化日期
+                const formatDate = (dateStr) => {
+                    if (!dateStr) return '';
+                    const date = new Date(dateStr);
+                    return date.toLocaleString('zh-CN', {
+                        year: 'numeric',
+                        month: '2-digit',
+                        day: '2-digit',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        second: '2-digit'
+                    });
+                };
+
+                // 用户管理方法
+                const loadUsers = async () => {
+                    try {
+                        const res = await request('/admin/users');
+                        if (res.code === 200) {
+                            users.value = res.data || [];
+                        }
+                    } catch (e) {
+                        console.error('加载用户失败', e);
+                    }
+                };
+
+                const showUserDialog = (user = null) => {
+                    if (user) {
+                        userForm.id = user.id;
+                        userForm.phone = user.phone;
+                        userForm.name = user.name;
+                        userForm.password = '';
+                        userForm.role = user.role;
+                        userForm.status = user.status;
+                    } else {
+                        userForm.id = null;
+                        userForm.phone = '';
+                        userForm.name = '';
+                        userForm.password = '';
+                        userForm.role = 'user';
+                        userForm.status = 'active';
+                    }
+                    userDialogVisible.value = true;
+                };
+
+                const saveUser = async () => {
+                    try {
+                        await userFormRef.value.validate();
+                        const data = { ...userForm };
+                        if (!data.password) delete data.password;
+                        
+                        let res;
+                        if (data.id) {
+                            res = await request(`/admin/users/${data.id}`, {
+                                method: 'PUT',
+                                body: JSON.stringify(data)
+                            });
+                        } else {
+                            res = await request('/admin/users', {
+                                method: 'POST',
+                                body: JSON.stringify(data)
+                            });
+                        }
+                        
+                        if (res.code === 200) {
+                            ElMessage.success('保存成功');
+                            userDialogVisible.value = false;
+                            loadUsers();
+                        } else {
+                            ElMessage.error(res.message || '保存失败');
+                        }
+                    } catch (e) {
+                        console.error('保存用户失败', e);
+                    }
+                };
+
+                const deleteUser = async (user) => {
+                    try {
+                        await ElMessageBox.confirm('确定要删除该用户吗？', '确认删除', {
+                            type: 'warning'
+                        });
+                        
+                        const res = await request(`/admin/users/${user.id}`, {
+                            method: 'DELETE'
+                        });
+                        
+                        if (res.code === 200) {
+                            ElMessage.success('删除成功');
+                            loadUsers();
+                        } else {
+                            ElMessage.error(res.message || '删除失败');
+                        }
+                    } catch (e) {
+                        if (e !== 'cancel') {
+                            console.error('删除用户失败', e);
+                        }
+                    }
+                };
+
+                const showPermissionDialog = async (user) => {
+                    currentUserForPerm.value = user;
+                    allSchools.value = schools.value.map(s => ({ id: s.id, name: s.name }));
+                    
+                    // 获取用户当前权限
+                    const res = await request('/admin/users');
+                    // 简化处理，实际应该有获取用户学校权限的API
+                    selectedSchools.value = [];
+                    
+                    permissionDialogVisible.value = true;
+                };
+
+                const savePermissions = async () => {
+                    try {
+                        // 先清除所有权限
+                        // 然后添加新权限
+                        for (const schoolId of selectedSchools.value) {
+                            await request(`/admin/users/${currentUserForPerm.value.id}/schools/${schoolId}`, {
+                                method: 'POST'
+                            });
+                        }
+                        ElMessage.success('权限设置成功');
+                        permissionDialogVisible.value = false;
+                    } catch (e) {
+                        console.error('保存权限失败', e);
+                    }
+                };
+
+                // 学校管理方法
+                const loadSchools = async () => {
+                    try {
+                        const res = await request('/manage/schools');
+                        if (res.code === 200) {
+                            schools.value = res.data || [];
+                        }
+                    } catch (e) {
+                        console.error('加载学校失败', e);
+                    }
+                };
+
+                const showSchoolDialog = (school = null) => {
+                    if (school) {
+                        schoolForm.id = school.id;
+                        schoolForm.name = school.name;
+                        schoolForm.code = school.code;
+                        schoolForm.description = school.description || '';
+                    } else {
+                        schoolForm.id = null;
+                        schoolForm.name = '';
+                        schoolForm.code = '';
+                        schoolForm.description = '';
+                    }
+                    schoolDialogVisible.value = true;
+                };
+
+                const saveSchool = async () => {
+                    try {
+                        await schoolFormRef.value.validate();
+                        
+                        let res;
+                        if (schoolForm.id) {
+                            res = await request(`/manage/schools/${schoolForm.id}`, {
+                                method: 'PUT',
+                                body: JSON.stringify(schoolForm)
+                            });
+                        } else {
+                            res = await request('/manage/schools', {
+                                method: 'POST',
+                                body: JSON.stringify(schoolForm)
+                            });
+                        }
+                        
+                        if (res.code === 200) {
+                            ElMessage.success('保存成功');
+                            schoolDialogVisible.value = false;
+                            loadSchools();
+                        } else {
+                            ElMessage.error(res.message || '保存失败');
+                        }
+                    } catch (e) {
+                        console.error('保存学校失败', e);
+                    }
+                };
+
+                const deleteSchool = async (school) => {
+                    try {
+                        await ElMessageBox.confirm('确定要删除该学校吗？', '确认删除', {
+                            type: 'warning'
+                        });
+                        
+                        const res = await request(`/manage/schools/${school.id}`, {
+                            method: 'DELETE'
+                        });
+                        
+                        if (res.code === 200) {
+                            ElMessage.success('删除成功');
+                            loadSchools();
+                        } else {
+                            ElMessage.error(res.message || '删除失败');
+                        }
+                    } catch (e) {
+                        if (e !== 'cancel') {
+                            console.error('删除学校失败', e);
+                        }
+                    }
+                };
+
+                // 数据库配置方法
+                const loadDatabases = async () => {
+                    try {
+                        let url = '/manage/databases';
+                        if (dbSearch.school_id) {
+                            url += `?school_id=${dbSearch.school_id}`;
+                        }
+                        const res = await request(url);
+                        if (res.code === 200) {
+                            databases.value = res.data || [];
+                        }
+                    } catch (e) {
+                        console.error('加载数据库配置失败', e);
+                    }
+                };
+
+                const showDatabaseDialog = (db = null) => {
+                    if (db) {
+                        databaseForm.id = db.id;
+                        databaseForm.school_id = db.school_id;
+                        databaseForm.name = db.name;
+                        databaseForm.db_type = db.db_type;
+                        databaseForm.host = db.host || 'localhost';
+                        databaseForm.port = db.port || 3306;
+                        databaseForm.username = db.username || '';
+                        databaseForm.password = '';
+                        databaseForm.database = db.database || '';
+                        databaseForm.service_name = db.service_name || '';
+                        databaseForm.description = db.description || '';
+                    } else {
+                        databaseForm.id = null;
+                        databaseForm.school_id = null;
+                        databaseForm.name = '';
+                        databaseForm.db_type = 'MySQL';
+                        databaseForm.host = 'localhost';
+                        databaseForm.port = 3306;
+                        databaseForm.username = '';
+                        databaseForm.password = '';
+                        databaseForm.database = '';
+                        databaseForm.service_name = '';
+                        databaseForm.description = '';
+                    }
+                    databaseDialogVisible.value = true;
+                };
+
+                const saveDatabase = async () => {
+                    try {
+                        await databaseFormRef.value.validate();
+                        
+                        let res;
+                        if (databaseForm.id) {
+                            res = await request(`/manage/databases/${databaseForm.id}`, {
+                                method: 'PUT',
+                                body: JSON.stringify(databaseForm)
+                            });
+                        } else {
+                            res = await request('/manage/databases', {
+                                method: 'POST',
+                                body: JSON.stringify(databaseForm)
+                            });
+                        }
+                        
+                        if (res.code === 200) {
+                            ElMessage.success('保存成功');
+                            databaseDialogVisible.value = false;
+                            loadDatabases();
+                        } else {
+                            ElMessage.error(res.message || '保存失败');
+                        }
+                    } catch (e) {
+                        console.error('保存数据库配置失败', e);
+                    }
+                };
+
+                const testConnection = async (db) => {
+                    try {
+                        const res = await request(`/manage/databases/${db.id}/test`, {
+                            method: 'POST'
+                        });
+                        if (res.code === 200) {
+                            ElMessage.success('连接成功');
+                        } else {
+                            ElMessage.error(res.message || '连接失败');
+                        }
+                    } catch (e) {
+                        ElMessage.error('连接测试失败');
+                    }
+                };
+
+                const deleteDatabase = async (db) => {
+                    try {
+                        await ElMessageBox.confirm('确定要删除该配置吗？', '确认删除', {
+                            type: 'warning'
+                        });
+                        
+                        const res = await request(`/manage/databases/${db.id}`, {
+                            method: 'DELETE'
+                        });
+                        
+                        if (res.code === 200) {
+                            ElMessage.success('删除成功');
+                            loadDatabases();
+                        } else {
+                            ElMessage.error(res.message || '删除失败');
+                        }
+                    } catch (e) {
+                        if (e !== 'cancel') {
+                            console.error('删除数据库配置失败', e);
+                        }
+                    }
+                };
+
+                // 查询模板方法
+                const loadTemplates = async () => {
+                    try {
+                        let url = '/manage/templates?';
+                        if (templateSearch.school_id) {
+                            url += `school_id=${templateSearch.school_id}&`;
+                        }
+                        if (templateSearch.category) {
+                            url += `category=${templateSearch.category}`;
+                        }
+                        const res = await request(url);
+                        if (res.code === 200) {
+                            templates.value = res.data || [];
+                        }
+                    } catch (e) {
+                        console.error('加载模板失败', e);
+                    }
+                };
+
+                const showTemplateDialog = (template = null) => {
+                    if (template) {
+                        templateForm.id = template.id;
+                        templateForm.school_id = template.school_id;
+                        templateForm.category = template.category;
+                        templateForm.category_name = template.category_name || '';
+                        templateForm.category_icon = template.category_icon || '';
+                        templateForm.name = template.name;
+                        templateForm.sql_template = template.sql_template;
+                        templateForm.time_field = template.time_field || '';
+                        templateForm.default_limit = template.default_limit || 500;
+                    } else {
+                        templateForm.id = null;
+                        templateForm.school_id = null;
+                        templateForm.category = '';
+                        templateForm.category_name = '';
+                        templateForm.category_icon = '';
+                        templateForm.name = '';
+                        templateForm.sql_template = '';
+                        templateForm.time_field = '';
+                        templateForm.default_limit = 500;
+                    }
+                    templateDialogVisible.value = true;
+                };
+
+                const saveTemplate = async () => {
+                    try {
+                        await templateFormRef.value.validate();
+                        
+                        let res;
+                        if (templateForm.id) {
+                            res = await request(`/manage/templates/${templateForm.id}`, {
+                                method: 'PUT',
+                                body: JSON.stringify(templateForm)
+                            });
+                        } else {
+                            res = await request('/manage/templates', {
+                                method: 'POST',
+                                body: JSON.stringify(templateForm)
+                            });
+                        }
+                        
+                        if (res.code === 200) {
+                            ElMessage.success('保存成功');
+                            templateDialogVisible.value = false;
+                            loadTemplates();
+                        } else {
+                            ElMessage.error(res.message || '保存失败');
+                        }
+                    } catch (e) {
+                        console.error('保存模板失败', e);
+                    }
+                };
+
+                const deleteTemplate = async (template) => {
+                    try {
+                        await ElMessageBox.confirm('确定要删除该模板吗？', '确认删除', {
+                            type: 'warning'
+                        });
+                        
+                        const res = await request(`/manage/templates/${template.id}`, {
+                            method: 'DELETE'
+                        });
+                        
+                        if (res.code === 200) {
+                            ElMessage.success('删除成功');
+                            loadTemplates();
+                        } else {
+                            ElMessage.error(res.message || '删除失败');
+                        }
+                    } catch (e) {
+                        if (e !== 'cancel') {
+                            console.error('删除模板失败', e);
+                        }
+                    }
+                };
+
+                // 操作日志方法
+                const loadLogs = async () => {
+                    try {
+                        let url = `/user/history?skip=${(logPagination.page - 1) * logPagination.pageSize}&limit=${logPagination.pageSize}`;
+                        if (logSearch.school_id) {
+                            url += `&school_id=${logSearch.school_id}`;
+                        }
+                        if (logSearch.status) {
+                            url += `&status=${logSearch.status}`;
+                        }
+                        if (logSearch.dateRange && logSearch.dateRange.length === 2) {
+                            url += `&start_date=${logSearch.dateRange[0]}&end_date=${logSearch.dateRange[1]}`;
+                        }
+                        
+                        const res = await request(url);
+                        if (res.code === 200) {
+                            logs.value = res.data || [];
+                            logPagination.total = res.total || logs.value.length;
+                        }
+                    } catch (e) {
+                        console.error('加载日志失败', e);
+                    }
+                };
+
+                const showLogDetail = (log) => {
+                    logDetail.value = log;
+                    logDetailVisible.value = true;
+                };
+
+                // 监听菜单切换
+                watch(activeMenu, (newVal) => {
+                    switch (newVal) {
+                        case 'users':
+                            loadUsers();
+                            break;
+                        case 'schools':
+                            loadSchools();
+                            break;
+                        case 'databases':
+                            loadDatabases();
+                            break;
+                        case 'templates':
+                            loadTemplates();
+                            break;
+                        case 'logs':
+                            loadLogs();
+                            break;
+                    }
+                });
+
+                // 检查登录状态
+                onMounted(() => {
+                    const token = localStorage.getItem('token');
+                    if (token) {
+                        // 验证token有效性
+                        request('/me').then(res => {
+                            if (res.code === 200) {
+                                userInfo.value = res.data.user;
+                                userInfo.value.role = res.data.role;
+                                isLoggedIn.value = true;
+                                loadVersion();
+                                loadSchools();
+                                loadUsers();
+                            } else {
+                                localStorage.removeItem('token');
+                            }
+                        }).catch(() => {
+                            localStorage.removeItem('token');
+                        });
+                    }
+                });
+
+                return {
+                    // 登录相关
+                    isLoggedIn,
+                    loginLoading,
+                    version,
+                    loginForm,
+                    loginRules,
+                    loginFormRef,
+                    handleLogin,
+                    handleLogout,
+                    userInfo,
+                    
+                    // 菜单
+                    activeMenu,
+                    menuItems,
+                    currentMenuName,
+                    
+                    // 用户管理
+                    users,
+                    userSearch,
+                    userDialogVisible,
+                    userForm,
+                    userRules,
+                    userFormRef,
+                    loadUsers,
+                    showUserDialog,
+                    saveUser,
+                    deleteUser,
+                    permissionDialogVisible,
+                    currentUserForPerm,
+                    selectedSchools,
+                    allSchools,
+                    showPermissionDialog,
+                    savePermissions,
+                    
+                    // 学校管理
+                    schools,
+                    schoolSearch,
+                    schoolDialogVisible,
+                    schoolForm,
+                    schoolRules,
+                    schoolFormRef,
+                    loadSchools,
+                    showSchoolDialog,
+                    saveSchool,
+                    deleteSchool,
+                    
+                    // 数据库配置
+                    databases,
+                    dbSearch,
+                    databaseDialogVisible,
+                    databaseForm,
+                    databaseRules,
+                    databaseFormRef,
+                    loadDatabases,
+                    showDatabaseDialog,
+                    saveDatabase,
+                    testConnection,
+                    deleteDatabase,
+                    
+                    // 查询模板
+                    templates,
+                    templateSearch,
+                    templateDialogVisible,
+                    templateForm,
+                    templateRules,
+                    templateFormRef,
+                    loadTemplates,
+                    showTemplateDialog,
+                    saveTemplate,
+                    deleteTemplate,
+                    
+                    // 操作日志
+                    logs,
+                    logSearch,
+                    logPagination,
+                    logDetailVisible,
+                    logDetail,
+                    loadLogs,
+                    showLogDetail,
+                    
+                    // 工具方法
+                    formatDate
+                };
+            }
+        });
+
+        // 注册所有图标
+        for (const [key, component] of Object.entries(ElementPlusIconsVue)) {
+            app.component(key, component);
+        }
+
+        app.use(ElementPlus);
+        app.mount('#app');
+    </script>
+</body>
+</html>
