@@ -1,0 +1,174 @@
+<!-- pages/login/login.wxml -->
+<view class="container">
+  
+  <!-- 科技感背景 -->
+  <view class="tech-bg">
+    <!-- 渐变光晕 -->
+    <view class="glow glow-1"></view>
+    <view class="glow glow-2"></view>
+    <view class="glow glow-3"></view>
+    
+    <!-- 网格背景 -->
+    <view class="grid-bg"></view>
+    
+    <!-- 科技线条 -->
+    <view class="tech-line tech-line-1"></view>
+    <view class="tech-line tech-line-2"></view>
+    <view class="tech-line tech-line-3"></view>
+    
+    <!-- 浮动粒子 -->
+    <view class="particle particle-1"></view>
+    <view class="particle particle-2"></view>
+    <view class="particle particle-3"></view>
+    <view class="particle particle-4"></view>
+    <view class="particle particle-5"></view>
+    
+    <!-- 扫描线 -->
+    <view class="scan-line"></view>
+  </view>
+
+  <!-- Logo区域 -->
+  <view class="logo-area">
+    <view class="logo-container">
+      <view class="logo-glow"></view>
+      <text class="logo-icon">🔍</text>
+    </view>
+    <text class="logo-title">多源数据查询</text>
+    <text class="logo-subtitle">Multi-Source Data Query</text>
+    <view class="title-decoration">
+      <view class="deco-line"></view>
+      <text class="deco-text">专业 · 高效 · 安全</text>
+      <view class="deco-line"></view>
+    </view>
+  </view>
+
+  <!-- 登录表单 -->
+  <view class="login-form glass-card">
+    <view class="form-title">
+      <text>用户登录</text>
+      <view class="title-underline"></view>
+    </view>
+    
+    <!-- 手机号输入 -->
+    <view class="form-item">
+      <view class="input-icon">📱</view>
+      <input 
+        class="input-field" 
+        type="number" 
+        maxlength="11"
+        placeholder="请输入手机号" 
+        placeholder-class="placeholder"
+        bindinput="onPhoneInput"
+        value="{{phone}}"
+      />
+      <view class="input-status"></view>
+    </view>
+
+    <!-- 密码输入 -->
+    <view class="form-item">
+      <view class="input-icon">🔒</view>
+      <input 
+        class="input-field" 
+        type="{{showPassword ? 'text' : 'password'}}" 
+        maxlength="20"
+        placeholder="请输入密码" 
+        placeholder-class="placeholder"
+        bindinput="onPasswordInput"
+        value="{{password}}"
+      />
+      <view class="show-password" bindtap="togglePassword">
+        <text>{{showPassword ? '👁️' : '👁️‍🗨️'}}</text>
+      </view>
+    </view>
+
+    <!-- 提示信息 -->
+    <view class="login-hint">
+      <text>💡 首次登录请使用管理员分配的账号密码</text>
+    </view>
+
+    <!-- 登录按钮 -->
+    <button 
+      class="login-btn" 
+      bindtap="doLogin"
+      loading="{{loading}}"
+      disabled="{{loading}}"
+    >
+      <text wx:if="{{!loading}}">🚀 登 录</text>
+      <text wx:else>登录中...</text>
+    </button>
+    
+    <!-- 分割线 -->
+    <view class="divider-line">
+      <view class="line"></view>
+      <text class="text">或</text>
+      <view class="line"></view>
+    </view>
+    
+    <!-- 微信登录按钮 -->
+    <button 
+      class="wechat-btn" 
+      bindtap="doWechatLogin"
+      loading="{{loading}}"
+      disabled="{{loading}}"
+    >
+      <text class="wechat-icon">💚</text>
+      <text>微信一键登录</text>
+    </button>
+
+    <!-- 其他选项 -->
+    <view class="other-options">
+      <text class="forgot-link" bindtap="onForgotPassword">忘记密码？</text>
+      <text class="divider">|</text>
+      <text class="help-link" bindtap="onContactAdmin">联系管理员</text>
+    </view>
+  </view>
+
+  <!-- 版权信息 -->
+  <view class="copyright">
+    <text>© 2026 多源数据查询系统 · Multi-DB Query</text>
+  </view>
+
+</view>
+
+<!-- 绑定手机号弹窗 -->
+<view class="bind-modal" wx:if="{{showBindPhone}}">
+  <view class="bind-mask" bindtap="cancelBind"></view>
+  <view class="bind-content glass-card">
+    <view class="bind-title">绑定手机号</view>
+    <view class="bind-hint">首次使用微信登录，请绑定手机号完成注册</view>
+    
+    <!-- 手机号输入 -->
+    <view class="form-item">
+      <view class="input-icon">📱</view>
+      <input 
+        class="input-field" 
+        type="number" 
+        maxlength="11"
+        placeholder="请输入手机号" 
+        placeholder-class="placeholder"
+        bindinput="onBindPhoneInput"
+        value="{{bindPhone}}"
+      />
+    </view>
+    
+    <!-- 密码输入 -->
+    <view class="form-item">
+      <view class="input-icon">🔒</view>
+      <input 
+        class="input-field" 
+        type="password" 
+        maxlength="20"
+        placeholder="请设置密码" 
+        placeholder-class="placeholder"
+        bindinput="onBindPasswordInput"
+        value="{{bindPassword}}"
+      />
+    </view>
+    
+    <!-- 按钮组 -->
+    <view class="bind-buttons">
+      <button class="cancel-btn" bindtap="cancelBind">取消</button>
+      <button class="confirm-btn" bindtap="doBindPhone" loading="{{loading}}">确认绑定</button>
+    </view>
+  </view>
+</view>
