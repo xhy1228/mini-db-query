@@ -15,6 +15,19 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+def get_version_from_file() -> str:
+    """从 version.py 文件读取版本号"""
+    version_file = os.path.join(os.path.dirname(__file__), '..', 'version.py')
+    try:
+        with open(version_file, 'r', encoding='utf-8') as f:
+            version = f.read().strip()
+            if version:
+                return version
+    except Exception as e:
+        logger.warning(f"读取版本文件失败: {e}")
+    return "1.0.0.47"  # 默认版本
+
+
 def get_encrypted_db_config() -> Optional[dict]:
     """获取加密存储的数据库配置"""
     env_file = os.path.join(os.path.dirname(__file__), '..', '.env')
@@ -47,7 +60,7 @@ class Settings(BaseSettings):
     
     # 应用信息
     APP_NAME: str = "多源数据查询小程序"
-    APP_VERSION: str = "1.0.0.28"
+    APP_VERSION: str = get_version_from_file()
     DEBUG: bool = True
     
     # Server configuration

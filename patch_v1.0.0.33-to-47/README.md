@@ -18,7 +18,7 @@
 ALTER TABLE query_logs ADD COLUMN error_detail JSON COMMENT '错误详情';
 ```
 
-或执行脚本文件：`backend/migrations/升级数据库.sql`
+或执行脚本文件：`backend/migrations/v1.0.0.45_add_error_detail.sql`
 
 ## 三、小程序升级（直接覆盖）
 
@@ -27,7 +27,16 @@ ALTER TABLE query_logs ADD COLUMN error_detail JSON COMMENT '错误详情';
 - `sql` 文件夹覆盖
 - `login` 文件夹覆盖
 
-## 四、更新内容
+## 四、Scripts 目录（可选）
+
+如果本地缺少 scripts 目录，复制 `scripts` 文件夹到项目根目录：
+- `install_nssm_service.bat` - 安装Windows服务
+- `start_background.bat` - 无窗口后台启动
+- `stop_background.bat` - 停止后台服务
+- `uninstall_nssm_service.bat` - 卸载服务
+- `init_database.sql` - 数据库初始化脚本（含system_configs表）
+
+## 五、更新内容
 
 - v1.0.0.44: 查询错误信息详细化
 - v1.0.0.45: 错误详情记录到日志
