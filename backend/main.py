@@ -279,22 +279,26 @@ def main():
             }
 
         # 根路径 - 直接返回管理界面（登录页面）
-        @app.get("/", response_class=HTMLResponse)
+        @app.get("/")
         async def root():
             """根路径 - 返回管理界面（登录页面）"""
             # 直接返回管理界面，让用户登录
             html_path = Path(__file__).parent / "admin" / "index.html"
             if html_path.exists():
                 return HTMLResponse(content=html_path.read_text(encoding='utf-8'))
-            # 如果找不到管理页面，返回API信息
-            return {
+            # 如果找不到管理页面，尝试 ../admin/index.html
+            html_path2 = Path(__file__).parent / ".." / "admin" / "index.html"
+            if html_path2.exists():
+                return HTMLResponse(content=html_path2.read_text(encoding='utf-8'))
+            # 都找不到，返回API信息
+            return JSONResponse(content={
                 "name": settings.APP_NAME,
                 "version": settings.APP_VERSION,
                 "docs": "/docs",
                 "health": "/health",
                 "setup": "/setup",
                 "admin": "/admin"
-            }
+            })
 
         # 启动服务器
         logger.info("Starting uvicorn server...")
