@@ -17,15 +17,18 @@ import json
 import io
 import os
 import uuid
+import logging
 
 from models import get_db_session, DatabaseConfig, QueryTemplate
 from models.database import School, QueryLog
 from services.user_service import UserService, QueryTemplateService, QueryLogService
 from core.security import get_current_user, TokenData
 from core.config import settings
+from core.sql_validator import validate_sql_for_miniapp, validate_sql_for_admin, SQLSecurityValidator
 from db.connector import get_connector
 from db.connection_manager import connection_manager
 
+logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["查询"])
 
@@ -260,8 +263,40 @@ async def smart_query(request: SmartQueryRequest,
         request.end_time
     )
     
-    # 执行查询
+    # 初始化查询开始时间
     start_time_ms = int(time.time() * 1000)
+    
+    # ========== SQL安全验证 ==========
+    # 小程序端只允许执行SELECT查询，禁止任何修改/删除操作
+    is_valid, error_msg = validate_sql_for_miniapp(sql, "smart_query")
+    if not is_valid:
+        query_time = int(time.time() * 1000) - start_time_ms
+        
+        # 记录非法SQL尝试
+        logger.warning(
+            f"[SQL Security] Smart query validation failed | "
+            f"User: {user_id} | School: {request.school_id} | "
+            f"Template: {template.name} | Error: {error_msg} | "
+            f"SQL: {SQLSecurityValidator.sanitize_for_log(sql)}"
+        )
+        
+        QueryLogService.create_log(
+            db, user_id, request.school_id, template.id,
+            template.name, {"conditions": request.conditions, "validation_failed": True},
+            sql, 0, query_time, "failed", error_msg
+        )
+        
+        return {
+            "code": 403,
+            "message": f"SQL安全验证失败: {error_msg}",
+            "data": {
+                "error": error_msg,
+                "suggestion": "请联系管理员确认查询模板配置是否正确"
+            }
+        }
+    # ========== SQL验证结束 ==========
+    
+    # 执行查询
     try:
         # 构建数据库连接配置
         config = {
@@ -522,24 +557,25 @@ async def direct_sql_query(
             detail="普通用户无直接SQL执行权限，请使用模板查询"
         )
     
-    # SQL安全检查
-    sql = request.sql.strip().upper()
-    if not sql.startswith('SELECT'):
+    # ========== SQL安全验证 ==========
+    # 管理员使用读写模式验证（允许SELECT/INSERT/UPDATE）
+    is_valid, error_msg = validate_sql_for_admin(request.sql, "direct_sql_admin")
+    if not is_valid:
+        logger.warning(
+            f"[SQL Security] Direct SQL validation failed | "
+            f"User: {user_id} (admin) | School: {request.school_id} | "
+            f"Error: {error_msg} | "
+            f"SQL: {SQLSecurityValidator.sanitize_for_log(request.sql)}"
+        )
+        
         return {
-            "code": 400,
-            "message": "仅支持SELECT查询",
-            "data": None
-        }
-    
-    # 禁止危险操作
-    dangerous_keywords = ['DROP', 'DELETE', 'UPDATE', 'INSERT', 'TRUNCATE', 'ALTER', 'CREATE']
-    for keyword in dangerous_keywords:
-        if keyword in sql:
-            return {
-                "code": 400,
-                "message": f"不允许执行包含 {keyword} 的SQL",
-                "data": None
+            "code": 403,
+            "message": f"SQL安全验证失败: {error_msg}",
+            "data": {
+                "error": error_msg
             }
+        }
+    # ========== SQL验证结束 ==========
     
     # 获取数据库配置
     db_config = db.query(DatabaseConfig).filter(
@@ -702,6 +738,27 @@ async def export_query_result(
             "message": "请提供SQL语句或模板ID",
             "data": None
         }
+    
+    # ========== SQL安全验证 ==========
+    # 导出功能只允许SELECT查询
+    is_valid, error_msg = validate_sql_for_miniapp(sql, "export")
+    if not is_valid:
+        logger.warning(
+            f"[SQL Security] Export SQL validation failed | "
+            f"User: {user_id} | School: {request.school_id} | "
+            f"Template: {request.template_id} | Error: {error_msg} | "
+            f"SQL: {SQLSecurityValidator.sanitize_for_log(sql)}"
+        )
+        
+        return {
+            "code": 403,
+            "message": f"SQL安全验证失败: {error_msg}",
+            "data": {
+                "error": error_msg,
+                "suggestion": "导出功能只允许执行SELECT查询"
+            }
+        }
+    # ========== SQL验证结束 ==========
     
     # 获取数据库配置
     db_config = db.query(DatabaseConfig).filter(
