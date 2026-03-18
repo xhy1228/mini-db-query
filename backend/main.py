@@ -187,6 +187,10 @@ def main():
             allow_methods=["*"],
             allow_headers=["*"],
         )
+        
+        # 添加统一日志中间件
+        from core.logging_middleware import LoggingMiddleware
+        app.add_middleware(LoggingMiddleware)
 
         # 全局异常处理
         @app.exception_handler(Exception)

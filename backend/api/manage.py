@@ -5,7 +5,7 @@ Mini DB Query - Management API
 学校、数据库配置、查询模板的CRUD管理
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 from typing import Optional, List
@@ -16,6 +16,7 @@ from models import get_db_session
 from models.database import School, DatabaseConfig, QueryTemplate, UserSchool
 from core.security import get_current_user, TokenData, encrypt_password, decrypt_password
 from core.config import settings
+from core.logging_middleware import OperationLogger
 
 router = APIRouter(tags=["管理"])
 
@@ -118,12 +119,15 @@ async def list_schools(
 @router.post("/schools")
 async def create_school(
     request: SchoolCreate,
+    req: Request,
     current_user: TokenData = Depends(get_current_user),
     db: Session = Depends(get_db_session)
 ):
     """创建学校（管理员权限）"""
     if current_user.role != 'admin':
         raise HTTPException(status_code=403, detail="权限不足")
+    
+    client_ip = req.client.host if req.client else "unknown"
     
     # 检查编码是否已存在
     existing = db.query(School).filter(School.code == request.code).first()
@@ -138,6 +142,18 @@ async def create_school(
     db.add(school)
     db.commit()
     db.refresh(school)
+    
+    # 记录操作日志
+    OperationLogger.log_create(
+        db=db,
+        resource_type="school",
+        resource_id=school.id,
+        resource_name=school.name,
+        user_id=int(current_user.user_id),
+        username=current_user.name if hasattr(current_user, 'name') else current_user.user_id,
+        ip=client_ip,
+        details=f"Created school: {school.name} ({school.code})"
+    )
     
     return {"code": 200, "message": "创建成功", "data": school.to_dict()}
 
@@ -159,12 +175,15 @@ async def get_school(
 async def update_school(
     school_id: int,
     request: SchoolUpdate,
+    req: Request,
     current_user: TokenData = Depends(get_current_user),
     db: Session = Depends(get_db_session)
 ):
     """更新学校（管理员权限）"""
     if current_user.role != 'admin':
         raise HTTPException(status_code=403, detail="权限不足")
+    
+    client_ip = req.client.host if req.client else "unknown"
     
     school = db.query(School).filter(School.id == school_id).first()
     if not school:
@@ -176,12 +195,26 @@ async def update_school(
     
     db.commit()
     db.refresh(school)
+    
+    # 记录操作日志
+    OperationLogger.log_update(
+        db=db,
+        resource_type="school",
+        resource_id=school.id,
+        resource_name=school.name,
+        user_id=int(current_user.user_id),
+        username=current_user.name if hasattr(current_user, 'name') else current_user.user_id,
+        ip=client_ip,
+        changes=update_data
+    )
+    
     return {"code": 200, "message": "更新成功", "data": school.to_dict()}
 
 
 @router.delete("/schools/{school_id}")
 async def delete_school(
     school_id: int,
+    req: Request,
     current_user: TokenData = Depends(get_current_user),
     db: Session = Depends(get_db_session)
 ):
@@ -189,12 +222,28 @@ async def delete_school(
     if current_user.role != 'admin':
         raise HTTPException(status_code=403, detail="权限不足")
     
+    client_ip = req.client.host if req.client else "unknown"
+    
     school = db.query(School).filter(School.id == school_id).first()
     if not school:
         raise HTTPException(status_code=404, detail="学校不存在")
     
+    school_name = school.name
+    
     db.delete(school)
     db.commit()
+    
+    # 记录操作日志
+    OperationLogger.log_delete(
+        db=db,
+        resource_type="school",
+        resource_id=school_id,
+        resource_name=school_name,
+        user_id=int(current_user.user_id),
+        username=current_user.name if hasattr(current_user, 'name') else current_user.user_id,
+        ip=client_ip
+    )
+    
     return {"code": 200, "message": "删除成功", "data": None}
 
 
@@ -224,12 +273,15 @@ async def list_databases(
 @router.post("/databases")
 async def create_database(
     request: DatabaseCreate,
+    req: Request,
     current_user: TokenData = Depends(get_current_user),
     db: Session = Depends(get_db_session)
 ):
     """创建数据库配置（管理员权限）"""
     if current_user.role != 'admin':
         raise HTTPException(status_code=403, detail="权限不足")
+    
+    client_ip = req.client.host if req.client else "unknown"
     
     # 验证学校存在
     school = db.query(School).filter(School.id == request.school_id).first()
@@ -256,6 +308,18 @@ async def create_database(
     db.commit()
     db.refresh(db_config)
     
+    # 记录操作日志
+    OperationLogger.log_create(
+        db=db,
+        resource_type="database",
+        resource_id=db_config.id,
+        resource_name=db_config.name,
+        user_id=int(current_user.user_id),
+        username=current_user.name if hasattr(current_user, 'name') else current_user.user_id,
+        ip=client_ip,
+        details=f"Created database config: {db_config.name} ({db_config.db_type}@{db_config.host}:{db_config.port})"
+    )
+    
     return {"code": 200, "message": "创建成功", "data": db_config.to_dict()}
 
 
@@ -276,12 +340,15 @@ async def get_database(
 async def update_database(
     db_id: int,
     request: DatabaseUpdate,
+    req: Request,
     current_user: TokenData = Depends(get_current_user),
     session: Session = Depends(get_db_session)
 ):
     """更新数据库配置（管理员权限）"""
     if current_user.role != 'admin':
         raise HTTPException(status_code=403, detail="权限不足")
+    
+    client_ip = req.client.host if req.client else "unknown"
     
     db_config = session.query(DatabaseConfig).filter(DatabaseConfig.id == db_id).first()
     if not db_config:
@@ -298,12 +365,26 @@ async def update_database(
     
     session.commit()
     session.refresh(db_config)
+    
+    # 记录操作日志
+    OperationLogger.log_update(
+        db=session,
+        resource_type="database",
+        resource_id=db_config.id,
+        resource_name=db_config.name,
+        user_id=int(current_user.user_id),
+        username=current_user.name if hasattr(current_user, 'name') else current_user.user_id,
+        ip=client_ip,
+        changes=update_data
+    )
+    
     return {"code": 200, "message": "更新成功", "data": db_config.to_dict()}
 
 
 @router.delete("/databases/{db_id}")
 async def delete_database(
     db_id: int,
+    req: Request,
     current_user: TokenData = Depends(get_current_user),
     session: Session = Depends(get_db_session)
 ):
@@ -311,12 +392,28 @@ async def delete_database(
     if current_user.role != 'admin':
         raise HTTPException(status_code=403, detail="权限不足")
     
+    client_ip = req.client.host if req.client else "unknown"
+    
     db_config = session.query(DatabaseConfig).filter(DatabaseConfig.id == db_id).first()
     if not db_config:
         raise HTTPException(status_code=404, detail="配置不存在")
     
+    db_config_name = db_config.name
+    
     session.delete(db_config)
     session.commit()
+    
+    # 记录操作日志
+    OperationLogger.log_delete(
+        db=session,
+        resource_type="database",
+        resource_id=db_id,
+        resource_name=db_config_name,
+        user_id=int(current_user.user_id),
+        username=current_user.name if hasattr(current_user, 'name') else current_user.user_id,
+        ip=client_ip
+    )
+    
     return {"code": 200, "message": "删除成功", "data": None}
 
 
@@ -479,12 +576,15 @@ async def list_templates(
 @router.post("/templates")
 async def create_template(
     request: TemplateCreate,
+    req: Request,
     current_user: TokenData = Depends(get_current_user),
     db: Session = Depends(get_db_session)
 ):
     """创建查询模板（管理员权限）"""
     if current_user.role != 'admin':
         raise HTTPException(status_code=403, detail="权限不足")
+    
+    client_ip = req.client.host if req.client else "unknown"
     
     # 验证学校存在
     school = db.query(School).filter(School.id == request.school_id).first()
@@ -507,6 +607,18 @@ async def create_template(
     db.commit()
     db.refresh(template)
     
+    # 记录操作日志
+    OperationLogger.log_create(
+        db=db,
+        resource_type="template",
+        resource_id=template.id,
+        resource_name=template.name,
+        user_id=int(current_user.user_id),
+        username=current_user.name if hasattr(current_user, 'name') else current_user.user_id,
+        ip=client_ip,
+        details=f"Created template: {template.name} (category={template.category})"
+    )
+    
     return {"code": 200, "message": "创建成功", "data": template.to_dict()}
 
 
@@ -527,12 +639,15 @@ async def get_template(
 async def update_template(
     template_id: int,
     request: TemplateUpdate,
+    req: Request,
     current_user: TokenData = Depends(get_current_user),
     db: Session = Depends(get_db_session)
 ):
     """更新查询模板（管理员权限）"""
     if current_user.role != 'admin':
         raise HTTPException(status_code=403, detail="权限不足")
+    
+    client_ip = req.client.host if req.client else "unknown"
     
     template = db.query(QueryTemplate).filter(QueryTemplate.id == template_id).first()
     if not template:
@@ -544,12 +659,26 @@ async def update_template(
     
     db.commit()
     db.refresh(template)
+    
+    # 记录操作日志
+    OperationLogger.log_update(
+        db=db,
+        resource_type="template",
+        resource_id=template.id,
+        resource_name=template.name,
+        user_id=int(current_user.user_id),
+        username=current_user.name if hasattr(current_user, 'name') else current_user.user_id,
+        ip=client_ip,
+        changes=update_data
+    )
+    
     return {"code": 200, "message": "更新成功", "data": template.to_dict()}
 
 
 @router.delete("/templates/{template_id}")
 async def delete_template(
     template_id: int,
+    req: Request,
     current_user: TokenData = Depends(get_current_user),
     db: Session = Depends(get_db_session)
 ):
@@ -557,12 +686,28 @@ async def delete_template(
     if current_user.role != 'admin':
         raise HTTPException(status_code=403, detail="权限不足")
     
+    client_ip = req.client.host if req.client else "unknown"
+    
     template = db.query(QueryTemplate).filter(QueryTemplate.id == template_id).first()
     if not template:
         raise HTTPException(status_code=404, detail="模板不存在")
     
+    template_name = template.name
+    
     db.delete(template)
     db.commit()
+    
+    # 记录操作日志
+    OperationLogger.log_delete(
+        db=db,
+        resource_type="template",
+        resource_id=template_id,
+        resource_name=template_name,
+        user_id=int(current_user.user_id),
+        username=current_user.name if hasattr(current_user, 'name') else current_user.user_id,
+        ip=client_ip
+    )
+    
     return {"code": 200, "message": "删除成功", "data": None}
 
 
@@ -586,13 +731,17 @@ async def get_user_schools(
 @router.post("/users/{user_id}/schools")
 async def assign_user_school(
     user_id: int,
-    school_id: int,
+    request: dict,
     current_user: TokenData = Depends(get_current_user),
     db: Session = Depends(get_db_session)
 ):
     """为用户授权学校（管理员权限）"""
     if current_user.role != 'admin':
         raise HTTPException(status_code=403, detail="权限不足")
+    
+    school_id = request.get('school_id')
+    if not school_id:
+        return {"code": 400, "message": "学校ID不能为空", "data": None}
     
     # 检查是否已授权
     existing = db.query(UserSchool).filter(
@@ -774,4 +923,276 @@ async def delete_system_config(
     db.delete(config)
     db.commit()
     return {"code": 200, "message": "删除成功", "data": None}
+
+
+# ========== 权限管理 API ==========
+
+class PermissionModuleResponse(BaseModel):
+    """权限模块响应"""
+    code: str
+    name: str
+    description: Optional[str]
+    parent_code: Optional[str]
+    icon: Optional[str]
+    children: List["PermissionModuleResponse"] = []
+
+
+class UserPermissionUpdate(BaseModel):
+    """用户权限更新"""
+    school_ids: Optional[List[int]] = None
+    module_permissions: Optional[List[dict]] = None  # [{school_id, module_code, permission_code, granted}]
+    template_permissions: Optional[List[dict]] = None  # [{school_id, template_id, can_query, can_export}]
+
+
+class UserSchoolPermissionCreate(BaseModel):
+    """创建用户学校权限"""
+    school_id: int
+    module_code: str
+    permission_code: str
+    granted: bool = True
+
+
+class UserTemplatePermissionCreate(BaseModel):
+    """创建用户模板权限"""
+    school_id: int
+    template_id: int
+    can_query: bool = True
+    can_export: bool = False
+
+
+@router.get("/permissions/modules")
+async def get_permission_modules(
+    current_user: TokenData = Depends(get_current_user),
+    db: Session = Depends(get_db_session)
+):
+    """获取所有权限模块（树形结构）"""
+    from models.database import PermissionModule
+    
+    modules = db.query(PermissionModule).filter(
+        PermissionModule.status == 'active'
+    ).order_by(PermissionModule.sort_order).all()
+    
+    # Build tree structure
+    module_dict = {}
+    root_modules = []
+    
+    for m in modules:
+        module_dict[m.code] = {
+            'code': m.code,
+            'name': m.name,
+            'description': m.description,
+            'parent_code': m.parent_code,
+            'icon': m.icon,
+            'children': []
+        }
+    
+    for m in modules:
+        if m.parent_code and m.parent_code in module_dict:
+            module_dict[m.parent_code]['children'].append(module_dict[m.code])
+        else:
+            root_modules.append(module_dict[m.code])
+    
+    return {
+        "code": 200,
+        "message": "获取成功",
+        "data": root_modules
+    }
+
+
+@router.get("/permissions/users/{user_id}")
+async def get_user_permissions(
+    user_id: int,
+    school_id: Optional[int] = None,
+    current_user: TokenData = Depends(get_current_user),
+    db: Session = Depends(get_db_session)
+):
+    """获取用户的所有权限"""
+    if current_user.role != 'admin':
+        raise HTTPException(status_code=403, detail="权限不足")
+    
+    from models.database import User, UserSchool, UserSchoolPermission, UserTemplatePermission
+    
+    # Get user's schools
+    schools_query = db.query(UserSchool).filter(UserSchool.user_id == user_id)
+    schools = schools_query.all()
+    
+    # Get user's module permissions
+    module_query = db.query(UserSchoolPermission).filter(UserSchoolPermission.user_id == user_id)
+    if school_id:
+        module_query = module_query.filter(UserSchoolPermission.school_id == school_id)
+    module_permissions = module_query.all()
+    
+    # Get user's template permissions
+    template_query = db.query(UserTemplatePermission).filter(UserTemplatePermission.user_id == user_id)
+    if school_id:
+        template_query = template_query.filter(UserTemplatePermission.school_id == school_id)
+    template_permissions = template_query.all()
+    
+    return {
+        "code": 200,
+        "message": "获取成功",
+        "data": {
+            "schools": [s.to_dict() for s in schools],
+            "module_permissions": [p.to_dict() for p in module_permissions],
+            "template_permissions": [p.to_dict() for p in template_permissions]
+        }
+    }
+
+
+@router.post("/permissions/users/{user_id}/schools")
+async def set_user_schools(
+    user_id: int,
+    school_ids: List[int],
+    current_user: TokenData = Depends(get_current_user),
+    db: Session = Depends(get_db_session)
+):
+    """设置用户授权的学校列表"""
+    if current_user.role != 'admin':
+        raise HTTPException(status_code=403, detail="权限不足")
+    
+    from models.database import UserSchool
+    
+    # Delete existing
+    db.query(UserSchool).filter(UserSchool.user_id == user_id).delete()
+    
+    # Add new
+    for school_id in school_ids:
+        perm = UserSchool(
+            user_id=user_id,
+            school_id=school_id,
+            permissions=['query']  # Default permission
+        )
+        db.add(perm)
+    
+    db.commit()
+    
+    return {"code": 200, "message": "设置成功", "data": {"school_count": len(school_ids)}}
+
+
+@router.post("/permissions/users/{user_id}/modules")
+async def set_user_module_permissions(
+    user_id: int,
+    permissions: List[UserSchoolPermissionCreate],
+    current_user: TokenData = Depends(get_current_user),
+    db: Session = Depends(get_db_session)
+):
+    """设置用户的模块权限"""
+    if current_user.role != 'admin':
+        raise HTTPException(status_code=403, detail="权限不足")
+    
+    from models.database import UserSchoolPermission
+    
+    added_count = 0
+    for perm in permissions:
+        # Check if exists
+        existing = db.query(UserSchoolPermission).filter(
+            UserSchoolPermission.user_id == user_id,
+            UserSchoolPermission.school_id == perm.school_id,
+            UserSchoolPermission.module_code == perm.module_code,
+            UserSchoolPermission.permission_code == perm.permission_code
+        ).first()
+        
+        if existing:
+            existing.granted = perm.granted
+        else:
+            new_perm = UserSchoolPermission(
+                user_id=user_id,
+                school_id=perm.school_id,
+                module_code=perm.module_code,
+                permission_code=perm.permission_code,
+                granted=perm.granted
+            )
+            db.add(new_perm)
+            added_count += 1
+    
+    db.commit()
+    
+    return {"code": 200, "message": "设置成功", "data": {"added_count": added_count}}
+
+
+@router.post("/permissions/users/{user_id}/templates")
+async def set_user_template_permissions(
+    user_id: int,
+    permissions: List[UserTemplatePermissionCreate],
+    current_user: TokenData = Depends(get_current_user),
+    db: Session = Depends(get_db_session)
+):
+    """设置用户的查询模板权限"""
+    if current_user.role != 'admin':
+        raise HTTPException(status_code=403, detail="权限不足")
+    
+    from models.database import UserTemplatePermission
+    
+    added_count = 0
+    for perm in permissions:
+        # Check if exists
+        existing = db.query(UserTemplatePermission).filter(
+            UserTemplatePermission.user_id == user_id,
+            UserTemplatePermission.school_id == perm.school_id,
+            UserTemplatePermission.template_id == perm.template_id
+        ).first()
+        
+        if existing:
+            existing.can_query = perm.can_query
+            existing.can_export = perm.can_export
+        else:
+            new_perm = UserTemplatePermission(
+                user_id=user_id,
+                school_id=perm.school_id,
+                template_id=perm.template_id,
+                can_query=perm.can_query,
+                can_export=perm.can_export
+            )
+            db.add(new_perm)
+            added_count += 1
+    
+    db.commit()
+    
+    return {"code": 200, "message": "设置成功", "data": {"added_count": added_count}}
+
+
+@router.delete("/permissions/users/{user_id}/modules")
+async def clear_user_module_permissions(
+    user_id: int,
+    school_id: Optional[int] = None,
+    current_user: TokenData = Depends(get_current_user),
+    db: Session = Depends(get_db_session)
+):
+    """清除用户的模块权限"""
+    if current_user.role != 'admin':
+        raise HTTPException(status_code=403, detail="权限不足")
+    
+    from models.database import UserSchoolPermission
+    
+    query = db.query(UserSchoolPermission).filter(UserSchoolPermission.user_id == user_id)
+    if school_id:
+        query = query.filter(UserSchoolPermission.school_id == school_id)
+    
+    count = query.delete()
+    db.commit()
+    
+    return {"code": 200, "message": "清除成功", "data": {"deleted_count": count}}
+
+
+@router.delete("/permissions/users/{user_id}/templates")
+async def clear_user_template_permissions(
+    user_id: int,
+    school_id: Optional[int] = None,
+    current_user: TokenData = Depends(get_current_user),
+    db: Session = Depends(get_db_session)
+):
+    """清除用户的模板权限"""
+    if current_user.role != 'admin':
+        raise HTTPException(status_code=403, detail="权限不足")
+    
+    from models.database import UserTemplatePermission
+    
+    query = db.query(UserTemplatePermission).filter(UserTemplatePermission.user_id == user_id)
+    if school_id:
+        query = query.filter(UserTemplatePermission.school_id == school_id)
+    
+    count = query.delete()
+    db.commit()
+    
+    return {"code": 200, "message": "清除成功", "data": {"deleted_count": count}}
 

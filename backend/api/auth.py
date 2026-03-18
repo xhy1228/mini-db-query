@@ -5,7 +5,7 @@
 Author: 飞书百万（AI助手）
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
@@ -14,6 +14,7 @@ from typing import Optional
 from models import get_db_session
 from services.user_service import UserService
 from core.security import get_current_user, TokenData
+from core.logging_middleware import OperationLogger
 
 
 router = APIRouter(tags=["认证"])
@@ -58,7 +59,7 @@ class UserInfoResponse(BaseModel):
 # ========== API路由 ==========
 
 @router.post("/login", response_model=LoginResponse)
-async def login(request: LoginRequest, db: Session = Depends(get_db_session)):
+async def login(request: LoginRequest, req: Request, db: Session = Depends(get_db_session)):
     """
     用户登录
     
@@ -67,14 +68,33 @@ async def login(request: LoginRequest, db: Session = Depends(get_db_session)):
     
     返回：用户信息 + JWT Token
     """
+    client_ip = req.client.host if req.client else "unknown"
+    
     result = UserService.authenticate(db, request.phone, request.password)
     
     if not result:
+        # 记录登录失败
+        OperationLogger.log_login(
+            db=db,
+            user_id=0,
+            username=request.phone,
+            ip=client_ip,
+            status="failed",
+            error="手机号或密码错误"
+        )
         return {
             "code": 401,
             "message": "手机号或密码错误",
             "data": None
         }
+    
+    # 记录登录成功
+    OperationLogger.log_login(
+        db=db,
+        user_id=result["user"]["id"],
+        username=result["user"]["name"],
+        ip=client_ip
+    )
     
     return {
         "code": 200,
@@ -102,15 +122,17 @@ async def wechat_login(request: WechatLoginRequest, db: Session = Depends(get_db
     from models.database import SystemConfig
     
     logger = logging.getLogger(__name__)
+    logger.info(f"微信登录请求: code={request.code[:10]}...")
     
     # 获取微信配置
     appid_config = db.query(SystemConfig).filter(SystemConfig.config_key == 'wechat_appid').first()
     secret_config = db.query(SystemConfig).filter(SystemConfig.config_key == 'wechat_secret').first()
     
     if not appid_config or not secret_config:
+        logger.warning("微信小程序未配置: appid或secret为空")
         return {
             "code": 500,
-            "message": "微信小程序未配置，请联系管理员",
+            "message": "微信小程序未配置，请联系管理员在系统配置中设置wechat_appid和wechat_secret",
             "data": None
         }
     
@@ -119,25 +141,36 @@ async def wechat_login(request: WechatLoginRequest, db: Session = Depends(get_db
         from core.security import decrypt_password
         appid = decrypt_password(appid_config.config_value)
         secret = decrypt_password(secret_config.config_value)
-    except:
+        logger.info(f"微信配置解密成功: appid={appid[:6]}...")
+    except Exception as e:
+        logger.error(f"微信配置解密失败: {e}")
         return {
             "code": 500,
-            "message": "微信配置解密失败",
+            "message": f"微信配置解密失败: {str(e)}",
             "data": None
         }
     
     # 调用微信接口获取 openid
     url = f"https://api.weixin.qq.com/sns/jscode2session?appid={appid}&secret={secret}&js_code={request.code}&grant_type=authorization_code"
+    logger.info(f"调用微信API: {url[:50]}...")
     
     try:
-        async with httpx.AsyncClient() as client:
-            response = await client.get(url, timeout=10)
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            response = await client.get(url)
             data = response.json()
+            logger.info(f"微信API响应: {data}")
+    except httpx.TimeoutException:
+        logger.error("微信接口调用超时")
+        return {
+            "code": 504,
+            "message": "微信接口调用超时，请检查网络连接",
+            "data": None
+        }
     except Exception as e:
         logger.error(f"微信接口调用失败: {e}")
         return {
             "code": 500,
-            "message": "微信接口调用失败",
+            "message": f"微信接口调用失败: {str(e)}",
             "data": None
         }
     
@@ -153,6 +186,7 @@ async def wechat_login(request: WechatLoginRequest, db: Session = Depends(get_db
     session_key = data.get('session_key')
     
     if not openid:
+        logger.error("获取openid失败: 响应中没有openid")
         return {
             "code": 400,
             "message": "获取openid失败",
@@ -319,15 +353,71 @@ async def get_me(current_user: TokenData = Depends(get_current_user),
 
 
 @router.post("/logout")
-async def logout(current_user: TokenData = Depends(get_current_user)):
+async def logout(request: Request, current_user: TokenData = Depends(get_current_user),
+                db: Session = Depends(get_db_session)):
     """
     退出登录
     
     前端清除token即可，服务端token会过期
     """
+    client_ip = request.client.host if request.client else "unknown"
+    
+    # 记录登出操作
+    user = UserService.get_by_id(db, int(current_user.user_id))
+    OperationLogger.log_logout(
+        db=db,
+        user_id=int(current_user.user_id),
+        username=user.name if user else current_user.user_id,
+        ip=client_ip
+    )
+    
     return {
         "code": 200,
         "message": "退出成功",
+        "data": None
+    }
+
+
+class ChangePasswordRequest(BaseModel):
+    """修改密码请求"""
+    old_password: str = Field(..., description="原密码")
+    new_password: str = Field(..., description="新密码")
+
+
+@router.post("/change-password")
+async def change_password(request: ChangePasswordRequest,
+                         current_user: TokenData = Depends(get_current_user),
+                         db: Session = Depends(get_db_session)):
+    """
+    修改密码
+    
+    需要验证原密码
+    """
+    user = UserService.get_by_id(db, int(current_user.user_id))
+    
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="用户不存在"
+        )
+    
+    # 验证原密码
+    from core.security import verify_password, get_password_hash
+    
+    if not verify_password(request.old_password, user.password):
+        return {
+            "code": 400,
+            "message": "原密码错误",
+            "data": None
+        }
+    
+    # 更新密码
+    user.password = get_password_hash(request.new_password)
+    db.commit()
+    
+    return {
+        "code": 200,
+        "message": "密码修改成功",
         "data": None
     }
 
@@ -355,7 +445,7 @@ class UpdateUserRequest(BaseModel):
 
 
 @router.post("/admin/users", response_model=dict)
-async def create_user(request: CreateUserRequest,
+async def create_user(request: CreateUserRequest, req: Request,
                      current_user: TokenData = Depends(get_current_user),
                      db: Session = Depends(get_db_session)):
     """
@@ -367,6 +457,9 @@ async def create_user(request: CreateUserRequest,
             status_code=status.HTTP_403_FORBIDDEN,
             detail="权限不足"
         )
+    
+    client_ip = req.client.host if req.client else "unknown"
+    admin = UserService.get_by_id(db, int(current_user.user_id))
     
     # 检查手机号是否已存在
     existing = UserService.get_by_phone(db, request.phone)
@@ -398,6 +491,18 @@ async def create_user(request: CreateUserRequest,
     for school_id in request.school_ids:
         UserService.grant_school(db, user.id, school_id)
     
+    # 记录操作日志
+    OperationLogger.log_create(
+        db=db,
+        resource_type="user",
+        resource_id=user.id,
+        resource_name=user.name,
+        user_id=int(current_user.user_id),
+        username=admin.name if admin else current_user.user_id,
+        ip=client_ip,
+        details=f"Created user: {user.name} ({user.phone}), role={user.role}"
+    )
+    
     return {
         "code": 200,
         "message": "创建成功",
@@ -428,7 +533,7 @@ async def list_users(skip: int = 0, limit: int = 100,
 
 
 @router.put("/admin/users/{user_id}")
-async def update_user(user_id: int, request: UpdateUserRequest,
+async def update_user(user_id: int, request: UpdateUserRequest, req: Request,
                      current_user: TokenData = Depends(get_current_user),
                      db: Session = Depends(get_db_session)):
     """
@@ -439,6 +544,10 @@ async def update_user(user_id: int, request: UpdateUserRequest,
             status_code=status.HTTP_403_FORBIDDEN,
             detail="权限不足"
         )
+    
+    client_ip = req.client.host if req.client else "unknown"
+    admin = UserService.get_by_id(db, int(current_user.user_id))
+    target_user = UserService.get_by_id(db, user_id)
     
     update_data = request.dict(exclude_unset=True)
     
@@ -464,6 +573,19 @@ async def update_user(user_id: int, request: UpdateUserRequest,
         for school_id in school_ids:
             UserService.grant_school(db, user_id, school_id)
     
+    # 记录操作日志
+    changes = {k: v for k, v in update_data.items() if k != 'password'}
+    OperationLogger.log_update(
+        db=db,
+        resource_type="user",
+        resource_id=user.id,
+        resource_name=user.name,
+        user_id=int(current_user.user_id),
+        username=admin.name if admin else current_user.user_id,
+        ip=client_ip,
+        changes=changes
+    )
+    
     return {
         "code": 200,
         "message": "更新成功",
@@ -472,7 +594,7 @@ async def update_user(user_id: int, request: UpdateUserRequest,
 
 
 @router.delete("/admin/users/{user_id}")
-async def delete_user(user_id: int,
+async def delete_user(user_id: int, req: Request,
                      current_user: TokenData = Depends(get_current_user),
                      db: Session = Depends(get_db_session)):
     """
@@ -484,6 +606,11 @@ async def delete_user(user_id: int,
             detail="权限不足"
         )
     
+    client_ip = req.client.host if req.client else "unknown"
+    admin = UserService.get_by_id(db, int(current_user.user_id))
+    target_user = UserService.get_by_id(db, user_id)
+    user_name = target_user.name if target_user else f"ID:{user_id}"
+    
     success = UserService.delete_user(db, user_id)
     
     if not success:
@@ -491,6 +618,17 @@ async def delete_user(user_id: int,
             status_code=status.HTTP_404_NOT_FOUND,
             detail="用户不存在"
         )
+    
+    # 记录操作日志
+    OperationLogger.log_delete(
+        db=db,
+        resource_type="user",
+        resource_id=user_id,
+        resource_name=user_name,
+        user_id=int(current_user.user_id),
+        username=admin.name if admin else current_user.user_id,
+        ip=client_ip
+    )
     
     return {
         "code": 200,
