@@ -1,0 +1,298 @@
+<!-- pages/query/query.wxml -->
+<view class="container">
+
+  <!-- 顶部导航 -->
+  <view class="page-header">
+    <text class="page-title">数据查询</text>
+    <text class="school-name" wx:if="{{selectedSchool}}">{{selectedSchool.name}}</text>
+    <text class="school-hint" wx:else>请先选择学校</text>
+  </view>
+
+  <!-- 步骤1: 选择业务大类 -->
+  <view class="section" wx:if="{{!selectedCategory}}">
+    <view class="section-header">
+      <text class="section-title">📂 选择业务大类</text>
+    </view>
+    
+    <view class="category-list" wx:if="{{categories.length > 0}}">
+      <view 
+        class="category-card tech-card" 
+        wx:for="{{categories}}" 
+        wx:key="id"
+        data-category="{{item}}"
+        bindtap="onCategoryTap"
+      >
+        <view class="category-main">
+          <text class="category-icon">{{item.icon}}</text>
+          <view class="category-info">
+            <text class="category-name">{{item.name}}</text>
+            <text class="category-count">{{item.count}}个查询</text>
+          </view>
+        </view>
+        <view class="category-arrow">›</view>
+      </view>
+    </view>
+
+    <view class="empty-state" wx:if="{{categories.length === 0}}">
+      <text class="empty-icon">📭</text>
+      <text class="empty-text">暂无业务大类</text>
+    </view>
+  </view>
+
+  <!-- 步骤2: 选择查询模板 -->
+  <view class="section" wx:if="{{selectedCategory && !selectedTemplate}}">
+    <view class="section-header">
+      <view class="back-btn" bindtap="goBack">
+        <text>‹ 返回</text>
+      </view>
+      <text class="section-title">{{selectedCategory.icon}} {{selectedCategory.name}}</text>
+    </view>
+    
+    <view class="template-list" wx:if="{{templates.length > 0}}">
+      <view 
+        class="template-card tech-card" 
+        wx:for="{{templates}}" 
+        wx:key="id"
+        data-template="{{item}}"
+        bindtap="onTemplateTap"
+      >
+        <view class="template-info">
+          <text class="template-name">{{item.name}}</text>
+          <text class="template-desc">{{item.description}}</text>
+          <view class="template-fields">
+            <text class="field-tag" wx:for="{{item.fields}}" wx:for-item="field" wx:key="id">
+              {{field.label}}
+            </text>
+          </view>
+        </view>
+        <view class="template-arrow">›</view>
+      </view>
+    </view>
+
+    <view class="empty-state" wx:if="{{templates.length === 0}}">
+      <text class="empty-icon">📭</text>
+      <text class="empty-text">暂无查询模板</text>
+    </view>
+  </view>
+
+  <!-- 步骤3: 输入查询条件 -->
+  <view class="section" wx:if="{{selectedTemplate}}">
+    <view class="section-header">
+      <view class="back-btn" bindtap="goBack">
+        <text>‹ 返回</text>
+      </view>
+      <text class="section-title">{{selectedTemplate.name}}</text>
+    </view>
+    
+    <!-- 查询条件表单 -->
+    <view class="query-form glass-card">
+      <view class="form-title">查询条件</view>
+      
+      <view class="form-item" wx:for="{{conditions}}" wx:key="index" wx:for-index="idx" wx:for-item="cond">
+        <text class="form-label">{{selectedTemplate.fields[idx].label}}</text>
+        <view class="form-operator">{{cond.operator}}</view>
+        <input 
+          class="form-input" 
+          placeholder="请输入{{selectedTemplate.fields[idx].label}}"
+          placeholder-class="placeholder"
+          data-index="{{idx}}"
+          bindinput="onConditionInput"
+          value="{{cond.value}}"
+        />
+      </view>
+      
+      <!-- 时间范围 -->
+      <block wx:if="{{selectedTemplate.time_field}}">
+        <view class="form-divider"></view>
+        <text class="form-subtitle">⏰ 时间范围（可选）</text>
+        
+        <!-- 快捷时间选择 -->
+        <view class="quick-time-row">
+          <view 
+            class="quick-time-item {{selectedQuickTime === item ? 'active' : ''}}" 
+            wx:for="{{quickTimeOptions}}" 
+            wx:key="*this"
+            data-index="{{index}}"
+            bindtap="selectQuickTime"
+          >
+            <text>{{item}}</text>
+          </view>
+        </view>
+        
+        <view class="time-row">
+          <view class="time-item">
+            <text class="time-label">开始时间</text>
+            <picker mode="date" bindchange="onStartTimeChange">
+              <view class="time-picker {{startTime ? 'has-value' : ''}}">
+                {{startTime || '选择日期'}}
+              </view>
+            </picker>
+          </view>
+          
+          <view class="time-item">
+            <text class="time-label">结束时间</text>
+            <picker mode="date" bindchange="onEndTimeChange">
+              <view class="time-picker {{endTime ? 'has-value' : ''}}">
+                {{endTime || '选择日期'}}
+              </view>
+            </picker>
+          </view>
+        </view>
+      </block>
+    </view>
+
+    <!-- 查询按钮 -->
+    <button 
+      class="query-btn" 
+      bindtap="doQuery"
+      loading="{{loading}}"
+      disabled="{{loading}}"
+    >
+      <text wx:if="{{!loading}}">🔍 开始查询</text>
+      <text wx:else>查询中...</text>
+    </button>
+
+    <!-- 查询结果 -->
+    <view class="result-section" wx:if="{{queried}}">
+      <view class="result-header">
+        <text class="result-title">查询结果</text>
+        <view class="result-actions">
+          <text class="result-count" wx:if="{{result.length > 0}}">共{{result.length}}条</text>
+          <view class="export-btn" wx:if="{{result.length > 0}}" bindtap="showExportOptions">
+            <text wx:if="{{!exporting}}">📥 导出</text>
+            <text wx:else>导出中...</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 查询统计信息 -->
+      <view class="query-info" wx:if="{{result.length > 0}}">
+        <view class="info-item">
+          <text class="info-value">{{result.length}}</text>
+          <text class="info-label">数据条数</text>
+        </view>
+        <view class="info-item">
+          <text class="info-value">{{resultColumns.length}}</text>
+          <text class="info-label">字段数量</text>
+        </view>
+        <view class="info-item">
+          <text class="info-value">{{queryTime}}ms</text>
+          <text class="info-label">查询耗时</text>
+        </view>
+      </view>
+
+      <!-- 有结果 -->
+      <view class="result-table" wx:if="{{result.length > 0}}">
+        <!-- 横向滚动提示 -->
+        <view class="scroll-hint" wx:if="{{resultColumns.length > 3}}">
+          <text>← 左右滑动查看更多列 →</text>
+        </view>
+        
+        <!-- 横向滚动的表格 -->
+        <scroll-view scroll-x="true" class="table-scroll" enhanced="true" show-scrollbar="true">
+          <view class="table">
+            <!-- 表头 -->
+            <view class="table-header">
+              <view 
+                class="th {{sortColumn === item ? 'sort-' + sortOrder : ''}}" 
+                wx:for="{{resultColumns}}" 
+                wx:key="*this"
+                data-column="{{item}}"
+                bindtap="onHeaderTap"
+              >
+                <view class="th-content">
+                  <text>{{item}}</text>
+                  <text class="sort-icon" wx:if="{{sortColumn === item}}">{{sortOrder === 'asc' ? '↑' : '↓'}}</text>
+                </view>
+              </view>
+            </view>
+            <!-- 表体 -->
+            <view class="table-body">
+              <view 
+                class="tr" 
+                wx:for="{{result}}" 
+                wx:for-item="row" 
+                wx:key="index"
+                data-row="{{row}}"
+                data-index="{{index}}"
+                bindtap="showRowDetail"
+                bindlongpress="copyRow"
+              >
+                <view 
+                  class="td" 
+                  wx:for="{{resultColumns}}" 
+                  wx:for-item="col" 
+                  wx:key="*this"
+                  data-value="{{row[col]}}"
+                  catchlongpress="onCellLongPress"
+                >
+                  {{row[col] !== null && row[col] !== undefined ? row[col] : '-'}}
+                </view>
+              </view>
+            </view>
+          </view>
+        </scroll-view>
+      </view>
+
+      <!-- 错误信息 -->
+      <view class="error-box" wx:if="{{errorInfo}}">
+        <view class="error-title">❌ 查询失败</view>
+        <view class="error-message">{{errorInfo.error_message}}</view>
+        <view class="error-suggestion" wx:if="{{errorInfo.suggestion}}">
+          💡 {{errorInfo.suggestion}}
+        </view>
+      </view>
+
+      <!-- 无结果 -->
+      <view class="result-empty" wx:if="{{result.length === 0 && !errorInfo}}">
+        <text class="empty-icon">📭</text>
+        <text class="empty-text">未查询到数据</text>
+      </view>
+    </view>
+  </view>
+
+</view>
+
+<!-- 导出选项弹窗 -->
+<view class="export-modal" wx:if="{{showExportModal}}" bindtap="hideExportModal">
+  <view class="export-dialog" catchtap="stopPropagation">
+    <view class="export-dialog-title">选择导出方式</view>
+    
+    <view class="export-option" bindtap="exportToExcel">
+      <text class="export-option-icon">📊</text>
+      <view class="export-option-text">
+        <view class="export-option-title">导出为Excel</view>
+        <view class="export-option-desc">生成.xlsx文件，可在Excel中打开</view>
+      </view>
+    </view>
+    
+    <view class="export-option" bindtap="copyToClipboard">
+      <text class="export-option-icon">📋</text>
+      <view class="export-option-text">
+        <view class="export-option-title">复制到剪贴板</view>
+        <view class="export-option-desc">复制数据，可粘贴到其他应用</view>
+      </view>
+    </view>
+    
+    <view class="export-cancel" bindtap="hideExportModal">取消</view>
+  </view>
+</view>
+
+<!-- 数据详情弹窗 -->
+<view class="detail-modal" wx:if="{{showDetailModal}}" bindtap="hideDetailModal">
+  <view class="detail-panel" catchtap="stopPropagation">
+    <view class="detail-header">
+      <text class="detail-title">数据详情</text>
+      <view class="detail-actions">
+        <text class="detail-copy-btn" bindtap="copyDetailRow">📋 复制</text>
+        <text class="detail-close" bindtap="hideDetailModal">×</text>
+      </view>
+    </view>
+    <scroll-view scroll-y class="detail-content">
+      <view class="detail-item" wx:for="{{detailData}}" wx:key="label" bindlongpress="copyDetailItem" data-index="{{index}}">
+        <text class="detail-label">{{item.label}}</text>
+        <text class="detail-value {{item.value !== null && item.value !== undefined ? '' : 'empty'}}">{{item.value !== null && item.value !== undefined ? item.value : '-'}}</text>
+      </view>
+    </scroll-view>
+  </view>
+</view>
