@@ -229,5 +229,107 @@ Page({
         }
       }
     })
+  },
+  
+  // 注销账号
+  deleteMyAccount() {
+    wx.showModal({
+      title: '注销账号',
+      content: '注销后将删除所有个人数据，且无法恢复。\n\n请确认：\n• 您已了解此操作不可逆\n• 您的所有数据将被永久删除',
+      confirmText: '继续注销',
+      confirmColor: '#ff4d4f',
+      cancelText: '取消',
+      success: (res) => {
+        if (res.confirm) {
+          // 第二步：要求输入密码
+          this.showPasswordInput()
+        }
+      }
+    })
+  },
+  
+  // 显示密码输入框
+  showPasswordInput() {
+    wx.showModal({
+      title: '验证身份',
+      content: '请输入您的登录密码以确认注销',
+      editable: true,
+      placeholderText: '请输入登录密码',
+      success: (res) => {
+        if (res.confirm && res.content) {
+          const password = res.content
+          if (!password) {
+            wx.showToast({ title: '请输入密码', icon: 'none' })
+            return
+          }
+          // 第三步：要求输入确认文本
+          this.showConfirmTextInput(password)
+        }
+      }
+    })
+  },
+  
+  // 显示确认文本输入框
+  showConfirmTextInput(password) {
+    wx.showModal({
+      title: '最终确认',
+      content: '为确认您知晓风险，请输入「我已知晓」',
+      editable: true,
+      placeholderText: '我已知晓',
+      confirmText: '确认注销',
+      confirmColor: '#ff4d4f',
+      success: (res) => {
+        if (res.confirm && res.content) {
+          const confirmText = res.content
+          if (confirmText !== '我已知晓') {
+            wx.showToast({ title: '输入错误，请重新操作', icon: 'none' })
+            return
+          }
+          // 执行注销
+          this.doDeleteAccount(password)
+        }
+      }
+    })
+  },
+  
+  // 执行账号注销
+  async doDeleteAccount(password) {
+    wx.showLoading({ title: '注销中...' })
+    
+    try {
+      const result = await post('/security/account/delete', {
+        password: password,
+        confirm_text: '我已知晓'
+      })
+      
+      wx.hideLoading()
+      
+      if (result.code === 200) {
+        // 注销成功，清除本地存储
+        wx.showModal({
+          title: '注销成功',
+          content: '您的账号已成功注销，感谢您的使用！',
+          showCancel: false,
+          success: () => {
+            // 清除所有本地存储
+            app.clearUserInfo()
+            wx.clearStorageSync()
+            // 跳转到登录页
+            wx.reLaunch({ url: '/pages/login/login' })
+          }
+        })
+      } else {
+        wx.showToast({
+          title: result.message || '注销失败',
+          icon: 'none'
+        })
+      }
+    } catch (error) {
+      wx.hideLoading()
+      wx.showToast({
+        title: '注销失败，请重试',
+        icon: 'none'
+      })
+    }
   }
 })

@@ -7,12 +7,14 @@ Security API - 安全管理API
 2. IP白名单管理
 3. 数据删除功能
 4. 安全状态检查
+5. 账号注销功能
 """
 
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 from typing import Optional, List
+from datetime import datetime
 
 from models import get_db_session
 from core.security import get_current_user, get_current_admin, TokenData
@@ -324,6 +326,93 @@ async def check_password_strength(
         "code": 200,
         "message": "检查完成",
         "data": strength
+    }
+
+
+# ========== 账号注销 ==========
+
+class AccountDeletionRequest(BaseModel):
+    """账号注销请求"""
+    password: str = Field(..., description="当前密码（用于验证身份）")
+    confirm_text: str = Field(..., description='确认文本（输入"我已知晓"）')
+
+
+@router.post("/account/delete")
+async def delete_my_account(
+    request: AccountDeletionRequest,
+    req: Request,
+    current_user: TokenData = Depends(get_current_user),
+    db: Session = Depends(get_db_session)
+):
+    """
+    注销自己的账号
+    
+    用户可注销自己的账号，删除所有个人数据
+    需要输入密码确认，并输入"我已知晓"确认
+    """
+    client_ip = req.client.host if req.client else "unknown"
+    user_id = int(current_user.user_id)
+    
+    # 1. 验证确认文本
+    if request.confirm_text != "我已知晓":
+        return {
+            "code": 400,
+            "message": "请输入正确的确认文本：我已知晓",
+            "data": None
+        }
+    
+    # 2. 获取用户信息并验证密码
+    from services.user_service import UserService
+    from core.security import verify_password
+    
+    user = UserService.get_by_id(db, user_id)
+    if not user:
+        return {
+            "code": 404,
+            "message": "用户不存在",
+            "data": None
+        }
+    
+    # 验证密码
+    if not verify_password(request.password, user.password):
+        return {
+            "code": 401,
+            "message": "密码错误",
+            "data": None
+        }
+    
+    # 3. 先删除用户数据（查询日志、导出文件等）
+    DataDeletionService.delete_user_data(db, user_id, ['query_logs', 'export_files'])
+    
+    # 4. 软删除用户（保留审计需要的数据）
+    # 清除敏感信息但保留记录
+    user.status = 'deleted'
+    user.phone = f"deleted_{user_id}_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+    user.openid = None
+    user.unionid = None
+    user.avatar = None
+    user.name = f"已注销用户_{user_id}"
+    user.id_card = None
+    db.commit()
+    
+    # 5. 记录操作日志
+    OperationLogger.log_operation(
+        db=db,
+        action="delete_own_account",
+        resource_type="user",
+        resource_id=str(user_id),
+        details="User deleted their own account",
+        user_id=user_id,
+        ip_address=client_ip
+    )
+    
+    return {
+        "code": 200,
+        "message": "账号注销成功，您的数据已删除",
+        "data": {
+            "deleted_at": datetime.now().isoformat(),
+            "user_id": user_id
+        }
     }
 
 
