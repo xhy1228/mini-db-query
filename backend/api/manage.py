@@ -323,11 +323,26 @@ async def list_databases(
 @router.post("/databases")
 async def create_database(
     req: Request,
-    body: DatabaseCreate = Body(...),
     current_user: TokenData = Depends(get_current_user),
     db: Session = Depends(get_db_session)
 ):
     """创建数据库配置（管理员权限）"""
+    import logging
+    import json
+    logger = logging.getLogger(__name__)
+    
+    # 手动读取请求体
+    try:
+        raw_body = await req.body()
+        logger.info(f"Raw body: {raw_body}")
+        body_data = json.loads(raw_body)
+        logger.info(f"Parsed body: {body_data}")
+        body = DatabaseCreate(**body_data)
+        logger.info(f"DatabaseCreate object: {body}")
+    except Exception as e:
+        logger.error(f"Failed to parse body: {e}")
+        return {"code": 400, "message": f"请求体解析失败: {str(e)}", "data": None}
+    
     if current_user.role != 'admin':
         raise HTTPException(status_code=403, detail="权限不足")
     
