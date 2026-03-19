@@ -462,7 +462,7 @@ class UpdateUserRequest(BaseModel):
     school_ids: Optional[list] = None
 
 
-@router.post("/admin/users", response_model=dict)
+@router.post("/users", response_model=dict)
 async def create_user(request: CreateUserRequest, req: Request,
                      current_user: TokenData = Depends(get_current_user),
                      db: Session = Depends(get_db_session)):
@@ -528,7 +528,7 @@ async def create_user(request: CreateUserRequest, req: Request,
     }
 
 
-@router.get("/admin/users")
+@router.get("/users")
 async def list_users(skip: int = 0, limit: int = 100,
                     current_user: TokenData = Depends(get_current_user),
                     db: Session = Depends(get_db_session)):
@@ -550,7 +550,7 @@ async def list_users(skip: int = 0, limit: int = 100,
     }
 
 
-@router.put("/admin/users/{user_id}")
+@router.put("/users/{user_id}")
 async def update_user(user_id: int, request: UpdateUserRequest, req: Request,
                      current_user: TokenData = Depends(get_current_user),
                      db: Session = Depends(get_db_session)):
@@ -611,7 +611,7 @@ async def update_user(user_id: int, request: UpdateUserRequest, req: Request,
     }
 
 
-@router.delete("/admin/users/{user_id}")
+@router.delete("/users/{user_id}")
 async def delete_user(user_id: int, req: Request,
                      current_user: TokenData = Depends(get_current_user),
                      db: Session = Depends(get_db_session)):

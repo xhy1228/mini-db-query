@@ -429,7 +429,6 @@
 .login-btn {
   width: 100%;
   height: 100rpx;
-  line-height: 100rpx;
   background: linear-gradient(135deg, #1890ff 0%, #722ed1 100%);
   border-radius: 50rpx;
   border: none;
@@ -437,6 +436,9 @@
   font-size: 34rpx;
   font-weight: 600;
   letter-spacing: 8rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   box-shadow: 
     0 10rpx 30rpx rgba(24, 144, 255, 0.3),
     0 0 40rpx rgba(114, 46, 209, 0.2);

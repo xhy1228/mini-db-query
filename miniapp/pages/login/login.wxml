@@ -49,14 +49,14 @@
       <view class="title-underline"></view>
     </view>
     
-    <!-- 手机号输入 -->
+    <!-- 手机号/用户名输入 -->
     <view class="form-item">
       <view class="input-icon">📱</view>
       <input 
         class="input-field" 
-        type="number" 
-        maxlength="11"
-        placeholder="请输入手机号" 
+        type="text" 
+        maxlength="20"
+        placeholder="请输入手机号或用户名" 
         placeholder-class="placeholder"
         bindinput="onPhoneInput"
         value="{{phone}}"
