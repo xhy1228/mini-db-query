@@ -1505,7 +1505,7 @@
                         if (userSearch.name) params.append('name', userSearch.name);
                         if (userSearch.role) params.append('role', userSearch.role);
                         
-                        const res = await request(`/admin/users?${params}`);
+                        const res = await request(`/users?${params}`);
                         if (res.code === 200) {
                             users.value = res.data || [];
                         }
@@ -1537,7 +1537,7 @@
                     try {
                         await userFormRef.value.validate();
                         
-                        const url = userForm.id ? `/admin/users/${userForm.id}` : '/admin/users';
+                        const url = userForm.id ? `/users/${userForm.id}` : '/users';
                         const method = userForm.id ? 'PUT' : 'POST';
                         
                         // 准备数据，排除 id 字段（新建时）
@@ -1565,7 +1565,7 @@
                     try {
                         await ElementPlus.ElMessageBox.confirm('确定删除该用户?', '提示', { type: 'warning' });
                         
-                        const res = await request(`/admin/users/${user.id}`, { method: 'DELETE' });
+                        const res = await request(`/users/${user.id}`, { method: 'DELETE' });
                         if (res.code === 200) {
                             ElementPlus.ElMessage.success('删除成功');
                             loadUsers();
@@ -1576,7 +1576,7 @@
                 const showPermissionDialog = async (user) => {
                     currentUserForPerm.value = user;
                     try {
-                        const res = await request(`/admin/users/${user.id}/schools`);
+                        const res = await request(`/users/${user.id}/schools`);
                         selectedSchools.value = (res.data || []).map(s => s.school_id);
                     } catch (e) {
                         selectedSchools.value = [];
@@ -1587,7 +1587,7 @@
 
                 const handleSavePermissions = async () => {
                     try {
-                        const res = await request(`/admin/users/${currentUserForPerm.value.id}/schools`, {
+                        const res = await request(`/permissions/users/${currentUserForPerm.value.id}/schools`, {
                             method: 'POST',
                             body: JSON.stringify({ school_ids: selectedSchools.value })
                         });
