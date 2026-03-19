@@ -7,6 +7,7 @@ Mini DB Query - Management API
 
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from pydantic import BaseModel, Field, validator
+from fastapi import Body
 from sqlalchemy.orm import Session
 from typing import Optional, List
 from datetime import datetime
@@ -166,7 +167,7 @@ async def list_schools(
 
 @router.post("/schools")
 async def create_school(
-    body: SchoolCreate,
+    body: SchoolCreate = Body(...),
     req: Request,
     current_user: TokenData = Depends(get_current_user),
     db: Session = Depends(get_db_session)
@@ -222,7 +223,7 @@ async def get_school(
 @router.put("/schools/{school_id}")
 async def update_school(
     school_id: int,
-    body: SchoolUpdate,
+    body: SchoolUpdate = Body(...),
     req: Request,
     current_user: TokenData = Depends(get_current_user),
     db: Session = Depends(get_db_session)
@@ -320,7 +321,7 @@ async def list_databases(
 
 @router.post("/databases")
 async def create_database(
-    body: DatabaseCreate,
+    body: DatabaseCreate = Body(...),
     req: Request,
     current_user: TokenData = Depends(get_current_user),
     db: Session = Depends(get_db_session)
@@ -391,7 +392,7 @@ async def get_database(
 @router.put("/databases/{db_id}")
 async def update_database(
     db_id: int,
-    body: DatabaseUpdate,
+    body: DatabaseUpdate = Body(...),
     req: Request,
     current_user: TokenData = Depends(get_current_user),
     session: Session = Depends(get_db_session)
@@ -493,7 +494,7 @@ class TestConnectionRequest(BaseModel):
 
 @router.post("/databases/test")
 async def test_new_database_connection(
-    body: TestConnectionRequest,
+    body: TestConnectionRequest = Body(...),
     current_user: TokenData = Depends(get_current_user),
     session: Session = Depends(get_db_session)
 ):
@@ -638,7 +639,7 @@ async def list_templates(
 
 @router.post("/templates")
 async def create_template(
-    body: TemplateCreate,
+    body: TemplateCreate = Body(...),
     req: Request,
     current_user: TokenData = Depends(get_current_user),
     db: Session = Depends(get_db_session)
@@ -705,7 +706,7 @@ async def get_template(
 @router.put("/templates/{template_id}")
 async def update_template(
     template_id: int,
-    body: TemplateUpdate,
+    body: TemplateUpdate = Body(...),
     req: Request,
     current_user: TokenData = Depends(get_current_user),
     db: Session = Depends(get_db_session)
@@ -798,7 +799,7 @@ async def get_user_schools(
 @router.post("/users/{user_id}/schools")
 async def assign_user_school(
     user_id: int,
-    body: dict,
+    body: dict = Body(...),
     current_user: TokenData = Depends(get_current_user),
     db: Session = Depends(get_db_session)
 ):
@@ -904,7 +905,7 @@ async def get_system_config(
 @router.put("/system/configs/{config_key}")
 async def update_system_config(
     config_key: str,
-    body: SystemConfigUpdate,
+    body: SystemConfigUpdate = Body(...),
     current_user: TokenData = Depends(get_current_user),
     db: Session = Depends(get_db_session)
 ):
