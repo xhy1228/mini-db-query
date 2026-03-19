@@ -239,7 +239,7 @@ async def update_school(
     if not school:
         raise HTTPException(status_code=404, detail="学校不存在")
     
-    update_data = request.dict(exclude_unset=True)
+    update_data = body.dict(exclude_unset=True)
     for key, value in update_data.items():
         setattr(school, key, value)
     
@@ -408,7 +408,7 @@ async def update_database(
     if not db_config:
         raise HTTPException(status_code=404, detail="配置不存在")
     
-    update_data = request.dict(exclude_unset=True)
+    update_data = body.dict(exclude_unset=True)
     
     # 如果更新密码，需要加密
     if 'password' in update_data and update_data['password']:
@@ -722,7 +722,7 @@ async def update_template(
     if not template:
         raise HTTPException(status_code=404, detail="模板不存在")
     
-    update_data = request.dict(exclude_unset=True)
+    update_data = body.dict(exclude_unset=True)
     for key, value in update_data.items():
         setattr(template, key, value)
     
@@ -808,7 +808,7 @@ async def assign_user_school(
     if current_user.role != 'admin':
         raise HTTPException(status_code=403, detail="权限不足")
     
-    school_id = request.get('school_id')
+    school_id = body.get('school_id')
     if not school_id:
         return {"code": 400, "message": "学校ID不能为空", "data": None}
     
