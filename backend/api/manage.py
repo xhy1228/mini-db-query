@@ -166,7 +166,7 @@ async def list_schools(
 
 @router.post("/schools")
 async def create_school(
-    request: SchoolCreate,
+    body: SchoolCreate,
     req: Request,
     current_user: TokenData = Depends(get_current_user),
     db: Session = Depends(get_db_session)
@@ -178,14 +178,14 @@ async def create_school(
     client_ip = req.client.host if req.client else "unknown"
     
     # 检查编码是否已存在
-    existing = db.query(School).filter(School.code == request.code).first()
+    existing = db.query(School).filter(School.code == body.code).first()
     if existing:
         return {"code": 400, "message": "学校编码已存在", "data": None}
     
     school = School(
-        name=request.name,
-        code=request.code,
-        description=request.description
+        name=body.name,
+        code=body.code,
+        description=body.description
     )
     db.add(school)
     db.commit()
@@ -222,7 +222,7 @@ async def get_school(
 @router.put("/schools/{school_id}")
 async def update_school(
     school_id: int,
-    request: SchoolUpdate,
+    body: SchoolUpdate,
     req: Request,
     current_user: TokenData = Depends(get_current_user),
     db: Session = Depends(get_db_session)
@@ -320,7 +320,7 @@ async def list_databases(
 
 @router.post("/databases")
 async def create_database(
-    request: DatabaseCreate,
+    body: DatabaseCreate,
     req: Request,
     current_user: TokenData = Depends(get_current_user),
     db: Session = Depends(get_db_session)
@@ -332,29 +332,29 @@ async def create_database(
     client_ip = req.client.host if req.client else "unknown"
     
     # 验证学校ID
-    if not request.school_id:
+    if not body.school_id:
         return {"code": 400, "message": "请选择学校", "data": None}
     
     # 验证学校存在
-    school = db.query(School).filter(School.id == request.school_id).first()
+    school = db.query(School).filter(School.id == body.school_id).first()
     if not school:
         return {"code": 400, "message": "学校不存在", "data": None}
     
     # 加密密码
-    encrypted_password = encrypt_password(request.password or "")
+    encrypted_password = encrypt_password(body.password or "")
     
     db_config = DatabaseConfig(
-        school_id=request.school_id,
-        name=request.name,
-        db_type=request.db_type,
-        host=request.host or "localhost",
-        port=request.port or 3306,
-        username=request.username or "",
+        school_id=body.school_id,
+        name=body.name,
+        db_type=body.db_type,
+        host=body.host or "localhost",
+        port=body.port or 3306,
+        username=body.username or "",
         password=encrypted_password,  # 加密存储
-        db_name=request.db_name or "",
-        service_name=request.service_name,
-        driver=request.driver,
-        description=request.description
+        db_name=body.db_name or "",
+        service_name=body.service_name,
+        driver=body.driver,
+        description=body.description
     )
     db.add(db_config)
     db.commit()
@@ -391,7 +391,7 @@ async def get_database(
 @router.put("/databases/{db_id}")
 async def update_database(
     db_id: int,
-    request: DatabaseUpdate,
+    body: DatabaseUpdate,
     req: Request,
     current_user: TokenData = Depends(get_current_user),
     session: Session = Depends(get_db_session)
@@ -493,7 +493,7 @@ class TestConnectionRequest(BaseModel):
 
 @router.post("/databases/test")
 async def test_new_database_connection(
-    request: TestConnectionRequest,
+    body: TestConnectionRequest,
     current_user: TokenData = Depends(get_current_user),
     session: Session = Depends(get_db_session)
 ):
@@ -505,9 +505,9 @@ async def test_new_database_connection(
         from sqlalchemy import create_engine, text
         
         # 构建连接URL，对密码进行URL编码
-        if request.db_type == 'MySQL':
-            encoded_password = quote_plus(request.password)
-            url = f"mysql+pymysql://{request.username}:{encoded_password}@{request.host}:{request.port}/{request.db_name}?charset=utf8mb4"
+        if body.db_type == 'MySQL':
+            encoded_password = quote_plus(body.password)
+            url = f"mysql+pymysql://{body.username}:{encoded_password}@{body.host}:{body.port}/{body.db_name}?charset=utf8mb4"
             engine = create_engine(url, connect_args={"connect_timeout": 5})
             with engine.connect() as conn:
                 result = conn.execute(text("SELECT VERSION()"))
@@ -521,9 +521,9 @@ async def test_new_database_connection(
                     "version": version
                 }
             }
-        elif request.db_type == 'Oracle':
-            encoded_password = quote_plus(request.password)
-            url = f"oracle+oracledb://{request.username}:{encoded_password}@{request.host}:{request.port}/?service_name={request.service_name}"
+        elif body.db_type == 'Oracle':
+            encoded_password = quote_plus(body.password)
+            url = f"oracle+oracledb://{body.username}:{encoded_password}@{body.host}:{body.port}/?service_name={body.service_name}"
             engine = create_engine(url, connect_args={"connect_timeout": 5})
             with engine.connect() as conn:
                 result = conn.execute(text("SELECT * FROM v$version WHERE banner LIKE 'Oracle%'"))
@@ -538,8 +538,8 @@ async def test_new_database_connection(
                     "version": version
                 }
             }
-        elif request.db_type == 'SQLite':
-            url = f"sqlite:///{request.db_name}"
+        elif body.db_type == 'SQLite':
+            url = f"sqlite:///{body.db_name}"
             engine = create_engine(url)
             with engine.connect() as conn:
                 result = conn.execute(text("SELECT sqlite_version()"))
@@ -554,7 +554,7 @@ async def test_new_database_connection(
                 }
             }
         else:
-            return {"code": 400, "message": f"暂不支持 {request.db_type} 连接测试", "data": None}
+            return {"code": 400, "message": f"暂不支持 {body.db_type} 连接测试", "data": None}
         
     except Exception as e:
         import logging
@@ -638,7 +638,7 @@ async def list_templates(
 
 @router.post("/templates")
 async def create_template(
-    request: TemplateCreate,
+    body: TemplateCreate,
     req: Request,
     current_user: TokenData = Depends(get_current_user),
     db: Session = Depends(get_db_session)
@@ -650,25 +650,25 @@ async def create_template(
     client_ip = req.client.host if req.client else "unknown"
     
     # 验证学校ID
-    if not request.school_id:
+    if not body.school_id:
         return {"code": 400, "message": "请选择学校", "data": None}
     
     # 验证学校存在
-    school = db.query(School).filter(School.id == request.school_id).first()
+    school = db.query(School).filter(School.id == body.school_id).first()
     if not school:
         return {"code": 400, "message": "学校不存在", "data": None}
     
     template = QueryTemplate(
-        school_id=request.school_id,
-        category=request.category,
-        category_name=request.category_name,
-        category_icon=request.category_icon,
-        name=request.name,
-        description=request.description,
-        sql_template=request.sql_template,
-        fields=request.fields,
-        time_field=request.time_field,
-        default_limit=request.default_limit or 500
+        school_id=body.school_id,
+        category=body.category,
+        category_name=body.category_name,
+        category_icon=body.category_icon,
+        name=body.name,
+        description=body.description,
+        sql_template=body.sql_template,
+        fields=body.fields,
+        time_field=body.time_field,
+        default_limit=body.default_limit or 500
     )
     db.add(template)
     db.commit()
@@ -705,7 +705,7 @@ async def get_template(
 @router.put("/templates/{template_id}")
 async def update_template(
     template_id: int,
-    request: TemplateUpdate,
+    body: TemplateUpdate,
     req: Request,
     current_user: TokenData = Depends(get_current_user),
     db: Session = Depends(get_db_session)
@@ -798,7 +798,7 @@ async def get_user_schools(
 @router.post("/users/{user_id}/schools")
 async def assign_user_school(
     user_id: int,
-    request: dict,
+    body: dict,
     current_user: TokenData = Depends(get_current_user),
     db: Session = Depends(get_db_session)
 ):
@@ -904,7 +904,7 @@ async def get_system_config(
 @router.put("/system/configs/{config_key}")
 async def update_system_config(
     config_key: str,
-    request: SystemConfigUpdate,
+    body: SystemConfigUpdate,
     current_user: TokenData = Depends(get_current_user),
     db: Session = Depends(get_db_session)
 ):
@@ -919,10 +919,10 @@ async def update_system_config(
         raise HTTPException(status_code=404, detail="配置不存在")
     
     # 如果是敏感配置，加密存储
-    if config.config_type == 'secret' and request.config_value:
-        config.config_value = encrypt_password(request.config_value)
+    if config.config_type == 'secret' and body.config_value:
+        config.config_value = encrypt_password(body.config_value)
     else:
-        config.config_value = request.config_value
+        config.config_value = body.config_value
     
     db.commit()
     db.refresh(config)
