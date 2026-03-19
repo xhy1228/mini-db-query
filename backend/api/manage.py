@@ -6,7 +6,7 @@ Mini DB Query - Management API
 """
 
 from fastapi import APIRouter, Depends, HTTPException, status, Request
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 from typing import Optional, List
 from datetime import datetime
@@ -21,12 +21,11 @@ from core.logging_middleware import OperationLogger
 router = APIRouter(tags=["管理"])
 
 
-# ========== 请求模型 ==========
-
+# ========== 请求模型简化版
 class SchoolCreate(BaseModel):
     """创建学校"""
-    name: str = Field(..., description="学校名称")
-    code: str = Field(..., description="学校编码")
+    name: str
+    code: str
     description: Optional[str] = None
 
 
@@ -41,8 +40,8 @@ class SchoolUpdate(BaseModel):
 class DatabaseCreate(BaseModel):
     """创建数据库配置"""
     school_id: Optional[int] = None
-    name: str = Field(..., description="配置名称")
-    db_type: str = Field(..., description="数据库类型: MySQL/Oracle/SQLServer/SQLite")
+    name: str
+    db_type: str
     host: Optional[str] = "localhost"
     port: Optional[int] = 3306
     username: Optional[str] = ""
@@ -51,21 +50,6 @@ class DatabaseCreate(BaseModel):
     service_name: Optional[str] = None
     driver: Optional[str] = None
     description: Optional[str] = None
-    
-    @validator('school_id', 'port', pre=True, always=True)
-    def convert_to_int(cls, v):
-        if v is None or v == '':
-            return None
-        if isinstance(v, str):
-            try:
-                return int(v)
-            except:
-                return v
-        return v
-    
-    class Config:
-        # 允许从任意类型转换
-        arbitrary_types_allowed = True
 
 
 class DatabaseUpdate(BaseModel):
@@ -82,42 +66,20 @@ class DatabaseUpdate(BaseModel):
     driver: Optional[str] = None
     description: Optional[str] = None
     status: Optional[str] = None
-    
-    @validator('school_id', 'port', pre=True, always=True)
-    def convert_to_int(cls, v):
-        if v is None or v == '':
-            return None
-        if isinstance(v, str):
-            try:
-                return int(v)
-            except:
-                return v
-        return v
 
 
 class TemplateCreate(BaseModel):
     """创建查询模板"""
     school_id: Optional[int] = None
-    category: str = Field(..., description="业务大类编码")
+    category: str
     category_name: Optional[str] = None
     category_icon: Optional[str] = None
-    name: str = Field(..., description="模板名称")
+    name: str
     description: Optional[str] = None
-    sql_template: str = Field(..., description="SQL模板")
+    sql_template: str
     fields: Optional[List[dict]] = None
     time_field: Optional[str] = None
     default_limit: Optional[int] = 500
-    
-    @validator('school_id', 'default_limit', pre=True, always=True)
-    def convert_to_int(cls, v):
-        if v is None or v == '':
-            return None
-        if isinstance(v, str):
-            try:
-                return int(v)
-            except:
-                return v
-        return v
 
 
 class TemplateUpdate(BaseModel):
@@ -133,17 +95,22 @@ class TemplateUpdate(BaseModel):
     time_field: Optional[str] = None
     default_limit: Optional[int] = None
     status: Optional[str] = None
-    
-    @validator('school_id', 'default_limit', pre=True, always=True)
-    def convert_to_int(cls, v):
-        if v is None or v == '':
-            return None
-        if isinstance(v, str):
-            try:
-                return int(v)
-            except:
-                return v
-        return v
+
+
+class TestConnectionRequest(BaseModel):
+    """测试连接请求"""
+    db_type: str
+    host: Optional[str] = "localhost"
+    port: Optional[int] = 3306
+    username: Optional[str] = ""
+    password: Optional[str] = ""
+    db_name: Optional[str] = ""
+    service_name: Optional[str] = None
+
+
+class SystemConfigUpdate(BaseModel):
+    """更新系统配置"""
+    config_value: str
 
 
 # ========== 学校管理 API ==========
@@ -166,8 +133,8 @@ async def list_schools(
 
 @router.post("/schools")
 async def create_school(
-    http_request: Request,
     request: SchoolCreate,
+    req: Request,
     current_user: TokenData = Depends(get_current_user),
     db: Session = Depends(get_db_session)
 ):
@@ -175,7 +142,7 @@ async def create_school(
     if current_user.role != 'admin':
         raise HTTPException(status_code=403, detail="权限不足")
     
-    client_ip = http_request.client.host if http_request.client else "unknown"
+    client_ip = req.client.host if req.client else "unknown"
     
     # 检查编码是否已存在
     existing = db.query(School).filter(School.code == request.code).first()
@@ -222,8 +189,8 @@ async def get_school(
 @router.put("/schools/{school_id}")
 async def update_school(
     school_id: int,
-    http_request: Request,
     request: SchoolUpdate,
+    req: Request,
     current_user: TokenData = Depends(get_current_user),
     db: Session = Depends(get_db_session)
 ):
@@ -231,7 +198,7 @@ async def update_school(
     if current_user.role != 'admin':
         raise HTTPException(status_code=403, detail="权限不足")
     
-    client_ip = http_request.client.host if http_request.client else "unknown"
+    client_ip = req.client.host if req.client else "unknown"
     
     school = db.query(School).filter(School.id == school_id).first()
     if not school:
@@ -262,7 +229,7 @@ async def update_school(
 @router.delete("/schools/{school_id}")
 async def delete_school(
     school_id: int,
-    http_request: Request,
+    req: Request,
     current_user: TokenData = Depends(get_current_user),
     db: Session = Depends(get_db_session)
 ):
@@ -270,7 +237,7 @@ async def delete_school(
     if current_user.role != 'admin':
         raise HTTPException(status_code=403, detail="权限不足")
     
-    client_ip = http_request.client.host if http_request.client else "unknown"
+    client_ip = req.client.host if req.client else "unknown"
     
     school = db.query(School).filter(School.id == school_id).first()
     if not school:
@@ -320,31 +287,16 @@ async def list_databases(
 
 @router.post("/databases")
 async def create_database(
-    http_request: Request,
+    request: DatabaseCreate,
+    req: Request,
     current_user: TokenData = Depends(get_current_user),
     db: Session = Depends(get_db_session)
 ):
     """创建数据库配置（管理员权限）"""
-    import logging
-    import json
-    logger = logging.getLogger(__name__)
-    
-    # 手动读取请求体
-    try:
-        raw_body = await req.body()
-        logger.info(f"Raw body: {raw_body}")
-        body_data = json.loads(raw_body)
-        logger.info(f"Parsed body: {body_data}")
-        body = DatabaseCreate(**body_data)
-        logger.info(f"DatabaseCreate object: {body}")
-    except Exception as e:
-        logger.error(f"Failed to parse body: {e}")
-        return {"code": 400, "message": f"请求体解析失败: {str(e)}", "data": None}
-    
     if current_user.role != 'admin':
         raise HTTPException(status_code=403, detail="权限不足")
     
-    client_ip = http_request.client.host if http_request.client else "unknown"
+    client_ip = req.client.host if req.client else "unknown"
     
     # 验证学校ID
     if not request.school_id:
@@ -365,7 +317,7 @@ async def create_database(
         host=request.host or "localhost",
         port=request.port or 3306,
         username=request.username or "",
-        password=encrypted_password,  # 加密存储
+        password=encrypted_password,
         db_name=request.db_name or "",
         service_name=request.service_name,
         driver=request.driver,
@@ -406,8 +358,8 @@ async def get_database(
 @router.put("/databases/{db_id}")
 async def update_database(
     db_id: int,
-    http_request: Request,
     request: DatabaseUpdate,
+    req: Request,
     current_user: TokenData = Depends(get_current_user),
     session: Session = Depends(get_db_session)
 ):
@@ -415,7 +367,7 @@ async def update_database(
     if current_user.role != 'admin':
         raise HTTPException(status_code=403, detail="权限不足")
     
-    client_ip = http_request.client.host if http_request.client else "unknown"
+    client_ip = req.client.host if req.client else "unknown"
     
     db_config = session.query(DatabaseConfig).filter(DatabaseConfig.id == db_id).first()
     if not db_config:
@@ -451,7 +403,7 @@ async def update_database(
 @router.delete("/databases/{db_id}")
 async def delete_database(
     db_id: int,
-    http_request: Request,
+    req: Request,
     current_user: TokenData = Depends(get_current_user),
     session: Session = Depends(get_db_session)
 ):
@@ -459,7 +411,7 @@ async def delete_database(
     if current_user.role != 'admin':
         raise HTTPException(status_code=403, detail="权限不足")
     
-    client_ip = http_request.client.host if http_request.client else "unknown"
+    client_ip = req.client.host if req.client else "unknown"
     
     db_config = session.query(DatabaseConfig).filter(DatabaseConfig.id == db_id).first()
     if not db_config:
@@ -484,28 +436,6 @@ async def delete_database(
     return {"code": 200, "message": "删除成功", "data": None}
 
 
-class TestConnectionRequest(BaseModel):
-    """测试连接请求"""
-    db_type: str
-    host: Optional[str] = "localhost"
-    port: Optional[int] = 3306
-    username: Optional[str] = ""
-    password: Optional[str] = ""
-    db_name: Optional[str] = ""
-    service_name: Optional[str] = None
-    
-    @validator('port', pre=True, always=True)
-    def convert_to_int(cls, v):
-        if v is None or v == '':
-            return 3306
-        if isinstance(v, str):
-            try:
-                return int(v)
-            except:
-                return 3306
-        return v
-
-
 @router.post("/databases/test")
 async def test_new_database_connection(
     request: TestConnectionRequest,
@@ -519,7 +449,7 @@ async def test_new_database_connection(
     try:
         from sqlalchemy import create_engine, text
         
-        # 构建连接URL，对密码进行URL编码
+        # 构建连接URL
         if request.db_type == 'MySQL':
             encoded_password = quote_plus(request.password)
             url = f"mysql+pymysql://{request.username}:{encoded_password}@{request.host}:{request.port}/{request.db_name}?charset=utf8mb4"
@@ -602,10 +532,9 @@ async def test_database_connection(
         try:
             plain_password = decrypt_password(db_config.password)
         except:
-            # 如果解密失败，尝试使用原始密码（兼容旧数据）
             plain_password = db_config.password
         
-        # 构建连接URL，对密码进行URL编码
+        # 构建连接URL
         if db_config.db_type == 'MySQL':
             encoded_password = quote_plus(plain_password)
             url = f"mysql+pymysql://{db_config.username}:{encoded_password}@{db_config.host}:{db_config.port}/{db_config.db_name}?charset=utf8mb4"
@@ -653,8 +582,8 @@ async def list_templates(
 
 @router.post("/templates")
 async def create_template(
-    http_request: Request,
     request: TemplateCreate,
+    req: Request,
     current_user: TokenData = Depends(get_current_user),
     db: Session = Depends(get_db_session)
 ):
@@ -662,7 +591,7 @@ async def create_template(
     if current_user.role != 'admin':
         raise HTTPException(status_code=403, detail="权限不足")
     
-    client_ip = http_request.client.host if http_request.client else "unknown"
+    client_ip = req.client.host if req.client else "unknown"
     
     # 验证学校ID
     if not request.school_id:
@@ -720,8 +649,8 @@ async def get_template(
 @router.put("/templates/{template_id}")
 async def update_template(
     template_id: int,
-    http_request: Request,
     request: TemplateUpdate,
+    req: Request,
     current_user: TokenData = Depends(get_current_user),
     db: Session = Depends(get_db_session)
 ):
@@ -729,7 +658,7 @@ async def update_template(
     if current_user.role != 'admin':
         raise HTTPException(status_code=403, detail="权限不足")
     
-    client_ip = http_request.client.host if http_request.client else "unknown"
+    client_ip = req.client.host if req.client else "unknown"
     
     template = db.query(QueryTemplate).filter(QueryTemplate.id == template_id).first()
     if not template:
@@ -760,7 +689,7 @@ async def update_template(
 @router.delete("/templates/{template_id}")
 async def delete_template(
     template_id: int,
-    http_request: Request,
+    req: Request,
     current_user: TokenData = Depends(get_current_user),
     db: Session = Depends(get_db_session)
 ):
@@ -768,7 +697,7 @@ async def delete_template(
     if current_user.role != 'admin':
         raise HTTPException(status_code=403, detail="权限不足")
     
-    client_ip = http_request.client.host if http_request.client else "unknown"
+    client_ip = req.client.host if req.client else "unknown"
     
     template = db.query(QueryTemplate).filter(QueryTemplate.id == template_id).first()
     if not template:
@@ -867,11 +796,6 @@ async def remove_user_school(
 
 # ========== 系统配置管理 API ==========
 
-class SystemConfigUpdate(BaseModel):
-    """更新系统配置"""
-    config_value: str
-
-
 @router.get("/system/configs")
 async def list_system_configs(
     category: Optional[str] = None,
@@ -887,7 +811,7 @@ async def list_system_configs(
     
     configs = query.all()
     
-    # 管理员可以看到完整配置，普通用户只能看到隐藏后的
+    # 管理员可以看到完整配置
     hide_secret = current_user.role != 'admin'
     
     return {
@@ -910,7 +834,6 @@ async def get_system_config(
     if not config:
         raise HTTPException(status_code=404, detail="配置不存在")
     
-    # 管理员可以看到完整配置
     hide_secret = current_user.role != 'admin'
     
     return {"code": 200, "message": "获取成功", "data": config.to_dict(hide_secret=hide_secret)}
@@ -1008,23 +931,6 @@ async def delete_system_config(
 
 
 # ========== 权限管理 API ==========
-
-class PermissionModuleResponse(BaseModel):
-    """权限模块响应"""
-    code: str
-    name: str
-    description: Optional[str]
-    parent_code: Optional[str]
-    icon: Optional[str]
-    children: List["PermissionModuleResponse"] = []
-
-
-class UserPermissionUpdate(BaseModel):
-    """用户权限更新"""
-    school_ids: Optional[List[int]] = None
-    module_permissions: Optional[List[dict]] = None  # [{school_id, module_code, permission_code, granted}]
-    template_permissions: Optional[List[dict]] = None  # [{school_id, template_id, can_query, can_export}]
-
 
 class UserSchoolPermissionCreate(BaseModel):
     """创建用户学校权限"""
@@ -1142,7 +1048,7 @@ async def set_user_schools(
         perm = UserSchool(
             user_id=user_id,
             school_id=school_id,
-            permissions=['query']  # Default permission
+            permissions=['query']
         )
         db.add(perm)
     
@@ -1166,7 +1072,6 @@ async def set_user_module_permissions(
     
     added_count = 0
     for perm in permissions:
-        # Check if exists
         existing = db.query(UserSchoolPermission).filter(
             UserSchoolPermission.user_id == user_id,
             UserSchoolPermission.school_id == perm.school_id,
@@ -1207,7 +1112,6 @@ async def set_user_template_permissions(
     
     added_count = 0
     for perm in permissions:
-        # Check if exists
         existing = db.query(UserTemplatePermission).filter(
             UserTemplatePermission.user_id == user_id,
             UserTemplatePermission.school_id == perm.school_id,
@@ -1277,4 +1181,3 @@ async def clear_user_template_permissions(
     db.commit()
     
     return {"code": 200, "message": "清除成功", "data": {"deleted_count": count}}
-
