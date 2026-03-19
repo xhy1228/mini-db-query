@@ -1,0 +1,631 @@
+/* pages/login/login.wxss */
+
+/* 容器 */
+.container {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40rpx;
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(135deg, #0a0f1a 0%, #0d1f3c 50%, #0a1628 100%);
+}
+
+/* ========== 科技感背景 ========== */
+.tech-bg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  overflow: hidden;
+  z-index: 0;
+}
+
+/* 渐变光晕 */
+.glow {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80rpx);
+  opacity: 0.4;
+}
+
+.glow-1 {
+  width: 600rpx;
+  height: 600rpx;
+  background: radial-gradient(circle, #1890ff 0%, transparent 70%);
+  top: -150rpx;
+  right: -100rpx;
+  animation: glowPulse 4s ease-in-out infinite;
+}
+
+.glow-2 {
+  width: 500rpx;
+  height: 500rpx;
+  background: radial-gradient(circle, #722ed1 0%, transparent 70%);
+  bottom: -100rpx;
+  left: -100rpx;
+  animation: glowPulse 5s ease-in-out infinite 1s;
+}
+
+.glow-3 {
+  width: 400rpx;
+  height: 400rpx;
+  background: radial-gradient(circle, #13c2c2 0%, transparent 70%);
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  animation: glowPulse 6s ease-in-out infinite 2s;
+}
+
+@keyframes glowPulse {
+  0%, 100% { 
+    opacity: 0.3;
+    transform: scale(1);
+  }
+  50% { 
+    opacity: 0.5;
+    transform: scale(1.1);
+  }
+}
+
+/* 网格背景 */
+.grid-bg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image: 
+    linear-gradient(rgba(24, 144, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(24, 144, 255, 0.03) 1px, transparent 1px);
+  background-size: 60rpx 60rpx;
+  animation: gridMove 20s linear infinite;
+}
+
+@keyframes gridMove {
+  0% { background-position: 0 0; }
+  100% { background-position: 60rpx 60rpx; }
+}
+
+/* 科技线条 */
+.tech-line {
+  position: absolute;
+  background: linear-gradient(90deg, transparent, rgba(24, 144, 255, 0.5), transparent);
+  height: 1px;
+  width: 100%;
+  opacity: 0.3;
+}
+
+.tech-line-1 {
+  top: 20%;
+  animation: techLineMove 8s linear infinite;
+}
+
+.tech-line-2 {
+  top: 50%;
+  animation: techLineMove 10s linear infinite 2s;
+}
+
+.tech-line-3 {
+  top: 80%;
+  animation: techLineMove 12s linear infinite 4s;
+}
+
+@keyframes techLineMove {
+  0% { 
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+  50% {
+    opacity: 0.5;
+  }
+  100% { 
+    transform: translateX(100%);
+    opacity: 0;
+  }
+}
+
+/* 浮动粒子 */
+.particle {
+  position: absolute;
+  width: 8rpx;
+  height: 8rpx;
+  background: #1890ff;
+  border-radius: 50%;
+  box-shadow: 0 0 20rpx #1890ff, 0 0 40rpx rgba(24, 144, 255, 0.5);
+}
+
+.particle-1 {
+  top: 15%;
+  left: 10%;
+  animation: particleFloat 15s ease-in-out infinite;
+}
+
+.particle-2 {
+  top: 25%;
+  right: 15%;
+  animation: particleFloat 12s ease-in-out infinite 2s;
+  background: #722ed1;
+  box-shadow: 0 0 20rpx #722ed1, 0 0 40rpx rgba(114, 46, 209, 0.5);
+}
+
+.particle-3 {
+  top: 60%;
+  left: 20%;
+  animation: particleFloat 18s ease-in-out infinite 4s;
+  background: #13c2c2;
+  box-shadow: 0 0 20rpx #13c2c2, 0 0 40rpx rgba(19, 194, 194, 0.5);
+}
+
+.particle-4 {
+  top: 75%;
+  right: 25%;
+  animation: particleFloat 14s ease-in-out infinite 1s;
+}
+
+.particle-5 {
+  top: 40%;
+  left: 50%;
+  animation: particleFloat 16s ease-in-out infinite 3s;
+  background: #52c41a;
+  box-shadow: 0 0 20rpx #52c41a, 0 0 40rpx rgba(82, 196, 26, 0.5);
+}
+
+@keyframes particleFloat {
+  0%, 100% {
+    transform: translate(0, 0) scale(1);
+    opacity: 0.6;
+  }
+  25% {
+    transform: translate(30rpx, -50rpx) scale(1.2);
+    opacity: 1;
+  }
+  50% {
+    transform: translate(-20rpx, -80rpx) scale(0.8);
+    opacity: 0.8;
+  }
+  75% {
+    transform: translate(40rpx, -30rpx) scale(1.1);
+    opacity: 0.9;
+  }
+}
+
+/* 扫描线 */
+.scan-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2rpx;
+  background: linear-gradient(90deg, 
+    transparent 0%, 
+    rgba(24, 144, 255, 0.1) 20%,
+    rgba(24, 144, 255, 0.8) 50%,
+    rgba(24, 144, 255, 0.1) 80%,
+    transparent 100%
+  );
+  box-shadow: 0 0 20rpx rgba(24, 144, 255, 0.5);
+  animation: scanMove 4s linear infinite;
+}
+
+@keyframes scanMove {
+  0% { top: -2rpx; opacity: 0; }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  100% { top: 100%; opacity: 0; }
+}
+
+/* ========== Logo区域 ========== */
+.logo-area {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 50rpx;
+  z-index: 1;
+}
+
+.logo-container {
+  width: 160rpx;
+  height: 160rpx;
+  background: linear-gradient(135deg, #1890ff 0%, #722ed1 100%);
+  border-radius: 40rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 30rpx;
+  position: relative;
+  box-shadow: 
+    0 0 40rpx rgba(24, 144, 255, 0.4),
+    0 0 80rpx rgba(114, 46, 209, 0.2);
+  animation: logoFloat 3s ease-in-out infinite;
+}
+
+.logo-glow {
+  position: absolute;
+  top: -10rpx;
+  left: -10rpx;
+  right: -10rpx;
+  bottom: -10rpx;
+  border-radius: 50rpx;
+  background: linear-gradient(135deg, rgba(24, 144, 255, 0.3), rgba(114, 46, 209, 0.3));
+  filter: blur(20rpx);
+  animation: logoGlow 2s ease-in-out infinite;
+}
+
+@keyframes logoFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10rpx); }
+}
+
+@keyframes logoGlow {
+  0%, 100% { opacity: 0.5; transform: scale(1); }
+  50% { opacity: 0.8; transform: scale(1.05); }
+}
+
+.logo-icon {
+  font-size: 80rpx;
+  position: relative;
+  z-index: 1;
+}
+
+.logo-title {
+  font-size: 52rpx;
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 8rpx;
+  text-shadow: 0 4rpx 20rpx rgba(24, 144, 255, 0.5);
+  letter-spacing: 4rpx;
+}
+
+.logo-subtitle {
+  font-size: 22rpx;
+  color: rgba(24, 144, 255, 0.8);
+  letter-spacing: 6rpx;
+  margin-bottom: 16rpx;
+}
+
+.title-decoration {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+}
+
+.deco-line {
+  width: 60rpx;
+  height: 2rpx;
+  background: linear-gradient(90deg, transparent, rgba(24, 144, 255, 0.5));
+}
+
+.deco-line:last-child {
+  background: linear-gradient(90deg, rgba(24, 144, 255, 0.5), transparent);
+}
+
+.deco-text {
+  font-size: 22rpx;
+  color: rgba(255, 255, 255, 0.5);
+  letter-spacing: 4rpx;
+}
+
+/* ========== 登录表单 ========== */
+.login-form {
+  width: 100%;
+  max-width: 640rpx;
+  padding: 50rpx 40rpx;
+  z-index: 1;
+  background: rgba(10, 22, 40, 0.7);
+  border: 1px solid rgba(24, 144, 255, 0.2);
+  box-shadow: 
+    0 20rpx 60rpx rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(30rpx);
+}
+
+.form-title {
+  font-size: 36rpx;
+  font-weight: 600;
+  color: #fff;
+  text-align: center;
+  margin-bottom: 40rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.title-underline {
+  width: 60rpx;
+  height: 4rpx;
+  background: linear-gradient(90deg, #1890ff, #722ed1);
+  margin-top: 12rpx;
+  border-radius: 2rpx;
+}
+
+.form-item {
+  display: flex;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(24, 144, 255, 0.15);
+  border-radius: 16rpx;
+  padding: 24rpx 30rpx;
+  margin-bottom: 24rpx;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.form-item::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(24, 144, 255, 0.1), transparent);
+  transition: left 0.5s ease;
+}
+
+.form-item:focus-within {
+  border-color: #1890ff;
+  background: rgba(24, 144, 255, 0.08);
+  box-shadow: 0 0 20rpx rgba(24, 144, 255, 0.2);
+}
+
+.form-item:focus-within::before {
+  left: 100%;
+}
+
+.input-icon {
+  font-size: 36rpx;
+  margin-right: 20rpx;
+}
+
+.input-field {
+  flex: 1;
+  font-size: 30rpx;
+  color: #fff;
+  height: 48rpx;
+}
+
+.input-status {
+  width: 8rpx;
+  height: 8rpx;
+  border-radius: 50%;
+  background: transparent;
+  transition: all 0.3s ease;
+}
+
+.form-item:focus-within .input-status {
+  background: #1890ff;
+  box-shadow: 0 0 10rpx #1890ff;
+}
+
+.show-password {
+  padding: 10rpx;
+  font-size: 32rpx;
+  opacity: 0.7;
+}
+
+.placeholder {
+  color: rgba(255, 255, 255, 0.3);
+}
+
+/* 提示信息 */
+.login-hint {
+  margin-bottom: 30rpx;
+  text-align: center;
+  padding: 16rpx;
+  background: rgba(24, 144, 255, 0.05);
+  border-radius: 12rpx;
+  border: 1px solid rgba(24, 144, 255, 0.1);
+}
+
+.login-hint text {
+  font-size: 24rpx;
+  color: rgba(24, 144, 255, 0.8);
+}
+
+/* 登录按钮 */
+.login-btn {
+  width: 100%;
+  height: 100rpx;
+  background: linear-gradient(135deg, #1890ff 0%, #722ed1 100%);
+  border-radius: 50rpx;
+  border: none;
+  color: #fff;
+  font-size: 34rpx;
+  font-weight: 600;
+  letter-spacing: 8rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 
+    0 10rpx 30rpx rgba(24, 144, 255, 0.3),
+    0 0 40rpx rgba(114, 46, 209, 0.2);
+  position: relative;
+  overflow: hidden;
+}
+
+.login-btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  animation: btnShine 3s ease-in-out infinite;
+}
+
+@keyframes btnShine {
+  0% { left: -100%; }
+  50%, 100% { left: 100%; }
+}
+
+.login-btn:active {
+  transform: scale(0.98);
+  box-shadow: 0 5rpx 20rpx rgba(24, 144, 255, 0.4);
+}
+
+.login-btn[disabled] {
+  opacity: 0.7;
+}
+
+/* 分割线 */
+.divider-line {
+  display: flex;
+  align-items: center;
+  margin: 30rpx 0;
+}
+
+.divider-line .line {
+  flex: 1;
+  height: 1rpx;
+  background: linear-gradient(90deg, transparent, rgba(24, 144, 255, 0.3), transparent);
+}
+
+.divider-line .text {
+  padding: 0 30rpx;
+  font-size: 24rpx;
+  color: rgba(255, 255, 255, 0.3);
+}
+
+/* 微信登录按钮 */
+.wechat-btn {
+  width: 100%;
+  height: 100rpx;
+  line-height: 100rpx;
+  background: linear-gradient(135deg, #07c160 0%, #10b981 100%);
+  border-radius: 50rpx;
+  border: none;
+  color: #fff;
+  font-size: 32rpx;
+  font-weight: 500;
+  box-shadow: 0 10rpx 30rpx rgba(7, 193, 96, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16rpx;
+}
+
+.wechat-icon {
+  font-size: 40rpx;
+}
+
+.wechat-btn:active {
+  transform: scale(0.98);
+}
+
+/* 其他选项 */
+.other-options {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-top: 30rpx;
+}
+
+.forgot-link, .help-link {
+  font-size: 24rpx;
+  color: rgba(24, 144, 255, 0.8);
+  padding: 10rpx 16rpx;
+  transition: all 0.3s ease;
+}
+
+.forgot-link:active, .help-link:active {
+  color: #1890ff;
+}
+
+.divider {
+  color: rgba(255, 255, 255, 0.2);
+  margin: 0 8rpx;
+}
+
+/* 版权信息 */
+.copyright {
+  position: absolute;
+  bottom: 40rpx;
+  z-index: 1;
+}
+
+.copyright text {
+  font-size: 20rpx;
+  color: rgba(255, 255, 255, 0.25);
+  letter-spacing: 2rpx;
+}
+
+/* ========== 绑定手机号弹窗 ========== */
+.bind-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.bind-mask {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(10rpx);
+}
+
+.bind-content {
+  position: relative;
+  width: 620rpx;
+  padding: 50rpx 40rpx;
+  background: rgba(10, 22, 40, 0.95);
+  border-radius: 24rpx;
+  border: 1rpx solid rgba(24, 144, 255, 0.2);
+  box-shadow: 0 30rpx 80rpx rgba(0, 0, 0, 0.5);
+}
+
+.bind-title {
+  font-size: 36rpx;
+  font-weight: 600;
+  color: #fff;
+  text-align: center;
+  margin-bottom: 16rpx;
+}
+
+.bind-hint {
+  font-size: 24rpx;
+  color: rgba(255, 255, 255, 0.5);
+  text-align: center;
+  margin-bottom: 40rpx;
+}
+
+.bind-buttons {
+  display: flex;
+  gap: 20rpx;
+  margin-top: 40rpx;
+}
+
+.cancel-btn {
+  flex: 1;
+  height: 88rpx;
+  line-height: 88rpx;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 44rpx;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 30rpx;
+}
+
+.confirm-btn {
+  flex: 1;
+  height: 88rpx;
+  line-height: 88rpx;
+  background: linear-gradient(135deg, #1890ff, #722ed1);
+  border-radius: 44rpx;
+  border: none;
+  color: #fff;
+  font-size: 30rpx;
+  font-weight: 500;
+}
