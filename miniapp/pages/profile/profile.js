@@ -186,5 +186,48 @@ Page({
         }
       })
     }
+  },
+  
+  // 清除我的数据
+  clearMyData() {
+    wx.showModal({
+      title: '清除数据',
+      content: '确定要清除您的查询历史和导出文件吗？此操作不可恢复。',
+      confirmText: '确定清除',
+      confirmColor: '#ff4d4f',
+      success: async (res) => {
+        if (res.confirm) {
+          wx.showLoading({ title: '清除中...' })
+          
+          try {
+            const result = await del('/security/my-data')
+            wx.hideLoading()
+            
+            if (result.code === 200) {
+              wx.showModal({
+                title: '清除成功',
+                content: '您的数据已成功清除',
+                showCancel: false,
+                success: () => {
+                  // 刷新统计数据
+                  this.loadStats()
+                }
+              })
+            } else {
+              wx.showToast({
+                title: result.message || '清除失败',
+                icon: 'none'
+              })
+            }
+          } catch (error) {
+            wx.hideLoading()
+            wx.showToast({
+              title: '清除失败',
+              icon: 'none'
+            })
+          }
+        }
+      }
+    })
   }
 })
