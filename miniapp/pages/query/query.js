@@ -40,7 +40,14 @@ Page({
     
     // 详情弹窗
     showDetailModal: false,
-    detailData: []
+    detailData: [],
+    
+    // 排序功能
+    sortColumn: '',
+    sortOrder: '', // 'asc' or 'desc'
+    
+    // 表格显示优化
+    columnWidths: {}
   },
 
   onLoad(options) {
@@ -383,6 +390,35 @@ Page({
   hideDetailModal() {
     this.setData({ showDetailModal: false, detailData: [] })
   },
+  
+  // 复制详情整行
+  copyDetailRow() {
+    const { detailData } = this.data
+    if (!detailData || detailData.length === 0) return
+    
+    const text = detailData.map(item => `${item.label}: ${item.value != null ? item.value : '-'}`).join('\n')
+    
+    wx.setClipboardData({
+      data: text,
+      success: () => {
+        wx.showToast({ title: '已复制', icon: 'success' })
+      }
+    })
+  },
+  
+  // 长按复制单个字段
+  copyDetailItem(e) {
+    const index = e.currentTarget.dataset.index
+    const item = this.data.detailData[index]
+    if (!item) return
+    
+    wx.setClipboardData({
+      data: String(item.value != null ? item.value : '-'),
+      success: () => {
+        wx.showToast({ title: '已复制', icon: 'success', duration: 1000 })
+      }
+    })
+  },
 
   // 执行查询
   async doQuery() {
@@ -489,7 +525,149 @@ Page({
       resultColumns: [],
       queried: false,
       queryTime: 0,
-      errorInfo: null
+      errorInfo: null,
+      sortColumn: '',
+      sortOrder: ''
     })
+  },
+  
+  // ========== 新增优化功能 ==========
+  
+  // 点击表头排序
+  onHeaderTap(e) {
+    const column = e.currentTarget.dataset.column
+    const { sortColumn, sortOrder, result } = this.data
+    
+    if (!result || result.length === 0) return
+    
+    let newOrder = 'asc'
+    if (sortColumn === column) {
+      newOrder = sortOrder === 'asc' ? 'desc' : ''
+    }
+    
+    if (!newOrder) {
+      // 取消排序，恢复原始顺序
+      this.setData({ sortColumn: '', sortOrder: '' })
+      return
+    }
+    
+    // 排序数据
+    const sortedResult = [...result].sort((a, b) => {
+      let valA = a[column]
+      let valB = b[column]
+      
+      // 处理null/undefined
+      if (valA == null) valA = ''
+      if (valB == null) valB = ''
+      
+      // 数字比较
+      const numA = parseFloat(valA)
+      const numB = parseFloat(valB)
+      if (!isNaN(numA) && !isNaN(numB)) {
+        return newOrder === 'asc' ? numA - numB : numB - numA
+      }
+      
+      // 字符串比较
+      const strA = String(valA).toLowerCase()
+      const strB = String(valB).toLowerCase()
+      if (newOrder === 'asc') {
+        return strA.localeCompare(strB, 'zh-CN')
+      } else {
+        return strB.localeCompare(strA, 'zh-CN')
+      }
+    })
+    
+    this.setData({
+      result: sortedResult,
+      sortColumn: column,
+      sortOrder: newOrder
+    })
+  },
+  
+  // 长按复制单元格
+  onCellLongPress(e) {
+    const value = e.currentTarget.dataset.value
+    if (value == null) return
+    
+    wx.setClipboardData({
+      data: String(value),
+      success: () => {
+        wx.showToast({ title: '已复制', icon: 'success', duration: 1000 })
+      }
+    })
+  },
+  
+  // 复制整行数据
+  copyRow(e) {
+    const row = e.currentTarget.dataset.row
+    if (!row) return
+    
+    const text = this.data.resultColumns.map(col => {
+      const val = row[col]
+      return `${col}: ${val != null ? val : '-'}`
+    }).join('\n')
+    
+    wx.setClipboardData({
+      data: text,
+      success: () => {
+        wx.showToast({ title: '已复制整行', icon: 'success' })
+      }
+    })
+  },
+  
+  // 格式化显示值
+  formatValue(value, column) {
+    if (value == null) return '-'
+    
+    // 日期字段格式化
+    if (column.toLowerCase().includes('time') || column.toLowerCase().includes('date')) {
+      if (typeof value === 'string' && value.length >= 10) {
+        // 截取日期部分
+        return value.substring(0, 19).replace('T', ' ')
+      }
+    }
+    
+    // 金额字段格式化
+    if (column.toLowerCase().includes('amount') || column.toLowerCase().includes('money') || column.toLowerCase().includes('fee')) {
+      const num = parseFloat(value)
+      if (!isNaN(num)) {
+        return num.toFixed(2)
+      }
+    }
+    
+    return value
+  },
+  
+  // 计算列统计信息
+  getColumnStats(column) {
+    const { result } = this.data
+    if (!result || result.length === 0) return null
+    
+    const values = result.map(r => r[column]).filter(v => v != null)
+    if (values.length === 0) return null
+    
+    const nums = values.map(v => parseFloat(v)).filter(n => !isNaN(n))
+    
+    if (nums.length > 0 && nums.length === values.length) {
+      // 数值列，计算统计
+      const sum = nums.reduce((a, b) => a + b, 0)
+      const avg = sum / nums.length
+      const max = Math.max(...nums)
+      const min = Math.min(...nums)
+      
+      return {
+        isNumeric: true,
+        count: nums.length,
+        sum: sum.toFixed(2),
+        avg: avg.toFixed(2),
+        max: max.toFixed(2),
+        min: min.toFixed(2)
+      }
+    }
+    
+    return {
+      isNumeric: false,
+      count: values.length
+    }
   }
 })

@@ -193,8 +193,17 @@
           <view class="table">
             <!-- 表头 -->
             <view class="table-header">
-              <view class="th" wx:for="{{resultColumns}}" wx:key="*this">
-                {{item}}
+              <view 
+                class="th {{sortColumn === item ? 'sort-' + sortOrder : ''}}" 
+                wx:for="{{resultColumns}}" 
+                wx:key="*this"
+                data-column="{{item}}"
+                bindtap="onHeaderTap"
+              >
+                <view class="th-content">
+                  <text>{{item}}</text>
+                  <text class="sort-icon" wx:if="{{sortColumn === item}}">{{sortOrder === 'asc' ? '↑' : '↓'}}</text>
+                </view>
               </view>
             </view>
             <!-- 表体 -->
@@ -207,8 +216,16 @@
                 data-row="{{row}}"
                 data-index="{{index}}"
                 bindtap="showRowDetail"
+                bindlongpress="copyRow"
               >
-                <view class="td" wx:for="{{resultColumns}}" wx:for-item="col" wx:key="*this">
+                <view 
+                  class="td" 
+                  wx:for="{{resultColumns}}" 
+                  wx:for-item="col" 
+                  wx:key="*this"
+                  data-value="{{row[col]}}"
+                  catchlongpress="onCellLongPress"
+                >
                   {{row[col] !== null && row[col] !== undefined ? row[col] : '-'}}
                 </view>
               </view>
@@ -266,12 +283,15 @@
   <view class="detail-panel" catchtap="stopPropagation">
     <view class="detail-header">
       <text class="detail-title">数据详情</text>
-      <text class="detail-close" bindtap="hideDetailModal">×</text>
+      <view class="detail-actions">
+        <text class="detail-copy-btn" bindtap="copyDetailRow">📋 复制</text>
+        <text class="detail-close" bindtap="hideDetailModal">×</text>
+      </view>
     </view>
     <scroll-view scroll-y class="detail-content">
-      <view class="detail-item" wx:for="{{detailData}}" wx:key="label">
+      <view class="detail-item" wx:for="{{detailData}}" wx:key="label" bindlongpress="copyDetailItem" data-index="{{index}}">
         <text class="detail-label">{{item.label}}</text>
-        <text class="detail-value">{{item.value !== null && item.value !== undefined ? item.value : '-'}}</text>
+        <text class="detail-value {{item.value !== null && item.value !== undefined ? '' : 'empty'}}">{{item.value !== null && item.value !== undefined ? item.value : '-'}}</text>
       </view>
     </scroll-view>
   </view>
