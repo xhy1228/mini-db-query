@@ -8,6 +8,7 @@ Mini DB Query - Management API
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from pydantic import BaseModel, Field, validator
 from fastapi import Body
+from fastapi import Body
 from sqlalchemy.orm import Session
 from typing import Optional, List
 from datetime import datetime
@@ -167,8 +168,8 @@ async def list_schools(
 
 @router.post("/schools")
 async def create_school(
-    body: SchoolCreate = Body(...),
     req: Request,
+    body: SchoolCreate = Body(...),
     current_user: TokenData = Depends(get_current_user),
     db: Session = Depends(get_db_session)
 ):
@@ -223,8 +224,8 @@ async def get_school(
 @router.put("/schools/{school_id}")
 async def update_school(
     school_id: int,
-    body: SchoolUpdate = Body(...),
     req: Request,
+    body: SchoolUpdate = Body(...),
     current_user: TokenData = Depends(get_current_user),
     db: Session = Depends(get_db_session)
 ):
@@ -321,8 +322,8 @@ async def list_databases(
 
 @router.post("/databases")
 async def create_database(
-    body: DatabaseCreate = Body(...),
     req: Request,
+    body: DatabaseCreate = Body(...),
     current_user: TokenData = Depends(get_current_user),
     db: Session = Depends(get_db_session)
 ):
@@ -392,8 +393,8 @@ async def get_database(
 @router.put("/databases/{db_id}")
 async def update_database(
     db_id: int,
-    body: DatabaseUpdate = Body(...),
     req: Request,
+    body: DatabaseUpdate = Body(...),
     current_user: TokenData = Depends(get_current_user),
     session: Session = Depends(get_db_session)
 ):
@@ -639,8 +640,8 @@ async def list_templates(
 
 @router.post("/templates")
 async def create_template(
-    body: TemplateCreate = Body(...),
     req: Request,
+    body: TemplateCreate = Body(...),
     current_user: TokenData = Depends(get_current_user),
     db: Session = Depends(get_db_session)
 ):
@@ -706,8 +707,8 @@ async def get_template(
 @router.put("/templates/{template_id}")
 async def update_template(
     template_id: int,
-    body: TemplateUpdate = Body(...),
     req: Request,
+    body: TemplateUpdate = Body(...),
     current_user: TokenData = Depends(get_current_user),
     db: Session = Depends(get_db_session)
 ):
