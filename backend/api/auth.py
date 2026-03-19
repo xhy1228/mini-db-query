@@ -15,6 +15,7 @@ from models import get_db_session
 from services.user_service import UserService
 from core.security import get_current_user, TokenData
 from core.logging_middleware import OperationLogger
+from core.security_enhanced import login_lockout_manager, PasswordValidator
 
 
 router = APIRouter(tags=["认证"])
@@ -70,23 +71,40 @@ async def login(request: LoginRequest, req: Request, db: Session = Depends(get_d
     """
     client_ip = req.client.host if req.client else "unknown"
     
+    # ========== 登录锁定检查 ==========
+    is_locked, lock_message = login_lockout_manager.is_locked(request.phone, client_ip)
+    if is_locked:
+        return {
+            "code": 423,  # Locked
+            "message": lock_message,
+            "data": None
+        }
+    # ========== 锁定检查结束 ==========
+    
     result = UserService.authenticate(db, request.phone, request.password)
     
     if not result:
-        # 记录登录失败
+        # ========== 记录登录失败并检查锁定 ==========
+        is_now_locked, fail_message = login_lockout_manager.record_failed_attempt(request.phone, client_ip)
+        
+        # 记录登录失败日志
         OperationLogger.log_login(
             db=db,
             user_id=0,
             username=request.phone,
             ip=client_ip,
             status="failed",
-            error="手机号或密码错误"
+            error=fail_message
         )
+        
         return {
             "code": 401,
-            "message": "手机号或密码错误",
+            "message": fail_message,
             "data": None
         }
+    
+    # ========== 登录成功，清除失败记录 ==========
+    login_lockout_manager.record_successful_login(request.phone, client_ip)
     
     # 记录登录成功
     OperationLogger.log_login(
