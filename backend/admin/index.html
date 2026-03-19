@@ -1540,9 +1540,13 @@
                         const url = userForm.id ? `/admin/users/${userForm.id}` : '/admin/users';
                         const method = userForm.id ? 'PUT' : 'POST';
                         
+                        // 准备数据，排除 id 字段（新建时）
+                        const data = { ...userForm };
+                        if (!data.id) delete data.id;
+                        
                         const res = await request(url, {
                             method,
-                            body: JSON.stringify(userForm)
+                            body: JSON.stringify(data)
                         });
                         
                         if (res.code === 200) {
@@ -1632,9 +1636,13 @@
                         const url = schoolForm.id ? `/manage/schools/${schoolForm.id}` : '/manage/schools';
                         const method = schoolForm.id ? 'PUT' : 'POST';
                         
+                        // 准备数据，排除 id 字段（新建时）
+                        const data = { ...schoolForm };
+                        if (!data.id) delete data.id;
+                        
                         const res = await request(url, {
                             method,
-                            body: JSON.stringify(schoolForm)
+                            body: JSON.stringify(data)
                         });
                         
                         if (res.code === 200) {
@@ -1767,9 +1775,13 @@
                         const url = databaseForm.id ? `/manage/databases/${databaseForm.id}` : '/manage/databases';
                         const method = databaseForm.id ? 'PUT' : 'POST';
                         
+                        // 准备数据，排除 id 字段（新建时）
+                        const data = { ...databaseForm };
+                        if (!data.id) delete data.id;
+                        
                         const res = await request(url, {
                             method,
-                            body: JSON.stringify(databaseForm)
+                            body: JSON.stringify(data)
                         });
                         
                         if (res.code === 200) {
@@ -1876,9 +1888,13 @@
                         const url = templateForm.id ? `/manage/templates/${templateForm.id}` : '/manage/templates';
                         const method = templateForm.id ? 'PUT' : 'POST';
                         
+                        // 准备数据，排除 id 字段（新建时）
+                        const data = { ...templateForm };
+                        if (!data.id) delete data.id;
+                        
                         const res = await request(url, {
                             method,
-                            body: JSON.stringify(templateForm)
+                            body: JSON.stringify(data)
                         });
                         
                         if (res.code === 200) {
