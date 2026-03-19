@@ -1027,10 +1027,15 @@ async def get_user_permissions(
     }
 
 
+class SetUserSchoolsRequest(BaseModel):
+    """设置用户学校请求"""
+    school_ids: List[int]
+
+
 @router.post("/permissions/users/{user_id}/schools")
 async def set_user_schools(
     user_id: int,
-    school_ids: List[int],
+    request: SetUserSchoolsRequest,
     current_user: TokenData = Depends(get_current_user),
     db: Session = Depends(get_db_session)
 ):
@@ -1044,7 +1049,7 @@ async def set_user_schools(
     db.query(UserSchool).filter(UserSchool.user_id == user_id).delete()
     
     # Add new
-    for school_id in school_ids:
+    for school_id in request.school_ids:
         perm = UserSchool(
             user_id=user_id,
             school_id=school_id,
@@ -1057,10 +1062,15 @@ async def set_user_schools(
     return {"code": 200, "message": "设置成功", "data": {"school_count": len(school_ids)}}
 
 
+class SetUserModulePermissionsRequest(BaseModel):
+    """设置用户模块权限请求"""
+    permissions: List[UserSchoolPermissionCreate]
+
+
 @router.post("/permissions/users/{user_id}/modules")
 async def set_user_module_permissions(
     user_id: int,
-    permissions: List[UserSchoolPermissionCreate],
+    request: SetUserModulePermissionsRequest,
     current_user: TokenData = Depends(get_current_user),
     db: Session = Depends(get_db_session)
 ):
@@ -1071,7 +1081,7 @@ async def set_user_module_permissions(
     from models.database import UserSchoolPermission
     
     added_count = 0
-    for perm in permissions:
+    for perm in request.permissions:
         existing = db.query(UserSchoolPermission).filter(
             UserSchoolPermission.user_id == user_id,
             UserSchoolPermission.school_id == perm.school_id,
@@ -1097,10 +1107,15 @@ async def set_user_module_permissions(
     return {"code": 200, "message": "设置成功", "data": {"added_count": added_count}}
 
 
+class SetUserTemplatePermissionsRequest(BaseModel):
+    """设置用户模板权限请求"""
+    permissions: List[UserTemplatePermissionCreate]
+
+
 @router.post("/permissions/users/{user_id}/templates")
 async def set_user_template_permissions(
     user_id: int,
-    permissions: List[UserTemplatePermissionCreate],
+    request: SetUserTemplatePermissionsRequest,
     current_user: TokenData = Depends(get_current_user),
     db: Session = Depends(get_db_session)
 ):
@@ -1111,7 +1126,7 @@ async def set_user_template_permissions(
     from models.database import UserTemplatePermission
     
     added_count = 0
-    for perm in permissions:
+    for perm in request.permissions:
         existing = db.query(UserTemplatePermission).filter(
             UserTemplatePermission.user_id == user_id,
             UserTemplatePermission.school_id == perm.school_id,
