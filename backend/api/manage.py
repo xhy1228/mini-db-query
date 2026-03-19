@@ -6,7 +6,7 @@ Mini DB Query - Management API
 """
 
 from fastapi import APIRouter, Depends, HTTPException, status, Request
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, validator
 from sqlalchemy.orm import Session
 from typing import Optional, List
 from datetime import datetime
@@ -51,6 +51,21 @@ class DatabaseCreate(BaseModel):
     service_name: Optional[str] = None
     driver: Optional[str] = None
     description: Optional[str] = None
+    
+    @validator('school_id', 'port', pre=True, always=True)
+    def convert_to_int(cls, v):
+        if v is None or v == '':
+            return None
+        if isinstance(v, str):
+            try:
+                return int(v)
+            except:
+                return v
+        return v
+    
+    class Config:
+        # 允许从任意类型转换
+        arbitrary_types_allowed = True
 
 
 class DatabaseUpdate(BaseModel):
@@ -67,6 +82,17 @@ class DatabaseUpdate(BaseModel):
     driver: Optional[str] = None
     description: Optional[str] = None
     status: Optional[str] = None
+    
+    @validator('school_id', 'port', pre=True, always=True)
+    def convert_to_int(cls, v):
+        if v is None or v == '':
+            return None
+        if isinstance(v, str):
+            try:
+                return int(v)
+            except:
+                return v
+        return v
 
 
 class TemplateCreate(BaseModel):
@@ -81,6 +107,17 @@ class TemplateCreate(BaseModel):
     fields: Optional[List[dict]] = None
     time_field: Optional[str] = None
     default_limit: Optional[int] = 500
+    
+    @validator('school_id', 'default_limit', pre=True, always=True)
+    def convert_to_int(cls, v):
+        if v is None or v == '':
+            return None
+        if isinstance(v, str):
+            try:
+                return int(v)
+            except:
+                return v
+        return v
 
 
 class TemplateUpdate(BaseModel):
@@ -96,6 +133,17 @@ class TemplateUpdate(BaseModel):
     time_field: Optional[str] = None
     default_limit: Optional[int] = None
     status: Optional[str] = None
+    
+    @validator('school_id', 'default_limit', pre=True, always=True)
+    def convert_to_int(cls, v):
+        if v is None or v == '':
+            return None
+        if isinstance(v, str):
+            try:
+                return int(v)
+            except:
+                return v
+        return v
 
 
 # ========== 学校管理 API ==========
@@ -430,6 +478,17 @@ class TestConnectionRequest(BaseModel):
     password: Optional[str] = ""
     db_name: Optional[str] = ""
     service_name: Optional[str] = None
+    
+    @validator('port', pre=True, always=True)
+    def convert_to_int(cls, v):
+        if v is None or v == '':
+            return 3306
+        if isinstance(v, str):
+            try:
+                return int(v)
+            except:
+                return 3306
+        return v
 
 
 @router.post("/databases/test")
