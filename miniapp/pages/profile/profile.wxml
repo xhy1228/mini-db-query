@@ -36,6 +36,49 @@
       <text class="stats-value">{{stats.schoolCount}}</text>
       <text class="stats-label">可查询学校</text>
     </view>
+    <view class="stats-divider"></view>
+    <view class="stats-item">
+      <text class="stats-value">{{stats.templateCount}}</text>
+      <text class="stats-label">可查询模板</text>
+    </view>
+  </view>
+
+  <!-- 权限信息 -->
+  <view class="permission-card glass-card" wx:if="{{!isAdmin && schools.length > 0}}">
+    <view class="card-header">
+      <text class="card-title">我的权限</text>
+    </view>
+    
+    <!-- 学校权限 -->
+    <view class="permission-section">
+      <view class="section-title">学校权限</view>
+      <view class="school-list">
+        <view class="school-item" wx:for="{{schools}}" wx:key="id">
+          <view class="school-name">{{item.name}}</view>
+          <view class="permission-tags">
+            <text class="tag tag-query" wx:if="{{item.permissions && item.permissions.includes('query')}}">查询</text>
+            <text class="tag tag-export" wx:if="{{item.permissions && item.permissions.includes('export')}}">导出</text>
+          </view>
+        </view>
+      </view>
+    </view>
+    
+    <!-- 模板权限 -->
+    <view class="permission-section" wx:if="{{templatePermissions.length > 0}}">
+      <view class="section-title">模板权限（{{templatePermissions.length}}个）</view>
+      <view class="template-list">
+        <view class="template-item" wx:for="{{templatePermissions}}" wx:key="template_id">
+          <view class="template-name">{{item.template_name}}</view>
+          <view class="template-category">{{item.category}}</view>
+          <view class="permission-icons">
+            <text class="icon-yes" wx:if="{{item.can_query}}">✓ 查询</text>
+            <text class="icon-no" wx:else>✗ 查询</text>
+            <text class="icon-yes" wx:if="{{item.can_export}}">✓ 导出</text>
+            <text class="icon-no" wx:else>✗ 导出</text>
+          </view>
+        </view>
+      </view>
+    </view>
   </view>
 
   <!-- 快捷操作 -->

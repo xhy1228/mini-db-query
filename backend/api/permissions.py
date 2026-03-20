@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from typing import List, Optional
 from pydantic import BaseModel
 
-from core.database import get_db
+from models import get_db_session
 from models.database import TemplatePermission, QueryTemplate, User, UserSchool
 from api.auth import get_current_user
 
@@ -50,7 +50,7 @@ class PermissionResponse(BaseModel):
 @router.get("/templates/{template_id}/permissions", summary="获取模板的权限列表")
 async def get_template_permissions(
     template_id: int,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db_session),
     current_user: User = Depends(get_current_user)
 ):
     """获取指定模板的用户权限列表"""
@@ -85,7 +85,7 @@ async def get_template_permissions(
 async def get_user_template_permissions(
     user_id: int,
     school_id: int = None,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db_session),
     current_user: User = Depends(get_current_user)
 ):
     """获取用户的所有模板权限"""
@@ -120,7 +120,7 @@ async def get_user_template_permissions(
 async def grant_permission(
     request: PermissionGrant,
     req: Request,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db_session),
     current_user: User = Depends(get_current_user)
 ):
     """为用户授权模板权限"""
@@ -176,7 +176,7 @@ async def grant_permission(
 async def batch_grant_permission(
     request: BatchPermissionGrant,
     req: Request,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db_session),
     current_user: User = Depends(get_current_user)
 ):
     """批量为用户授权多个模板权限"""
@@ -218,7 +218,7 @@ async def batch_grant_permission(
 async def revoke_permission(
     permission_id: int,
     req: Request,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db_session),
     current_user: User = Depends(get_current_user)
 ):
     """撤销用户的模板权限"""
@@ -243,7 +243,7 @@ async def revoke_user_template_permission(
     user_id: int,
     template_id: int,
     req: Request,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db_session),
     current_user: User = Depends(get_current_user)
 ):
     """撤销用户指定模板的权限"""

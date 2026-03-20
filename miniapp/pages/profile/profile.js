@@ -13,8 +13,12 @@ Page({
     // 统计数据
     stats: {
       queryCount: 0,
-      schoolCount: 0
-    }
+      schoolCount: 0,
+      templateCount: 0
+    },
+    // 权限信息
+    schools: [],
+    templatePermissions: []
   },
 
   onLoad() {
@@ -42,19 +46,23 @@ Page({
   // 加载统计数据
   async loadStats() {
     try {
+      // 获取用户完整信息（包含权限）
+      const meRes = await get('/me')
+      if (meRes.code === 200) {
+        const data = meRes.data
+        this.setData({
+          schools: data.schools || [],
+          templatePermissions: data.template_permissions || [],
+          'stats.schoolCount': (data.schools || []).length,
+          'stats.templateCount': Array.isArray(data.template_permissions) ? data.template_permissions.length : 0
+        })
+      }
+      
       // 获取查询历史数量
       const historyRes = await get('/user/history?limit=1')
       if (historyRes.code === 200) {
         this.setData({
           'stats.queryCount': historyRes.total || 0
-        })
-      }
-      
-      // 获取学校数量
-      const schoolsRes = await get('/user/schools')
-      if (schoolsRes.code === 200) {
-        this.setData({
-          'stats.schoolCount': (schoolsRes.data || []).length
         })
       }
     } catch (error) {

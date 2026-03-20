@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from typing import List, Optional
 from pydantic import BaseModel
 
-from core.database import get_db
+from models import get_db_session
 from models.database import TemplateCategory, School, User
 from api.auth import get_current_user
 
@@ -57,7 +57,7 @@ class CategoryResponse(BaseModel):
 async def get_categories(
     school_id: int = None,
     req: Request = None,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db_session),
     current_user: User = Depends(get_current_user)
 ):
     """获取业务大类列表"""
@@ -78,7 +78,7 @@ async def get_categories(
 async def create_category(
     request: CategoryCreate,
     req: Request,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db_session),
     current_user: User = Depends(get_current_user)
 ):
     """创建业务大类"""
@@ -124,7 +124,7 @@ async def update_category(
     category_id: int,
     request: CategoryUpdate,
     req: Request,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db_session),
     current_user: User = Depends(get_current_user)
 ):
     """更新业务大类"""
@@ -161,7 +161,7 @@ async def update_category(
 async def delete_category(
     category_id: int,
     req: Request,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db_session),
     current_user: User = Depends(get_current_user)
 ):
     """删除业务大类"""

@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from typing import List, Optional
 from pydantic import BaseModel
 
-from core.database import get_db
+from models import get_db_session
 from models.database import QueryField, QueryTemplate, User
 from api.auth import get_current_user
 
@@ -69,7 +69,7 @@ class FieldResponse(BaseModel):
 @router.get("/templates/{template_id}/fields", summary="获取模板的查询条件")
 async def get_template_fields(
     template_id: int,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db_session),
     current_user: User = Depends(get_current_user)
 ):
     """获取指定模板的查询条件列表"""
@@ -93,7 +93,7 @@ async def create_field(
     template_id: int,
     request: FieldCreate,
     req: Request,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db_session),
     current_user: User = Depends(get_current_user)
 ):
     """为模板添加查询条件"""
@@ -143,7 +143,7 @@ async def update_field(
     field_id: int,
     request: FieldUpdate,
     req: Request,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db_session),
     current_user: User = Depends(get_current_user)
 ):
     """更新查询条件"""
@@ -188,7 +188,7 @@ async def update_field(
 async def delete_field(
     field_id: int,
     req: Request,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db_session),
     current_user: User = Depends(get_current_user)
 ):
     """删除查询条件"""
@@ -213,7 +213,7 @@ async def batch_create_fields(
     template_id: int,
     fields: List[FieldCreate],
     req: Request,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db_session),
     current_user: User = Depends(get_current_user)
 ):
     """批量添加查询条件"""

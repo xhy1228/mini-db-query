@@ -356,8 +356,31 @@ async def get_me(current_user: TokenData = Depends(get_current_user),
             detail="用户不存在"
         )
     
-    # 获取用户授权的学校
+    # 获取用户授权的学校（含权限信息）
     schools = UserService.get_user_schools(db, user.id)
+    
+    # 获取用户的模板权限详情
+    template_permissions = []
+    if user.role == 'admin':
+        # 管理员拥有所有权限
+        template_permissions = [{"type": "admin", "description": "管理员拥有全部权限"}]
+    else:
+        # 普通用户获取具体模板权限
+        from models.database import TemplatePermission, QueryTemplate
+        perms = db.query(TemplatePermission).filter(
+            TemplatePermission.user_id == user.id
+        ).all()
+        for p in perms:
+            template = db.query(QueryTemplate).filter(QueryTemplate.id == p.template_id).first()
+            if template:
+                template_permissions.append({
+                    "template_id": p.template_id,
+                    "template_name": template.name,
+                    "category": template.category_name or template.category,
+                    "can_query": bool(p.can_query),
+                    "can_export": bool(p.can_export),
+                    "school_id": template.school_id
+                })
     
     return {
         "code": 200,
@@ -365,7 +388,8 @@ async def get_me(current_user: TokenData = Depends(get_current_user),
         "data": {
             "user": user.to_dict(),
             "schools": schools,
-            "role": current_user.role
+            "role": current_user.role,
+            "template_permissions": template_permissions
         }
     }
 
