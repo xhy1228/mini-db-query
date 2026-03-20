@@ -325,7 +325,7 @@
                             </el-table-column>
                             <el-table-column prop="host" label="主机地址" width="150"></el-table-column>
                             <el-table-column prop="port" label="端口" width="80"></el-table-column>
-                            <el-table-column prop="database" label="数据库" width="120"></el-table-column>
+                            <el-table-column prop="db_name" label="数据库" width="120"></el-table-column>
                             <el-table-column prop="status" label="状态" width="100">
                                 <template #default="{ row }">
                                     <span :class="['status-tag', row.status === 'active' ? 'status-active' : 'status-inactive']">
@@ -583,14 +583,14 @@
                 <el-form-item label="密码" prop="password" v-if="databaseForm.db_type !== 'SQLite'">
                     <el-input v-model="databaseForm.password" type="password" placeholder="请输入密码" show-password></el-input>
                 </el-form-item>
-                <el-form-item label="数据库名" prop="database" v-if="databaseForm.db_type !== 'SQLite'">
-                    <el-input v-model="databaseForm.database" placeholder="请输入数据库名"></el-input>
+                <el-form-item label="数据库名" prop="db_name" v-if="databaseForm.db_type !== 'SQLite'">
+                    <el-input v-model="databaseForm.db_name" placeholder="请输入数据库名"></el-input>
                 </el-form-item>
                 <el-form-item label="服务名" v-if="databaseForm.db_type === 'Oracle'">
                     <el-input v-model="databaseForm.service_name" placeholder="Oracle服务名"></el-input>
                 </el-form-item>
-                <el-form-item label="数据库文件" prop="database" v-if="databaseForm.db_type === 'SQLite'">
-                    <el-input v-model="databaseForm.database" placeholder="数据库文件路径，如 ./data/test.db"></el-input>
+                <el-form-item label="数据库文件" prop="db_name" v-if="databaseForm.db_type === 'SQLite'">
+                    <el-input v-model="databaseForm.db_name" placeholder="数据库文件路径，如 ./data/test.db"></el-input>
                 </el-form-item>
                 <el-form-item label="描述">
                     <el-input v-model="databaseForm.description" type="textarea" placeholder="请输入描述"></el-input>
@@ -781,7 +781,7 @@
                     port: 3306,
                     username: '',
                     password: '',
-                    database: '',
+                    db_name: '',
                     service_name: '',
                     description: ''
                 });
@@ -926,7 +926,7 @@
                 // 用户管理方法
                 const loadUsers = async () => {
                     try {
-                        const res = await request('/admin/users');
+                        const res = await request('/users');
                         if (res.code === 200) {
                             users.value = res.data || [];
                         }
@@ -962,12 +962,12 @@
                         
                         let res;
                         if (data.id) {
-                            res = await request(`/admin/users/${data.id}`, {
+                            res = await request(`/users/${data.id}`, {
                                 method: 'PUT',
                                 body: JSON.stringify(data)
                             });
                         } else {
-                            res = await request('/admin/users', {
+                            res = await request('/users', {
                                 method: 'POST',
                                 body: JSON.stringify(data)
                             });
@@ -991,7 +991,7 @@
                             type: 'warning'
                         });
                         
-                        const res = await request(`/admin/users/${user.id}`, {
+                        const res = await request(`/users/${user.id}`, {
                             method: 'DELETE'
                         });
                         
@@ -1013,26 +1013,56 @@
                     allSchools.value = schools.value.map(s => ({ id: s.id, name: s.name }));
                     
                     // 获取用户当前权限
-                    const res = await request('/admin/users');
-                    // 简化处理，实际应该有获取用户学校权限的API
-                    selectedSchools.value = [];
+                    try {
+                        const res = await request(`/manage/users/${user.id}/schools`);
+                        if (res.code === 200 && res.data) {
+                            selectedSchools.value = res.data.map(s => s.id);
+                            // 保存原始权限，用于后续比较
+                            user._originalSchools = res.data;
+                        } else {
+                            selectedSchools.value = [];
+                            user._originalSchools = [];
+                        }
+                    } catch (e) {
+                        console.error('获取用户权限失败', e);
+                        selectedSchools.value = [];
+                        user._originalSchools = [];
+                    }
                     
                     permissionDialogVisible.value = true;
                 };
 
                 const savePermissions = async () => {
                     try {
-                        // 先清除所有权限
-                        // 然后添加新权限
+                        const userId = currentUserForPerm.value.id;
+                        const oldSchools = currentUserForPerm.value._originalSchools || [];
+                        
+                        // 1. 先取消所有旧权限
+                        for (const school of oldSchools) {
+                            try {
+                                await request(`/admin/users/${userId}/schools/${school.id}`, {
+                                    method: 'DELETE'
+                                });
+                            } catch (e) {
+                                // 忽略删除失败（可能已经不存在）
+                            }
+                        }
+                        
+                        // 2. 添加新权限
                         for (const schoolId of selectedSchools.value) {
-                            await request(`/admin/users/${currentUserForPerm.value.id}/schools/${schoolId}`, {
+                            await request(`/admin/users/${userId}/schools/${schoolId}`, {
                                 method: 'POST'
                             });
                         }
+                        
                         ElMessage.success('权限设置成功');
                         permissionDialogVisible.value = false;
+                        
+                        // 更新用户的权限缓存
+                        currentUserForPerm.value._originalSchools = selectedSchools.value.map(id => ({ id }));
                     } catch (e) {
                         console.error('保存权限失败', e);
+                        ElMessage.error('保存权限失败');
                     }
                 };
 
@@ -1141,7 +1171,7 @@
                         databaseForm.port = db.port || 3306;
                         databaseForm.username = db.username || '';
                         databaseForm.password = '';
-                        databaseForm.database = db.database || '';
+                        databaseForm.db_name = db.db_name || '';
                         databaseForm.service_name = db.service_name || '';
                         databaseForm.description = db.description || '';
                     } else {
@@ -1153,7 +1183,7 @@
                         databaseForm.port = 3306;
                         databaseForm.username = '';
                         databaseForm.password = '';
-                        databaseForm.database = '';
+                        databaseForm.db_name = '';
                         databaseForm.service_name = '';
                         databaseForm.description = '';
                     }
