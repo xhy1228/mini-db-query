@@ -500,11 +500,8 @@
                             v-model="loginForm.phone" 
                             placeholder="请输入账号"
                             size="large"
-                        >
-                            <template #prefix>
-                                <el-icon><User /></el-icon>
-                            </template>
-                        </el-input>
+                            prefix-icon="User"
+                        ></el-input>
                     </el-form-item>
                     <el-form-item prop="password">
                         <el-input 
@@ -512,13 +509,10 @@
                             type="password" 
                             placeholder="请输入密码"
                             size="large"
+                            prefix-icon="Lock"
                             show-password
                             @keyup.enter="handleLogin"
-                        >
-                            <template #prefix>
-                                <el-icon><Lock /></el-icon>
-                            </template>
-                        </el-input>
+                        ></el-input>
                     </el-form-item>
                     <el-form-item>
                         <el-button 
@@ -745,9 +739,8 @@
                                     {{ formatDate(row.created_at) }}
                                 </template>
                             </el-table-column>
-                            <el-table-column label="操作" min-width="200" fixed="right">
+                            <el-table-column label="操作" min-width="160" fixed="right">
                                 <template #default="{ row }">
-                                    <el-button size="small" type="primary" @click="showSchoolDetail(row)">📊 功能配置</el-button>
                                     <el-button size="small" @click="showSchoolDialog(row)">✏️ 编辑</el-button>
                                     <el-button size="small" type="danger" @click="handleDeleteSchool(row)">🗑️ 删除</el-button>
                                 </template>
@@ -885,97 +878,6 @@
                                 </template>
                             </el-table-column>
                         </el-table>
-                    </div>
-                </div>
-
-                <!-- SQL模板生成 (v1.2.0) -->
-                <div v-show="activeMenu === 'analysis'">
-                    <div class="search-bar">
-                        <el-select v-model="analysisDbId" placeholder="选择数据库" style="width: 250px" @change="loadTables">
-                            <el-option 
-                                v-for="db in databases" 
-                                :key="db.id" 
-                                :label="`${db.name} (${db.db_type}) - ${db.host}`" 
-                                :value="db.id"
-                            ></el-option>
-                        </el-select>
-                        <el-button type="primary" @click="loadTables" :disabled="!analysisDbId">🔄 刷新表列表</el-button>
-                    </div>
-                    
-                    <div style="display: flex; gap: 20px;">
-                        <!-- 表列表 -->
-                        <div class="table-container" style="flex: 1;">
-                            <div class="chart-title">📋 数据库表列表</div>
-                            <el-table 
-                                :data="dbTables" 
-                                stripe 
-                                size="small"
-                                height="400"
-                                @row-click="selectTable"
-                                :row-class-name="({row}) => row.name === selectedTable ? 'selected-row' : ''"
-                            >
-                                <el-table-column prop="name" label="表名" min-width="150"></el-table-column>
-                                <el-table-column prop="comment" label="说明" min-width="150"></el-table-column>
-                                <el-table-column prop="rows" label="数据量" width="100"></el-table-column>
-                            </el-table>
-                            <el-empty v-if="!analysisDbId" description="请先选择数据库" :image-size="60"></el-empty>
-                            <el-empty v-if="analysisDbId && (!dbTables || dbTables.length === 0)" description="暂无表数据" :image-size="60"></el-empty>
-                        </div>
-                        
-                        <!-- 表结构详情 -->
-                        <div class="table-container" style="flex: 1;">
-                            <div class="chart-title">🔬 表结构: {{ selectedTable || '-' }}</div>
-                            <el-table :data="tableColumns" stripe size="small" height="400" v-if="selectedTable">
-                                <el-table-column prop="name" label="字段名" width="140"></el-table-column>
-                                <el-table-column prop="type" label="类型" width="120"></el-table-column>
-                                <el-table-column prop="comment" label="说明" min-width="150"></el-table-column>
-                                <el-table-column label="主键" width="60">
-                                    <template #default="{ row }">
-                                        <el-tag v-if="row.is_primary" type="warning" size="small">PK</el-tag>
-                                    </template>
-                                </el-table-column>
-                                <el-table-column label="时间字段" width="80">
-                                    <template #default="{ row }">
-                                        <el-tag v-if="row.is_time_field" type="success" size="small">时间</el-tag>
-                                    </template>
-                                </el-table-column>
-                            </el-table>
-                            <el-empty v-if="!selectedTable" description="请先选择表" :image-size="60"></el-empty>
-                            
-                            <!-- 生成模板 -->
-                            <div v-if="selectedTable" style="margin-top: 16px;">
-                                <el-divider content-position="left">生成查询模板</el-divider>
-                                <el-form :model="generateForm" label-width="100px">
-                                    <el-form-item label="模板名称">
-                                        <el-input v-model="generateForm.template_name" :placeholder="`${selectedTable}_query`"></el-input>
-                                    </el-form-item>
-                                    <el-form-item label="业务分类">
-                                        <el-select v-model="generateForm.category" placeholder="选择分类" style="width: 100%">
-                                            <el-option label="💰 消费业务" value="consume"></el-option>
-                                            <el-option label="🚪 门禁业务" value="access"></el-option>
-                                            <el-option label="💬 微信业务" value="wechat"></el-option>
-                                            <el-option label="🎓 学生业务" value="student"></el-option>
-                                            <el-option label="💳 充值业务" value="recharge"></el-option>
-                                        </el-select>
-                                    </el-form-item>
-                                    <el-form-item label="时间字段">
-                                        <el-select v-model="generateForm.time_field" placeholder="选择时间字段(可选)" style="width: 100%" clearable>
-                                            <el-option 
-                                                v-for="col in timeFields" 
-                                                :key="col.name" 
-                                                :label="`${col.name} (${col.comment || col.type})`" 
-                                                :value="col.name"
-                                            ></el-option>
-                                        </el-select>
-                                    </el-form-item>
-                                    <el-form-item>
-                                        <el-button type="primary" @click="generateTemplate" :loading="generating">
-                                            🔬 生成查询模板
-                                        </el-button>
-                                    </el-form-item>
-                                </el-form>
-                            </div>
-                        </div>
                     </div>
                 </div>
 
@@ -1185,39 +1087,31 @@
 
         <!-- 查询模板对话框 -->
         <el-dialog v-model="templateDialogVisible" :title="templateForm.id ? '✏️ 编辑模板' : '➕ 新增模板'" width="700px">
-            <el-alert type="info" :closable="false" style="margin-bottom: 16px;">
-                💡 提示：模板是通用的功能定义，可被多个学校复用。学校绑定功能时再指定使用的数据库。
-            </el-alert>
             <el-form :model="templateForm" :rules="templateRules" ref="templateFormRef" label-width="100px">
-                <el-form-item label="业务分类" prop="category">
-                    <el-select v-model="templateForm.category" placeholder="选择业务分类" style="width: 100%" @change="onCategoryChange">
-                        <el-option label="💰 消费业务" value="consume">
-                            <span>💰 消费业务</span>
-                            <span style="color: #999; font-size: 12px; margin-left: 8px;">消费记录查询</span>
-                        </el-option>
-                        <el-option label="🚪 门禁业务" value="access">
-                            <span>🚪 门禁业务</span>
-                            <span style="color: #999; font-size: 12px; margin-left: 8px;">门禁进出记录</span>
-                        </el-option>
-                        <el-option label="💬 微信业务" value="wechat">
-                            <span>💬 微信业务</span>
-                            <span style="color: #999; font-size: 12px; margin-left: 8px;">微信绑定等</span>
-                        </el-option>
-                        <el-option label="🎓 学生业务" value="student">
-                            <span>🎓 学生业务</span>
-                            <span style="color: #999; font-size: 12px; margin-left: 8px;">学生信息查询</span>
-                        </el-option>
-                        <el-option label="💳 充值业务" value="recharge">
-                            <span>💳 充值业务</span>
-                            <span style="color: #999; font-size: 12px; margin-left: 8px;">充值记录查询</span>
-                        </el-option>
+                <el-form-item label="学校" prop="school_id">
+                    <el-select v-model="templateForm.school_id" placeholder="选择学校" style="width: 100%">
+                        <el-option v-for="school in schools" :key="school.id" :label="school.name" :value="school.id"></el-option>
                     </el-select>
                 </el-form-item>
+                <el-row :gutter="20">
+                    <el-col :span="8">
+                        <el-form-item label="业务大类" prop="category">
+                            <el-input v-model="templateForm.category" placeholder="如: consume"></el-input>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="8">
+                        <el-form-item label="大类名称">
+                            <el-input v-model="templateForm.category_name" placeholder="如: 消费业务"></el-input>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="8">
+                        <el-form-item label="图标">
+                            <el-input v-model="templateForm.category_icon" placeholder="如: 💰"></el-input>
+                        </el-form-item>
+                    </el-col>
+                </el-row>
                 <el-form-item label="模板名称" prop="name">
-                    <el-input v-model="templateForm.name" placeholder="如：学生消费查询"></el-input>
-                </el-form-item>
-                <el-form-item label="描述">
-                    <el-input v-model="templateForm.description" placeholder="模板功能描述"></el-input>
+                    <el-input v-model="templateForm.name" placeholder="请输入模板名称"></el-input>
                 </el-form-item>
                 <el-form-item label="SQL模板" prop="sql_template">
                     <el-input v-model="templateForm.sql_template" type="textarea" :rows="4" placeholder="SELECT * FROM table WHERE 1=1"></el-input>
@@ -1234,14 +1128,6 @@
                         </el-form-item>
                     </el-col>
                 </el-row>
-                <el-form-item label="支持数据库">
-                    <el-checkbox-group v-model="templateForm.supported_db_types">
-                        <el-checkbox label="MySQL">MySQL</el-checkbox>
-                        <el-checkbox label="Oracle">Oracle</el-checkbox>
-                        <el-checkbox label="SQLServer">SQL Server</el-checkbox>
-                        <el-checkbox label="SQLite">SQLite</el-checkbox>
-                    </el-checkbox-group>
-                </el-form-item>
                 
                 <!-- 字段配置可视化 -->
                 <el-divider content-position="left">查询字段配置</el-divider>
@@ -1415,143 +1301,10 @@
                 <el-button type="primary" @click="handleSaveSystemConfig">保存</el-button>
             </template>
         </el-dialog>
-
-        <!-- 学校详情对话框 (v1.2.0 功能绑定) -->
-        <el-dialog v-model="schoolDetailVisible" :title="'🏫 ' + (currentSchool?.name || '学校详情')" width="900px" top="5vh">
-            <el-tabs type="border-card">
-                <!-- 数据库连接配置 -->
-                <el-tab-pane label="🗄️ 数据库连接">
-                    <div style="margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center;">
-                        <span style="color: #666;">配置该学校的数据库连接（MySQL、Oracle等）</span>
-                        <el-button type="primary" size="small" @click="showDatabaseDialogForSchool">➕ 添加数据库</el-button>
-                    </div>
-                    <el-table :data="schoolDatabases" stripe size="small">
-                        <el-table-column prop="name" label="连接名称" min-width="150"></el-table-column>
-                        <el-table-column prop="db_type" label="类型" width="100">
-                            <template #default="{ row }">
-                                <el-tag size="small" :type="row.db_type === 'MySQL' ? 'primary' : 'warning'">{{ row.db_type }}</el-tag>
-                            </template>
-                        </el-table-column>
-                        <el-table-column prop="host" label="主机" width="140"></el-table-column>
-                        <el-table-column prop="port" label="端口" width="80"></el-table-column>
-                        <el-table-column prop="db_name" label="数据库" width="120"></el-table-column>
-                        <el-table-column prop="status" label="状态" width="80">
-                            <template #default="{ row }">
-                                <span :class="['status-tag', row.status === 'active' ? 'status-active' : 'status-inactive']">
-                                    {{ row.status === 'active' ? '正常' : '禁用' }}
-                                </span>
-                            </template>
-                        </el-table-column>
-                        <el-table-column label="操作" width="160">
-                            <template #default="{ row }">
-                                <el-button size="small" type="primary" text @click="testDbConnection(row.id)">🔌 测试</el-button>
-                                <el-button size="small" text @click="showDatabaseDialog(row)">✏️ 编辑</el-button>
-                            </template>
-                        </el-table-column>
-                    </el-table>
-                    <el-empty v-if="!schoolDatabases || schoolDatabases.length === 0" description="暂无数据库配置，点击上方按钮添加" :image-size="60"></el-empty>
-                </el-tab-pane>
-                
-                <!-- 功能绑定配置 -->
-                <el-tab-pane label="🔗 功能配置">
-                    <div style="margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center;">
-                        <span style="color: #666;">为学校绑定查询功能，指定使用的数据库</span>
-                        <el-button type="primary" size="small" @click="showBindingDialog()">➕ 添加功能</el-button>
-                    </div>
-                    <el-table :data="schoolBindings" stripe size="small">
-                        <el-table-column prop="template_category_icon" label="" width="50">
-                            <template #default="{ row }">
-                                <span style="font-size: 18px;">{{ row.template_category_icon || '📄' }}</span>
-                            </template>
-                        </el-table-column>
-                        <el-table-column prop="template_name" label="功能名称" min-width="150">
-                            <template #default="{ row }">
-                                {{ row.custom_name || row.template_name }}
-                            </template>
-                        </el-table-column>
-                        <el-table-column prop="template_category_name" label="业务分类" width="120"></el-table-column>
-                        <el-table-column prop="database_name" label="使用数据库" width="150">
-                            <template #default="{ row }">
-                                <el-tag size="small">{{ row.database_name }}</el-tag>
-                            </template>
-                        </el-table-column>
-                        <el-table-column prop="database_type" label="数据库类型" width="100">
-                            <template #default="{ row }">
-                                <el-tag size="small" :type="row.database_type === 'MySQL' ? 'primary' : 'warning'">
-                                    {{ row.database_type }}
-                                </el-tag>
-                            </template>
-                        </el-table-column>
-                        <el-table-column prop="enabled" label="状态" width="80">
-                            <template #default="{ row }">
-                                <el-switch 
-                                    :model-value="row.enabled === 1" 
-                                    @change="toggleBindingEnabled(row)"
-                                    active-text="启用"
-                                    inactive-text="禁用"
-                                />
-                            </template>
-                        </el-table-column>
-                        <el-table-column label="操作" width="140">
-                            <template #default="{ row }">
-                                <el-button size="small" text @click="showBindingDialog(row)">✏️ 编辑</el-button>
-                                <el-button size="small" type="danger" text @click="handleDeleteBinding(row)">🗑️ 删除</el-button>
-                            </template>
-                        </el-table-column>
-                    </el-table>
-                    <el-empty v-if="!schoolBindings || schoolBindings.length === 0" description="暂无功能绑定，点击上方按钮添加" :image-size="60"></el-empty>
-                </el-tab-pane>
-            </el-tabs>
-        </el-dialog>
-
-        <!-- 功能绑定对话框 -->
-        <el-dialog v-model="bindingDialogVisible" :title="bindingForm.id ? '✏️ 编辑功能绑定' : '➕ 添加功能绑定'" width="550px">
-            <el-form :model="bindingForm" label-width="100px">
-                <el-form-item label="选择模板" required>
-                    <el-select v-model="bindingForm.template_id" placeholder="选择查询模板" style="width: 100%" filterable>
-                        <el-option 
-                            v-for="tpl in allTemplates" 
-                            :key="tpl.id" 
-                            :label="`${tpl.category_icon || '📄'} ${tpl.name}`" 
-                            :value="tpl.id"
-                        >
-                            <span>{{ tpl.category_icon || '📄' }} {{ tpl.name }}</span>
-                            <span style="color: #999; margin-left: 8px; font-size: 12px;">{{ tpl.category_name || tpl.category }}</span>
-                        </el-option>
-                    </el-select>
-                </el-form-item>
-                <el-form-item label="使用数据库" required>
-                    <el-select v-model="bindingForm.database_id" placeholder="选择数据库连接" style="width: 100%">
-                        <el-option 
-                            v-for="db in schoolDatabases" 
-                            :key="db.id" 
-                            :label="`${db.name} (${db.db_type})`" 
-                            :value="db.id"
-                        >
-                            <span>🗄️ {{ db.name }}</span>
-                            <el-tag size="small" style="margin-left: 8px;">{{ db.db_type }}</el-tag>
-                        </el-option>
-                    </el-select>
-                </el-form-item>
-                <el-form-item label="自定义名称">
-                    <el-input v-model="bindingForm.custom_name" placeholder="可选，自定义显示名称"></el-input>
-                </el-form-item>
-                <el-form-item label="是否启用">
-                    <el-switch v-model="bindingForm.enabled" active-text="启用" inactive-text="禁用"></el-switch>
-                </el-form-item>
-                <el-form-item label="排序">
-                    <el-input-number v-model="bindingForm.sort_order" :min="0" style="width: 100%"></el-input-number>
-                </el-form-item>
-            </el-form>
-            <template #footer>
-                <el-button @click="bindingDialogVisible = false">取消</el-button>
-                <el-button type="primary" @click="handleSaveBinding">保存</el-button>
-            </template>
-        </el-dialog>
     </div>
 
     <script>
-        const { createApp, ref, reactive, computed, onMounted, watch } = Vue;
+        const { createApp, ref, reactive, computed, onMounted } = Vue;
         
         const app = createApp({
             setup() {
@@ -1596,14 +1349,26 @@
                     { key: 'users', name: '用户管理', icon: '👥' },
                     { key: 'schools', name: '学校管理', icon: '🏫' },
                     { key: 'databases', name: '数据库配置', icon: '🗄️' },
+                    { key: 'categories', name: '业务大类', icon: '📁' },
                     { key: 'templates', name: '查询模板', icon: '📝' },
-                    { key: 'analysis', name: 'SQL模板生成', icon: '🔬' },
                     { key: 'system', name: '系统配置', icon: '⚙️' },
                     { key: 'logs', name: '操作日志', icon: '📋' }
                 ];
                 const currentMenuName = computed(() => {
                     const item = menuItems.find(m => m.key === activeMenu.value);
                     return item ? item.name : '';
+                // 筛选后的数据库列表（根据选择的学校）
+                const filteredDatabases = computed(() => {
+                    if (!templateForm.school_id) return databases.value;
+                    return databases.value.filter(db => db.school_id === templateForm.school_id);
+                });
+                
+                // 筛选后的业务大类列表（根据选择的学校）
+                const filteredCategories = computed(() => {
+                    if (!templateForm.school_id) return categories.value;
+                    return categories.value.filter(cat => cat.school_id === templateForm.school_id);
+                });
+
                 });
 
                 // 用户管理
@@ -1686,44 +1451,27 @@
                 });
                 const categoryFormRef = ref(null);
 
-                const templateSearch = reactive({ category: '' });
+                const templateSearch = reactive({ school_id: null, category: '' });
                 const templateDialogVisible = ref(false);
                 const templateForm = reactive({
                     id: null,
+                    school_id: null,
                     category: '',
                     category_name: '',
                     category_icon: '',
                     name: '',
-                    description: '',
                     sql_template: '',
                     fields: [],
                     time_field: '',
-                    default_limit: 500,
-                    supported_db_types: ['MySQL', 'Oracle']
+                    default_limit: 500
                 });
                 const templateRules = {
-                    category: [{ required: true, message: '请选择业务分类', trigger: 'change' }],
+                    school_id: [{ required: true, message: '请选择学校', trigger: 'change' }],
+                    category: [{ required: true, message: '请输入业务大类', trigger: 'blur' }],
                     name: [{ required: true, message: '请输入模板名称', trigger: 'blur' }],
                     sql_template: [{ required: true, message: '请输入SQL模板', trigger: 'blur' }]
                 };
                 const templateFormRef = ref(null);
-                
-                // 业务分类配置
-                const categoryConfig = {
-                    consume: { name: '消费业务', icon: '💰' },
-                    access: { name: '门禁业务', icon: '🚪' },
-                    wechat: { name: '微信业务', icon: '💬' },
-                    student: { name: '学生业务', icon: '🎓' },
-                    recharge: { name: '充值业务', icon: '💳' }
-                };
-                
-                // 业务分类选择变化时自动填充
-                const onCategoryChange = (category) => {
-                    if (categoryConfig[category]) {
-                        templateForm.category_name = categoryConfig[category].name;
-                        templateForm.category_icon = categoryConfig[category].icon;
-                    }
-                };
 
                 // 系统配置
                 const systemConfigs = ref([]);
@@ -2283,28 +2031,29 @@
                 const showTemplateDialog = (template) => {
                     if (template) {
                         templateForm.id = template.id;
+                        templateForm.school_id = template.school_id;
+                        templateForm.database_id = template.database_id;
+                        templateForm.category_id = template.category_id;
+                        templateForm.version = template.version || 'v1.0.0';
                         templateForm.category = template.category;
-                        templateForm.category_name = template.category_name || '';
-                        templateForm.category_icon = template.category_icon || '';
+                        templateForm.category_name = template.category_name;
+                        templateForm.category_icon = template.category_icon;
                         templateForm.name = template.name;
-                        templateForm.description = template.description || '';
                         templateForm.sql_template = template.sql_template;
                         templateForm.fields = template.fields || [];
-                        templateForm.time_field = template.time_field || '';
+                        templateForm.time_field = template.time_field;
                         templateForm.default_limit = template.default_limit || 500;
-                        templateForm.supported_db_types = template.supported_db_types || ['MySQL', 'Oracle'];
                     } else {
                         templateForm.id = null;
+                        templateForm.school_id = null;
                         templateForm.category = '';
                         templateForm.category_name = '';
                         templateForm.category_icon = '';
                         templateForm.name = '';
-                        templateForm.description = '';
                         templateForm.sql_template = '';
                         templateForm.fields = [];
                         templateForm.time_field = '';
                         templateForm.default_limit = 500;
-                        templateForm.supported_db_types = ['MySQL', 'Oracle'];
                     }
                     templateDialogVisible.value = true;
                 };
@@ -2487,323 +2236,6 @@
                     } catch (e) {}
                 };
 
-                // ============ 功能绑定管理 (v1.2.0) ============
-                const schoolDetailVisible = ref(false);
-                const currentSchool = ref(null);
-                const schoolDatabases = ref([]);
-                const schoolBindings = ref([]);
-                const bindingDialogVisible = ref(false);
-                const bindingForm = reactive({
-                    id: null,
-                    school_id: null,
-                    template_id: null,
-                    database_id: null,
-                    enabled: true,
-                    custom_name: '',
-                    sort_order: 0
-                });
-                const allTemplates = ref([]);
-                
-                // 显示学校详情
-                const showSchoolDetail = async (school) => {
-                    currentSchool.value = school;
-                    schoolDetailVisible.value = true;
-                    await loadSchoolDatabases(school.id);
-                    await loadSchoolBindings(school.id);
-                };
-                
-                // 加载学校的数据库配置
-                const loadSchoolDatabases = async (schoolId) => {
-                    try {
-                        const res = await request(`/manage/databases?school_id=${schoolId}`);
-                        if (res.code === 200) {
-                            schoolDatabases.value = res.data || [];
-                        }
-                    } catch (e) {
-                        console.error('加载数据库配置失败', e);
-                    }
-                };
-                
-                // 为学校添加数据库（从学校详情页）
-                const showDatabaseDialogForSchool = () => {
-                    databaseForm.id = null;
-                    databaseForm.school_id = currentSchool.value.id;
-                    databaseForm.name = '';
-                    databaseForm.db_type = 'MySQL';
-                    databaseForm.host = 'localhost';
-                    databaseForm.port = 3306;
-                    databaseForm.username = '';
-                    databaseForm.password = '';
-                    databaseForm.db_name = '';
-                    databaseForm.service_name = '';
-                    databaseForm.description = '';
-                    databaseDialogVisible.value = true;
-                };
-                
-                // 加载学校的功能绑定
-                const loadSchoolBindings = async (schoolId) => {
-                    try {
-                        const res = await request(`/schools/${schoolId}/bindings`);
-                        if (res.code === 200) {
-                            schoolBindings.value = res.data || [];
-                        }
-                    } catch (e) {
-                        console.error('加载功能绑定失败', e);
-                    }
-                };
-                
-                // 加载所有模板
-                const loadAllTemplates = async () => {
-                    try {
-                        const res = await request('/manage/templates');
-                        if (res.code === 200) {
-                            allTemplates.value = res.data || [];
-                        }
-                    } catch (e) {
-                        console.error('加载模板失败', e);
-                    }
-                };
-                
-                // 显示绑定对话框
-                const showBindingDialog = async (binding) => {
-                    await loadAllTemplates();
-                    
-                    if (binding) {
-                        bindingForm.id = binding.id;
-                        bindingForm.school_id = currentSchool.value.id;
-                        bindingForm.template_id = binding.template_id;
-                        bindingForm.database_id = binding.database_id;
-                        bindingForm.enabled = binding.enabled === 1;
-                        bindingForm.custom_name = binding.custom_name || '';
-                        bindingForm.sort_order = binding.sort_order || 0;
-                    } else {
-                        bindingForm.id = null;
-                        bindingForm.school_id = currentSchool.value.id;
-                        bindingForm.template_id = null;
-                        bindingForm.database_id = null;
-                        bindingForm.enabled = true;
-                        bindingForm.custom_name = '';
-                        bindingForm.sort_order = 0;
-                    }
-                    
-                    bindingDialogVisible.value = true;
-                };
-                
-                // 保存绑定
-                const handleSaveBinding = async () => {
-                    try {
-                        const data = {
-                            school_id: bindingForm.school_id,
-                            template_id: bindingForm.template_id,
-                            database_id: bindingForm.database_id,
-                            enabled: bindingForm.enabled,
-                            custom_name: bindingForm.custom_name || null,
-                            sort_order: bindingForm.sort_order
-                        };
-                        
-                        let url, method;
-                        if (bindingForm.id) {
-                            url = `/bindings/${bindingForm.id}`;
-                            method = 'PUT';
-                        } else {
-                            url = `/schools/${bindingForm.school_id}/bindings`;
-                            method = 'POST';
-                        }
-                        
-                        const res = await request(url, {
-                            method,
-                            body: JSON.stringify(data)
-                        });
-                        
-                        if (res.code === 200) {
-                            ElementPlus.ElMessage.success('保存成功');
-                            bindingDialogVisible.value = false;
-                            await loadSchoolBindings(bindingForm.school_id);
-                        } else {
-                            ElementPlus.ElMessage.error(res.message || '保存失败');
-                        }
-                    } catch (e) {
-                        ElementPlus.ElMessage.error('保存失败');
-                    }
-                };
-                
-                // 删除绑定
-                const handleDeleteBinding = async (binding) => {
-                    try {
-                        await ElementPlus.ElMessageBox.confirm(
-                            `确定删除功能绑定"${binding.template_name}"？`,
-                            '确认删除',
-                            { type: 'warning' }
-                        );
-                        
-                        const res = await request(`/bindings/${binding.id}`, { method: 'DELETE' });
-                        if (res.code === 200) {
-                            ElementPlus.ElMessage.success('删除成功');
-                            await loadSchoolBindings(binding.school_id);
-                        }
-                    } catch (e) {}
-                };
-                
-                // 删除绑定
-                const handleDeleteBinding = async (binding) => {
-                    try {
-                        await ElementPlus.ElMessageBox.confirm(
-                            `确定删除功能绑定"${binding.template_name}"？`,
-                            '确认删除',
-                            { type: 'warning' }
-                        );
-                        
-                        const res = await request(`/bindings/${binding.id}`, { method: 'DELETE' });
-                        if (res.code === 200) {
-                            ElementPlus.ElMessage.success('删除成功');
-                            await loadSchoolBindings(binding.school_id);
-                        }
-                    } catch (e) {}
-                };
-                
-                const handleDeleteBinding = async (binding) => {
-                    try {
-                        await ElementPlus.ElMessageBox.confirm(
-                            `确定删除功能绑定"${binding.template_name}"？`,
-                            '确认删除',
-                            { type: 'warning' }
-                        );
-                        
-                        const res = await request(`/bindings/${binding.id}`, { method: 'DELETE' });
-                        if (res.code === 200) {
-                            ElementPlus.ElMessage.success('删除成功');
-                            await loadSchoolBindings(binding.school_id);
-                        }
-                    } catch (e) {}
-                };
-                
-                // 切换绑定启用状态
-                const toggleBindingEnabled = async (binding) => {
-                    try {
-                        const res = await request(`/bindings/${binding.id}`, {
-                            method: 'PUT',
-                            body: JSON.stringify({ enabled: binding.enabled === 1 ? false : true })
-                        });
-                        if (res.code === 200) {
-                            await loadSchoolBindings(binding.school_id);
-                        }
-                    } catch (e) {
-                        console.error('更新失败', e);
-                    }
-                };
-                
-                // ============ SQL模板生成 (v1.2.0) ============
-                const analysisDbId = ref(null);
-                const dbTables = ref([]);
-                const selectedTable = ref(null);
-                const tableColumns = ref([]);
-                const timeFields = ref([]);
-                const generating = ref(false);
-                const generateForm = reactive({
-                    template_name: '',
-                    category: 'consume',
-                    time_field: null
-                });
-                
-                // 加载数据库表列表
-                const loadTables = async () => {
-                    if (!analysisDbId.value) return;
-                    
-                    try {
-                        const res = await request(`/manage/databases/${analysisDbId.value}/tables`, { method: 'POST' });
-                        if (res.code === 200) {
-                            dbTables.value = res.data || [];
-                        } else {
-                            ElementPlus.ElMessage.error(res.message || '获取表列表失败');
-                        }
-                    } catch (e) {
-                        console.error('获取表列表失败', e);
-                    }
-                };
-                
-                // 选择表，加载表结构
-                const selectTable = async (row) => {
-                    selectedTable.value = row.name;
-                    
-                    try {
-                        const res = await request(`/manage/databases/${analysisDbId.value}/tables/${row.name}/columns`, { method: 'POST' });
-                        if (res.code === 200) {
-                            tableColumns.value = res.data || [];
-                            // 筛选时间字段
-                            timeFields.value = tableColumns.value.filter(c => c.is_time_field);
-                            // 设置默认模板名称
-                            generateForm.template_name = `${row.name}_query`;
-                        } else {
-                            ElementPlus.ElMessage.error(res.message || '获取表结构失败');
-                        }
-                    } catch (e) {
-                        console.error('获取表结构失败', e);
-                    }
-                };
-                
-                // 生成查询模板
-                const generateTemplate = async () => {
-                    if (!selectedTable.value) {
-                        ElementPlus.ElMessage.warning('请先选择表');
-                        return;
-                    }
-                    
-                    if (!generateForm.template_name) {
-                        ElementPlus.ElMessage.warning('请输入模板名称');
-                        return;
-                    }
-                    
-                    if (!generateForm.category) {
-                        ElementPlus.ElMessage.warning('请选择业务分类');
-                        return;
-                    }
-                    
-                    generating.value = true;
-                    
-                    try {
-                        const res = await request(`/manage/databases/${analysisDbId.value}/generate-template`, {
-                            method: 'POST',
-                            body: JSON.stringify({
-                                table_name: selectedTable.value,
-                                template_name: generateForm.template_name,
-                                category: generateForm.category,
-                                time_field: generateForm.time_field,
-                                generate_all_fields: true
-                            })
-                        });
-                        
-                        if (res.code === 200) {
-                            ElementPlus.ElMessage.success('模板生成成功！');
-                            // 重置表单
-                            generateForm.template_name = '';
-                            generateForm.time_field = null;
-                            // 刷新模板列表
-                            loadTemplates();
-                        } else {
-                            ElementPlus.ElMessage.error(res.message || '生成模板失败');
-                        }
-                    } catch (e) {
-                        console.error('生成模板失败', e);
-                        ElementPlus.ElMessage.error('生成模板失败');
-                    } finally {
-                        generating.value = false;
-                    }
-                };
-                
-                // 监听数据库选择变化
-                const handleDbChange = (val) => {
-                    analysisDbId.value = val;
-                    selectedTable.value = null;
-                    tableColumns.value = [];
-                    dbTables.value = [];
-                    if (val) {
-                        loadTables();
-                    }
-                };
-                
-                // 监听 analysisDbId 变化
-                const unwatch = watch(analysisDbId, handleDbChange);
-
                 // 初始化
                 onMounted(() => {
                     // 加载版本号
@@ -2854,7 +2286,6 @@
                     loadSchools,
                     handleSearchSchool,
                     showSchoolDialog,
-                    showSchoolDetail,
                     handleSaveSchool,
                     handleDeleteSchool,
                     databases,
@@ -2908,31 +2339,7 @@
                     logDetail,
                     loadLogs,
                     showLogDetail,
-                    formatDate,
-                    // v1.2.0 功能绑定
-                    schoolDetailVisible,
-                    currentSchool,
-                    schoolDatabases,
-                    schoolBindings,
-                    bindingDialogVisible,
-                    bindingForm,
-                    allTemplates,
-                    showDatabaseDialogForSchool,
-                    showBindingDialog,
-                    handleSaveBinding,
-                    handleDeleteBinding,
-                    toggleBindingEnabled,
-                    // v1.2.0 SQL模板生成
-                    analysisDbId,
-                    dbTables,
-                    selectedTable,
-                    tableColumns,
-                    timeFields,
-                    generating,
-                    generateForm,
-                    loadTables,
-                    selectTable,
-                    generateTemplate
+                    formatDate
                 };
             }
         });
