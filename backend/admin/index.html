@@ -500,8 +500,11 @@
                             v-model="loginForm.phone" 
                             placeholder="请输入账号"
                             size="large"
-                            prefix-icon="User"
-                        ></el-input>
+                        >
+                            <template #prefix>
+                                <el-icon><User /></el-icon>
+                            </template>
+                        </el-input>
                     </el-form-item>
                     <el-form-item prop="password">
                         <el-input 
@@ -509,10 +512,13 @@
                             type="password" 
                             placeholder="请输入密码"
                             size="large"
-                            prefix-icon="Lock"
                             show-password
                             @keyup.enter="handleLogin"
-                        ></el-input>
+                        >
+                            <template #prefix>
+                                <el-icon><Lock /></el-icon>
+                            </template>
+                        </el-input>
                     </el-form-item>
                     <el-form-item>
                         <el-button 
