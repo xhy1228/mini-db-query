@@ -26,4 +26,21 @@ PREPARE log_stmt FROM @log_sql;
 EXECUTE log_stmt;
 DEALLOCATE PREPARE log_stmt;
 
+-- 3. 插入默认系统配置（如果不存在）
+INSERT INTO system_configs (config_key, config_value, config_type, display_name, description, category)
+SELECT 'site_name', 'Mini DB Query', 'text', '站点名称', '系统站点名称', 'system'
+WHERE NOT EXISTS (SELECT 1 FROM system_configs WHERE config_key = 'site_name');
+
+INSERT INTO system_configs (config_key, config_value, config_type, display_name, description, category)
+SELECT 'site_logo', '', 'text', '站点Logo', '系统站点Logo URL', 'system'
+WHERE NOT EXISTS (SELECT 1 FROM system_configs WHERE config_key = 'site_logo');
+
+INSERT INTO system_configs (config_key, config_value, config_type, display_name, description, category)
+SELECT 'wechat_appid', '', 'secret', '小程序AppID', '微信小程序AppID', 'wechat'
+WHERE NOT EXISTS (SELECT 1 FROM system_configs WHERE config_key = 'wechat_appid');
+
+INSERT INTO system_configs (config_key, config_value, config_type, display_name, description, category)
+SELECT 'wechat_secret', '', 'secret', '小程序密钥', '微信小程序密钥', 'wechat'
+WHERE NOT EXISTS (SELECT 1 FROM system_configs WHERE config_key = 'wechat_secret');
+
 SELECT '修复完成' as message;
