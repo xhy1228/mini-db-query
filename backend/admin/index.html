@@ -478,6 +478,41 @@
             border-top: 1px solid #eee;
             padding: 16px 24px;
         }
+        .help-container {
+            padding: 20px;
+            max-width: 900px;
+        }
+        .help-section h2 {
+            margin-bottom: 20px;
+            color: #333;
+        }
+        .help-content {
+            padding: 15px;
+            background: #f5f7fa;
+            border-radius: 8px;
+        }
+        .help-content p {
+            margin: 10px 0;
+            line-height: 1.8;
+        }
+        .help-content ul {
+            margin: 10px 0;
+            padding-left: 20px;
+        }
+        .help-content li {
+            margin: 5px 0;
+        }
+        .help-content strong {
+            color: #409EFF;
+        }
+        .help-content pre {
+            background: #2d3748;
+            color: #e2e8f0;
+            padding: 15px;
+            border-radius: 8px;
+            overflow-x: auto;
+            font-size: 13px;
+        }
     </style>
 </head>
 <body>
@@ -1027,6 +1062,83 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- 使用帮助 -->
+                <div v-show="activeMenu === 'help'" class="help-container">
+                    <div class="help-section">
+                        <h2>📖 使用帮助</h2>
+                        
+                        <el-collapse v-model="activeHelpTab">
+                            <el-collapse-item title="一、配置流程" name="flow">
+                                <div class="help-content">
+                                    <p><strong>步骤1：学校管理</strong><br/>先添加学校</p>
+                                    <p><strong>步骤2：数据库配置</strong><br/>选择学校，配置 MySQL/Oracle/SQLServer 连接</p>
+                                    <p><strong>步骤3：业务大类</strong><br/>创建业务分类，如"消费业务"、"门禁业务"</p>
+                                    <p><strong>步骤4：查询模板</strong><br/>创建查询模板，编写 SQL 语句</p>
+                                    <p><strong>步骤5：功能绑定</strong><br/>把模板绑定到学校，指定使用哪个数据库</p>
+                                </div>
+                            </el-collapse-item>
+                            
+                            <el-collapse-item title="二、SQL模板写法" name="sql">
+                                <div class="help-content">
+                                    <p><strong>基本格式：</strong></p>
+                                    <pre class="code-block">SELECT 字段1 AS 中文名, 字段2 AS 中文名 FROM 表名 WHERE 1=1</pre>
+                                    
+                                    <p><strong>带条件：</strong></p>
+                                    <pre class="code-block">SELECT * FROM 表名 WHERE 字段 = '值'</pre>
+                                    
+                                    <p><strong>示例 - 消费查询：</strong></p>
+                                    <pre class="code-block">SELECT CARDID as 卡号, TRANAMT as 金额, TRATIME as 时间 
+FROM DATA_CARD_CONSUME 
+WHERE 1=1 
+{{if card_id}} AND CARDID = '{{card_id}}' {{/if}}</pre>
+                                </div>
+                            </el-collapse-item>
+                            
+                            <el-collapse-item title="三、字段配置" name="fields">
+                                <div class="help-content">
+                                    <p>字段配置用于用户查询时输入条件值</p>
+                                    <pre class="code-block">{
+  "id": "card_id",
+  "label": "卡号",
+  "column": "CARDID",
+  "type": "text",
+  "operator": "="
+}</pre>
+                                    <p><strong>参数说明：</strong></p>
+                                    <ul>
+                                        <li>id: 字段唯一标识</li>
+                                        <li>label: 显示名称</li>
+                                        <li>column: 对应数据库字段</li>
+                                        <li>type: 类型 (text/number/date)</li>
+                                        <li>operator: 操作符 (=/LIKE/>=/&lt;=)</li>
+                                    </ul>
+                                </div>
+                            </el-collapse-item>
+                            
+                            <el-collapse-item title="四、一校多库说明" name="multidb">
+                                <div class="help-content">
+                                    <p><strong>v1.2.0 新功能：</strong>支持一个学校配置多个数据库</p>
+                                    <p>在"功能绑定"页面：</p>
+                                    <ul>
+                                        <li>选择学校</li>
+                                        <li>选择查询模板</li>
+                                        <li>选择该模板使用哪个数据库</li>
+                                    </ul>
+                                    <p><strong>好处：</strong>不同查询可以用不同的数据库</p>
+                                </div>
+                            </el-collapse-item>
+                            
+                            <el-collapse-item title="五、常见问题" name="faq">
+                                <div class="help-content">
+                                    <p><strong>Q: 为什么查询失败？</strong><br/>A: 检查SQL模板语法，确认数据库连接正常</p>
+                                    <p><strong>Q: 小程序看不到功能？</strong><br/>A: 确保已在"功能绑定"页面绑定模板到学校</p>
+                                    <p><strong>Q: 管理员无法使用SQL查询？</strong><br/>A: 检查用户权限是否绑定了学校</p>
+                                </div>
+                            </el-collapse-item>
+                        </el-collapse>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -1474,12 +1586,16 @@
                     { key: 'templates', name: '查询模板', icon: '📝' },
                     { key: 'bindings', name: '功能绑定', icon: '🔗' },
                     { key: 'system', name: '系统配置', icon: '⚙️' },
-                    { key: 'logs', name: '操作日志', icon: '📋' }
+                    { key: 'logs', name: '操作日志', icon: '📋' },
+                    { key: 'help', name: '使用帮助', icon: '❓' }
                 ];
                 const currentMenuName = computed(() => {
                     const item = menuItems.find(m => m.key === activeMenu.value);
                     return item ? item.name : '';
                 });
+
+                // 使用帮助
+                const activeHelpTab = ref('flow');
                 
                 // 筛选后的数据库列表（根据选择的学校）
                 const filteredDatabases = computed(() => {
