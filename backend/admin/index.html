@@ -739,8 +739,9 @@
                                     {{ formatDate(row.created_at) }}
                                 </template>
                             </el-table-column>
-                            <el-table-column label="操作" min-width="160" fixed="right">
+                            <el-table-column label="操作" min-width="220" fixed="right">
                                 <template #default="{ row }">
+                                    <el-button size="small" type="primary" @click="showBindingDialog(row)">🔗 功能配置</el-button>
                                     <el-button size="small" @click="showSchoolDialog(row)">✏️ 编辑</el-button>
                                     <el-button size="small" type="danger" @click="handleDeleteSchool(row)">🗑️ 删除</el-button>
                                 </template>
@@ -875,6 +876,47 @@
                                 <template #default="{ row }">
                                     <el-button size="small" @click="showCategoryDialog(row)">✏️ 编辑</el-button>
                                     <el-button size="small" type="danger" @click="handleDeleteCategory(row)">🗑️ 删除</el-button>
+                                </template>
+                            </el-table-column>
+                        </el-table>
+                    </div>
+                </div>
+
+                <!-- 功能绑定 -->
+                <div v-show="activeMenu === 'bindings'">
+                    <div class="search-bar">
+                        <el-select v-model="bindingSearch.school_id" placeholder="选择学校" style="width: 200px" clearable @change="loadBindings">
+                            <el-option v-for="school in schools" :key="school.id" :label="school.name" :value="school.id"></el-option>
+                        </el-select>
+                        <el-button type="primary" @click="loadBindings">🔍 搜索</el-button>
+                        <el-button type="success" @click="showBindingCreateDialog()">➕ 新增绑定</el-button>
+                    </div>
+                    <div class="table-container">
+                        <el-table :data="bindings" stripe style="width: 100%">
+                            <el-table-column prop="id" label="ID" width="70"></el-table-column>
+                            <el-table-column prop="school_name" label="学校" min-width="150"></el-table-column>
+                            <el-table-column prop="template_category" label="业务大类" width="100">
+                                <template #default="{ row }">
+                                    <span>{{ row.template_category_icon || '📄' }} {{ row.template_category_name || row.template_category }}</span>
+                                </template>
+                            </el-table-column>
+                            <el-table-column prop="template_name" label="功能名称" min-width="150"></el-table-column>
+                            <el-table-column prop="database_name" label="使用数据库" min-width="150">
+                                <template #default="{ row }">
+                                    <el-tag size="small" :type="row.database_type === 'MySQL' ? 'primary' : 'warning'">
+                                        {{ row.database_name }} ({{ row.database_type }})
+                                    </el-tag>
+                                </template>
+                            </el-table-column>
+                            <el-table-column prop="enabled" label="状态" width="100">
+                                <template #default="{ row }">
+                                    <el-switch v-model="row.enabled" :active-value="1" :inactive-value="0" @change="handleToggleBinding(row)"></el-switch>
+                                </template>
+                            </el-table-column>
+                            <el-table-column label="操作" min-width="160" fixed="right">
+                                <template #default="{ row }">
+                                    <el-button size="small" @click="showBindingEditDialog(row)">✏️ 编辑</el-button>
+                                    <el-button size="small" type="danger" @click="handleDeleteBinding(row)">🗑️ 删除</el-button>
                                 </template>
                             </el-table-column>
                         </el-table>
@@ -1301,6 +1343,85 @@
                 <el-button type="primary" @click="handleSaveSystemConfig">保存</el-button>
             </template>
         </el-dialog>
+
+        <!-- 功能绑定对话框 -->
+        <el-dialog v-model="bindingDialogVisible" :title="bindingForm.id ? '✏️ 编辑绑定' : '➕ 新增绑定'" width="500px">
+            <el-form :model="bindingForm" :rules="bindingRules" ref="bindingFormRef" label-width="100px">
+                <el-form-item label="学校" prop="school_id">
+                    <el-select v-model="bindingForm.school_id" placeholder="选择学校" style="width: 100%" :disabled="!!bindingForm.id">
+                        <el-option v-for="school in schools" :key="school.id" :label="school.name" :value="school.id"></el-option>
+                    </el-select>
+                </el-form-item>
+                <el-form-item label="查询模板" prop="template_id">
+                    <el-select v-model="bindingForm.template_id" placeholder="选择模板" style="width: 100%" :disabled="!!bindingForm.id">
+                        <el-option v-for="tpl in templates" :key="tpl.id" :label="tpl.name" :value="tpl.id">
+                            <span>{{ tpl.category_icon || '📄' }} {{ tpl.name }}</span>
+                        </el-option>
+                    </el-select>
+                </el-form-item>
+                <el-form-item label="使用数据库" prop="database_id">
+                    <el-select v-model="bindingForm.database_id" placeholder="选择数据库" style="width: 100%">
+                        <el-option 
+                            v-for="db in filteredDatabasesForBinding" 
+                            :key="db.id" 
+                            :label="db.name + ' (' + db.db_type + ')'" 
+                            :value="db.id"
+                        >
+                            <span>
+                                <el-tag size="small" :type="db.db_type === 'MySQL' ? 'primary' : 'warning'" style="margin-right: 8px;">{{ db.db_type }}</el-tag>
+                                {{ db.name }}
+                            </span>
+                        </el-option>
+                    </el-select>
+                </el-form-item>
+                <el-form-item label="自定义名称">
+                    <el-input v-model="bindingForm.custom_name" placeholder="可选，留空则使用模板名称"></el-input>
+                </el-form-item>
+                <el-form-item label="排序">
+                    <el-input-number v-model="bindingForm.sort_order" :min="0" style="width: 100%"></el-input-number>
+                </el-form-item>
+                <el-form-item label="状态">
+                    <el-switch v-model="bindingForm.enabled" :active-value="1" :inactive-value="0" active-text="启用" inactive-text="禁用"></el-switch>
+                </el-form-item>
+            </el-form>
+            <template #footer>
+                <el-button @click="bindingDialogVisible = false">取消</el-button>
+                <el-button type="primary" @click="handleSaveBinding">保存</el-button>
+            </template>
+        </el-dialog>
+
+        <!-- 学校功能配置弹窗 -->
+        <el-dialog v-model="bindingSchoolDialogVisible" :title="'🔗 ' + (currentBindingSchool ? currentBindingSchool.name : '') + ' - 功能配置'" width="900px">
+            <div style="margin-bottom: 16px;">
+                <el-button type="primary" @click="showBindingCreateDialog()">➕ 添加功能</el-button>
+            </div>
+            <el-table :data="bindings" stripe style="width: 100%">
+                <el-table-column prop="template_category" label="业务大类" width="100">
+                    <template #default="{ row }">
+                        <span>{{ row.template_category_icon || '📄' }} {{ row.template_category_name || row.template_category }}</span>
+                    </template>
+                </el-table-column>
+                <el-table-column prop="template_name" label="功能名称" min-width="150"></el-table-column>
+                <el-table-column prop="database_name" label="使用数据库" min-width="150">
+                    <template #default="{ row }">
+                        <el-tag size="small" :type="row.database_type === 'MySQL' ? 'primary' : 'warning'">
+                            {{ row.database_name }} ({{ row.database_type }})
+                        </el-tag>
+                    </template>
+                </el-table-column>
+                <el-table-column prop="enabled" label="状态" width="80">
+                    <template #default="{ row }">
+                        <el-switch v-model="row.enabled" :active-value="1" :inactive-value="0" @change="handleToggleBinding(row)"></el-switch>
+                    </template>
+                </el-table-column>
+                <el-table-column label="操作" width="140" fixed="right">
+                    <template #default="{ row }">
+                        <el-button size="small" @click="showBindingEditDialog(row)">✏️</el-button>
+                        <el-button size="small" type="danger" @click="handleDeleteBinding(row)">🗑️</el-button>
+                    </template>
+                </el-table-column>
+            </el-table>
+        </el-dialog>
     </div>
 
     <script>
@@ -1351,12 +1472,15 @@
                     { key: 'databases', name: '数据库配置', icon: '🗄️' },
                     { key: 'categories', name: '业务大类', icon: '📁' },
                     { key: 'templates', name: '查询模板', icon: '📝' },
+                    { key: 'bindings', name: '功能绑定', icon: '🔗' },
                     { key: 'system', name: '系统配置', icon: '⚙️' },
                     { key: 'logs', name: '操作日志', icon: '📋' }
                 ];
                 const currentMenuName = computed(() => {
                     const item = menuItems.find(m => m.key === activeMenu.value);
                     return item ? item.name : '';
+                });
+                
                 // 筛选后的数据库列表（根据选择的学校）
                 const filteredDatabases = computed(() => {
                     if (!templateForm.school_id) return databases.value;
@@ -1367,8 +1491,6 @@
                 const filteredCategories = computed(() => {
                     if (!templateForm.school_id) return categories.value;
                     return categories.value.filter(cat => cat.school_id === templateForm.school_id);
-                });
-
                 });
 
                 // 用户管理
@@ -1408,6 +1530,35 @@
                     code: [{ required: true, message: '请输入学校编码', trigger: 'blur' }]
                 };
                 const schoolFormRef = ref(null);
+
+                // 功能绑定
+                const bindings = ref([]);
+                const bindingSearch = reactive({ school_id: null });
+                const bindingDialogVisible = ref(false);
+                const bindingForm = reactive({
+                    id: null,
+                    school_id: null,
+                    template_id: null,
+                    database_id: null,
+                    enabled: 1,
+                    custom_name: '',
+                    sort_order: 0
+                });
+                const bindingRules = {
+                    school_id: [{ required: true, message: '请选择学校', trigger: 'change' }],
+                    template_id: [{ required: true, message: '请选择模板', trigger: 'change' }],
+                    database_id: [{ required: true, message: '请选择数据库', trigger: 'change' }]
+                };
+                const bindingFormRef = ref(null);
+                const bindingSchoolDialogVisible = ref(false);
+                const currentBindingSchool = ref(null);
+                const schoolBindings = ref([]);
+                
+                // 功能绑定 - 筛选后的数据库列表（根据选择的学校）
+                const filteredDatabasesForBinding = computed(() => {
+                    if (!bindingForm.school_id) return databases.value;
+                    return databases.value.filter(db => db.school_id === bindingForm.school_id && db.status === 'active');
+                });
 
                 // 数据库配置
                 const databases = ref([]);
@@ -1767,6 +1918,106 @@
                         if (res.code === 200) {
                             ElementPlus.ElMessage.success('删除成功');
                             loadSchools();
+                        }
+                    } catch (e) {}
+                };
+
+                // 功能绑定管理
+                const loadBindings = async () => {
+                    try {
+                        const params = new URLSearchParams();
+                        if (bindingSearch.school_id) params.append('school_id', bindingSearch.school_id);
+                        
+                        const res = await request(`/bindings?${params}`);
+                        if (res.code === 200) {
+                            bindings.value = res.data || [];
+                        }
+                    } catch (e) {
+                        console.error(e);
+                    }
+                };
+
+                const showBindingDialog = async (school) => {
+                    currentBindingSchool.value = school;
+                    bindingSearch.school_id = school.id;
+                    await loadBindings();
+                    bindingSchoolDialogVisible.value = true;
+                };
+
+                const showBindingCreateDialog = () => {
+                    bindingForm.id = null;
+                    bindingForm.school_id = bindingSearch.school_id || null;
+                    bindingForm.template_id = null;
+                    bindingForm.database_id = null;
+                    bindingForm.enabled = 1;
+                    bindingForm.custom_name = '';
+                    bindingForm.sort_order = 0;
+                    bindingDialogVisible.value = true;
+                };
+
+                const showBindingEditDialog = (binding) => {
+                    bindingForm.id = binding.id;
+                    bindingForm.school_id = binding.school_id;
+                    bindingForm.template_id = binding.template_id;
+                    bindingForm.database_id = binding.database_id;
+                    bindingForm.enabled = binding.enabled;
+                    bindingForm.custom_name = binding.custom_name || '';
+                    bindingForm.sort_order = binding.sort_order || 0;
+                    bindingDialogVisible.value = true;
+                };
+
+                const handleSaveBinding = async () => {
+                    try {
+                        await bindingFormRef.value.validate();
+                        
+                        const url = bindingForm.id ? `/bindings/${bindingForm.id}` : `/schools/${bindingForm.school_id}/bindings`;
+                        const method = bindingForm.id ? 'PUT' : 'POST';
+                        
+                        const data = { ...bindingForm };
+                        if (!data.id) delete data.id;
+                        
+                        const res = await request(url, {
+                            method,
+                            body: JSON.stringify(data)
+                        });
+                        
+                        if (res.code === 200) {
+                            ElementPlus.ElMessage.success('保存成功');
+                            bindingDialogVisible.value = false;
+                            loadBindings();
+                        } else {
+                            ElementPlus.ElMessage.error(res.message || '保存失败');
+                        }
+                    } catch (e) {
+                        ElementPlus.ElMessage.error('保存失败');
+                    }
+                };
+
+                const handleToggleBinding = async (binding) => {
+                    try {
+                        const res = await request(`/bindings/${binding.id}`, {
+                            method: 'PUT',
+                            body: JSON.stringify({ enabled: binding.enabled })
+                        });
+                        if (res.code === 200) {
+                            ElementPlus.ElMessage.success(binding.enabled ? '已启用' : '已禁用');
+                        } else {
+                            binding.enabled = binding.enabled ? 0 : 1;
+                            ElementPlus.ElMessage.error(res.message || '操作失败');
+                        }
+                    } catch (e) {
+                        binding.enabled = binding.enabled ? 0 : 1;
+                        ElementPlus.ElMessage.error('操作失败');
+                    }
+                };
+
+                const handleDeleteBinding = async (binding) => {
+                    try {
+                        await ElementPlus.ElMessageBox.confirm('确定删除该绑定?', '提示', { type: 'warning' });
+                        const res = await request(`/bindings/${binding.id}`, { method: 'DELETE' });
+                        if (res.code === 200) {
+                            ElementPlus.ElMessage.success('删除成功');
+                            loadBindings();
                         }
                     } catch (e) {}
                 };
@@ -2288,6 +2539,23 @@
                     showSchoolDialog,
                     handleSaveSchool,
                     handleDeleteSchool,
+                    bindings,
+                    bindingSearch,
+                    bindingDialogVisible,
+                    bindingForm,
+                    bindingRules,
+                    bindingFormRef,
+                    bindingSchoolDialogVisible,
+                    currentBindingSchool,
+                    schoolBindings,
+                    filteredDatabasesForBinding,
+                    loadBindings,
+                    showBindingDialog,
+                    showBindingCreateDialog,
+                    showBindingEditDialog,
+                    handleSaveBinding,
+                    handleToggleBinding,
+                    handleDeleteBinding,
                     databases,
                     dbSearch,
                     databaseDialogVisible,
