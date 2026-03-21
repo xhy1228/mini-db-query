@@ -200,3 +200,30 @@
   color: #8b9bb4;
   font-size: 28rpx;
 }
+
+/* 操作区域 */
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+}
+
+.delete-btn {
+  color: #e74c3c;
+  font-size: 26rpx;
+  padding: 8rpx 16rpx;
+  border-radius: 8rpx;
+  background-color: #fdeeee;
+}
+
+.detail-hint {
+  color: #8b9bb4;
+  font-size: 26rpx;
+}
+
+/* 修改底部布局 */
+.item-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}

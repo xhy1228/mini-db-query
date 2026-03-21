@@ -118,24 +118,31 @@ Page({
   },
 
   // 删除记录
-  deleteLog() {
+  async deleteLog() {
     wx.showModal({
       title: '确认删除',
       content: '确定要删除此记录吗？',
       success: async (res) => {
         if (res.confirm) {
           try {
-            const result = await get(`/user/history/${this.data.logId}`, {
-              method: 'DELETE'
+            const result = await wx.request({
+              url: `${app.globalData.apiBaseUrl}/user/history/${this.data.logId}`,
+              method: 'DELETE',
+              header: {
+                'Authorization': `Bearer ${wx.getStorageSync('token')}`
+              }
             })
             
-            if (result.code === 200) {
+            if (result.data.code === 200) {
               wx.showToast({ title: '已删除', icon: 'success' })
               setTimeout(() => {
                 wx.navigateBack()
               }, 1500)
+            } else {
+              wx.showToast({ title: result.data.message || '删除失败', icon: 'none' })
             }
           } catch (error) {
+            console.error('删除失败:', error)
             wx.showToast({ title: '删除失败', icon: 'none' })
           }
         }

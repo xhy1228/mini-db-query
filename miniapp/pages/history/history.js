@@ -215,11 +215,58 @@ Page({
     }
   },
 
+  // 删除单条历史记录
+  async onDeleteItem(e) {
+    const id = e.currentTarget.dataset.id
+    
+    wx.showModal({
+      title: '确认删除',
+      content: '确定要删除这条查询记录吗？',
+      success: async (res) => {
+        if (res.confirm) {
+          try {
+            const res = await wx.request({
+              url: `${app.globalData.apiBaseUrl}/user/history/${id}`,
+              method: 'DELETE',
+              header: {
+                'Authorization': `Bearer ${wx.getStorageSync('token')}`
+              }
+            })
+            
+            if (res.data.code === 200) {
+              // 从列表中移除
+              const newList = this.data.historyList.filter(item => item.id !== id)
+              this.setData({ 
+                historyList: newList,
+                total: Math.max(0, this.data.total - 1)
+              })
+              wx.showToast({
+                title: '已删除',
+                icon: 'success'
+              })
+            } else {
+              wx.showToast({
+                title: res.data.message || '删除失败',
+                icon: 'none'
+              })
+            }
+          } catch (error) {
+            console.error('删除失败:', error)
+            wx.showToast({
+              title: '删除失败',
+              icon: 'none'
+            })
+          }
+        }
+      }
+    })
+  },
+
   // 清空历史
   clearHistory() {
     wx.showModal({
       title: '确认清空',
-      content: '确定要清空所有查询历史吗？',
+      content: '确定要清空所有查询历史吗？此操作仅清空本地缓存。',
       success: (res) => {
         if (res.confirm) {
           wx.setStorageSync('queryHistory', [])
