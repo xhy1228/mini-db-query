@@ -513,6 +513,49 @@
             overflow-x: auto;
             font-size: 13px;
         }
+        /* 个人中心样式 */
+        .profile-container {
+            padding: 20px;
+            max-width: 800px;
+        }
+        .profile-header {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 12px;
+            color: white;
+        }
+        .profile-avatar {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 36px;
+            font-weight: bold;
+        }
+        .profile-info h3 {
+            margin: 0 0 5px 0;
+            font-size: 24px;
+        }
+        .profile-info p {
+            margin: 0 0 10px 0;
+            opacity: 0.9;
+        }
+        .profile-form {
+            padding: 20px;
+            background: #f5f7fa;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .profile-form h4 {
+            margin: 0 0 15px 0;
+            color: #333;
+        }
     </style>
 </head>
 <body>
@@ -700,6 +743,57 @@
                             <el-table-column prop="count" label="次数" width="100"></el-table-column>
                             <el-table-column prop="avg_time" label="平均耗时(ms)" width="120"></el-table-column>
                         </el-table>
+                    </div>
+                </div>
+
+                <!-- 个人中心 -->
+                <div v-show="activeMenu === 'profile'" class="profile-container">
+                    <div class="profile-header">
+                        <div class="profile-avatar">{{ userInfo.name?.charAt(0) || 'U' }}</div>
+                        <div class="profile-info">
+                            <h3>{{ userInfo.name }}</h3>
+                            <p>{{ userInfo.phone }}</p>
+                            <el-tag :type="userInfo.role === 'admin' ? 'danger' : 'info'">
+                                {{ userInfo.role === 'admin' ? '管理员' : '普通用户' }}
+                            </el-tag>
+                        </div>
+                    </div>
+                    
+                    <el-divider></el-divider>
+                    
+                    <div class="profile-form">
+                        <h4>修改个人信息</h4>
+                        <el-form :model="profileForm" :rules="profileRules" ref="profileFormRef" label-width="100px" style="max-width: 500px">
+                            <el-form-item label="姓名" prop="name">
+                                <el-input v-model="profileForm.name" placeholder="请输入姓名"></el-input>
+                            </el-form-item>
+                            <el-form-item label="手机号" prop="phone">
+                                <el-input v-model="profileForm.phone" placeholder="请输入手机号"></el-input>
+                            </el-form-item>
+                            <el-form-item>
+                                <el-button type="primary" @click="handleUpdateProfile">保存修改</el-button>
+                            </el-form-item>
+                        </el-form>
+                    </div>
+                    
+                    <el-divider></el-divider>
+                    
+                    <div class="profile-form">
+                        <h4>修改密码</h4>
+                        <el-form :model="passwordForm" :rules="passwordRules" ref="passwordFormRef" label-width="100px" style="max-width: 500px">
+                            <el-form-item label="当前密码" prop="old_password">
+                                <el-input v-model="passwordForm.old_password" type="password" placeholder="请输入当前密码" show-password></el-input>
+                            </el-form-item>
+                            <el-form-item label="新密码" prop="new_password">
+                                <el-input v-model="passwordForm.new_password" type="password" placeholder="请输入新密码" show-password></el-input>
+                            </el-form-item>
+                            <el-form-item label="确认密码" prop="confirm_password">
+                                <el-input v-model="passwordForm.confirm_password" type="password" placeholder="请再次输入新密码" show-password></el-input>
+                            </el-form-item>
+                            <el-form-item>
+                                <el-button type="warning" @click="handleChangePassword">修改密码</el-button>
+                            </el-form-item>
+                        </el-form>
                     </div>
                 </div>
 
@@ -1579,6 +1673,7 @@ WHERE 1=1
                 const activeMenu = ref('dashboard');
                 const menuItems = [
                     { key: 'dashboard', name: '数据统计', icon: '📊' },
+                    { key: 'profile', name: '个人中心', icon: '👤' },
                     { key: 'users', name: '用户管理', icon: '👥' },
                     { key: 'schools', name: '学校管理', icon: '🏫' },
                     { key: 'databases', name: '数据库配置', icon: '🗄️' },
@@ -1646,6 +1741,42 @@ WHERE 1=1
                     code: [{ required: true, message: '请输入学校编码', trigger: 'blur' }]
                 };
                 const schoolFormRef = ref(null);
+
+                // 个人中心
+                const profileForm = reactive({
+                    name: '',
+                    phone: ''
+                });
+                const profileRules = {
+                    name: [{ required: true, message: '请输入姓名', trigger: 'blur' }],
+                    phone: [{ required: true, message: '请输入手机号', trigger: 'blur' }]
+                };
+                const profileFormRef = ref(null);
+                
+                const passwordForm = reactive({
+                    old_password: '',
+                    new_password: '',
+                    confirm_password: ''
+                });
+                const validateConfirmPassword = (rule, value, callback) => {
+                    if (value !== passwordForm.new_password) {
+                        callback(new Error('两次输入的密码不一致'));
+                    } else {
+                        callback();
+                    }
+                };
+                const passwordRules = {
+                    old_password: [{ required: true, message: '请输入当前密码', trigger: 'blur' }],
+                    new_password: [
+                        { required: true, message: '请输入新密码', trigger: 'blur' },
+                        { min: 6, message: '密码长度不能少于6位', trigger: 'blur' }
+                    ],
+                    confirm_password: [
+                        { required: true, message: '请再次输入新密码', trigger: 'blur' },
+                        { validator: validateConfirmPassword, trigger: 'blur' }
+                    ]
+                };
+                const passwordFormRef = ref(null);
 
                 // 功能绑定
                 const bindings = ref([]);
@@ -1825,6 +1956,58 @@ WHERE 1=1
                     localStorage.removeItem('token');
                     isLoggedIn.value = false;
                     userInfo.value = {};
+                };
+
+                // 加载用户信息到个人中心
+                const loadProfile = () => {
+                    profileForm.name = userInfo.value.name || '';
+                    profileForm.phone = userInfo.value.phone || '';
+                };
+
+                // 更新个人信息
+                const handleUpdateProfile = async () => {
+                    try {
+                        await profileFormRef.value.validate();
+                        const res = await request(`/manage/users/${userInfo.value.id}`, {
+                            method: 'PUT',
+                            body: JSON.stringify({
+                                name: profileForm.name,
+                                phone: profileForm.phone
+                            })
+                        });
+                        if (res.code === 200) {
+                            ElMessage.success('个人信息更新成功');
+                            userInfo.value.name = profileForm.name;
+                            userInfo.value.phone = profileForm.phone;
+                        } else {
+                            ElMessage.error(res.message || '更新失败');
+                        }
+                    } catch (e) {
+                        if (e !== false) {
+                            ElMessage.error('更新失败: ' + e.message);
+                        }
+                    }
+                };
+
+                // 修改密码
+                const handleChangePassword = async () => {
+                    try {
+                        await passwordFormRef.value.validate();
+                        const res = await request('/auth/change-password', {
+                            method: 'POST',
+                            body: JSON.stringify(passwordForm)
+                        });
+                        if (res.code === 200) {
+                            ElMessage.success('密码修改成功，请重新登录');
+                            handleLogout();
+                        } else {
+                            ElMessage.error(res.message || '修改失败');
+                        }
+                    } catch (e) {
+                        if (e !== false) {
+                            ElMessage.error('修改失败: ' + e.message);
+                        }
+                    }
                 };
 
                 // 加载初始数据
@@ -2655,6 +2838,15 @@ WHERE 1=1
                     showSchoolDialog,
                     handleSaveSchool,
                     handleDeleteSchool,
+                    profileForm,
+                    profileRules,
+                    profileFormRef,
+                    loadProfile,
+                    handleUpdateProfile,
+                    passwordForm,
+                    passwordRules,
+                    passwordFormRef,
+                    handleChangePassword,
                     bindings,
                     bindingSearch,
                     bindingDialogVisible,

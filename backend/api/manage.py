@@ -722,6 +722,56 @@ async def delete_template(
     return {"code": 200, "message": "删除成功", "data": None}
 
 
+# ========== 用户信息管理 API ==========
+
+class UserUpdateRequest(BaseModel):
+    """更新用户信息请求"""
+    name: Optional[str] = None
+    phone: Optional[str] = None
+    status: Optional[str] = None
+
+
+@router.put("/users/{user_id}")
+async def update_user(
+    user_id: int,
+    request: UserUpdateRequest,
+    current_user: TokenData = Depends(get_current_user),
+    db: Session = Depends(get_db_session)
+):
+    """更新用户信息"""
+    # 只能修改自己的信息，除非是管理员
+    if current_user.role != 'admin' and int(current_user.user_id) != user_id:
+        raise HTTPException(status_code=403, detail="权限不足")
+    
+    from models.database import User
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="用户不存在")
+    
+    # 更新字段
+    if request.name is not None:
+        user.name = request.name
+    if request.phone is not None:
+        user.phone = request.phone
+    if request.status is not None and current_user.role == 'admin':
+        user.status = request.status
+    
+    db.commit()
+    db.refresh(user)
+    
+    return {
+        "code": 200,
+        "message": "更新成功",
+        "data": {
+            "id": user.id,
+            "phone": user.phone,
+            "name": user.name,
+            "role": user.role,
+            "status": user.status
+        }
+    }
+
+
 # ========== 用户授权管理 API ==========
 
 @router.get("/users/{user_id}/schools")
@@ -1059,7 +1109,7 @@ async def set_user_schools(
     
     db.commit()
     
-    return {"code": 200, "message": "设置成功", "data": {"school_count": len(school_ids)}}
+    return {"code": 200, "message": "设置成功", "data": {"school_count": len(request.school_ids)}}
 
 
 class SetUserModulePermissionsRequest(BaseModel):
