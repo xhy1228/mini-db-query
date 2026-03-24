@@ -1496,17 +1496,42 @@ WHERE 1=1
                     <el-button type="primary" size="small" @click="addSelectColumn" style="margin-bottom: 12px;">➕ 添加返回字段</el-button>
                     <el-button type="success" size="small" style="margin-bottom: 12px; margin-left: 8px;" @click="importSelectColumnsFromTable">📥 从表字段导入</el-button>
                     <el-table :data="templateForm.select_columns" border size="small" v-if="templateForm.select_columns && templateForm.select_columns.length > 0">
-                        <el-table-column label="数据库列" width="150">
+                        <el-table-column label="数据库列" width="130">
                             <template #default="{ row }">
                                 <el-input v-model="row.column" size="small" placeholder="如: CUSTNAME"></el-input>
                             </template>
                         </el-table-column>
-                        <el-table-column label="显示别名" width="150">
+                        <el-table-column label="显示别名" width="100">
                             <template #default="{ row }">
                                 <el-input v-model="row.alias" size="small" placeholder="如: 姓名"></el-input>
                             </template>
                         </el-table-column>
-                        <el-table-column label="排序" width="80">
+                        <el-table-column label="展示" width="60">
+                            <template #default="{ row }">
+                                <el-checkbox v-model="row.show_in_list"></el-checkbox>
+                            </template>
+                        </el-table-column>
+                        <el-table-column label="脱敏模式" width="120">
+                            <template #default="{ row }">
+                                <el-select v-model="row.need_mask" size="small" placeholder="选择">
+                                    <el-option label="不脱敏" :value="2"></el-option>
+                                    <el-option label="自动" :value="0"></el-option>
+                                    <el-option label="强制脱敏" :value="1"></el-option>
+                                </el-select>
+                            </template>
+                        </el-table-column>
+                        <el-table-column label="脱敏类型" width="100">
+                            <template #default="{ row }">
+                                <el-select v-model="row.mask_type" size="small" placeholder="选择" :disabled="row.need_mask == 2">
+                                    <el-option label="手机号" value="phone"></el-option>
+                                    <el-option label="银行卡" value="card"></el-option>
+                                    <el-option label="身份证" value="idcard"></el-option>
+                                    <el-option label="姓名" value="name"></el-option>
+                                    <el-option label="密码" value="password"></el-option>
+                                </el-select>
+                            </template>
+                        </el-table-column>
+                        <el-table-column label="排序" width="60">
                             <template #default="{ $index }">
                                 <el-button-group>
                                     <el-button size="small" @click="moveSelectColumn($index, -1)" :disabled="$index === 0">↑</el-button>
@@ -1514,7 +1539,7 @@ WHERE 1=1
                                 </el-button-group>
                             </template>
                         </el-table-column>
-                        <el-table-column label="操作" width="80">
+                        <el-table-column label="操作" width="60">
                             <template #default="{ $index }">
                                 <el-button type="danger" size="small" @click="removeSelectColumn($index)">🗑️</el-button>
                             </template>
@@ -3120,13 +3145,23 @@ WHERE 1=1
                     if (!templateForm.select_columns) {
                         templateForm.select_columns = [];
                     }
+                    // 敏感字段关键词
+                    const sensitiveKeywords = ['password', 'passwd', 'pwd', 'phone', 'tel', 'mobile', 'card', 'bank', 'idcard', 'identity', 'sfz', 'name'];
                     columnList.forEach(col => {
                         // 检查是否已存在
                         const exists = templateForm.select_columns.some(f => f.column === col.name);
                         if (!exists) {
+                            const colNameLower = col.name.toLowerCase();
+                            const isSensitive = sensitiveKeywords.some(kw => colNameLower.includes(kw));
                             templateForm.select_columns.push({
                                 column: col.name,
-                                alias: col.comment || ''
+                                alias: col.comment || '',
+                                show_in_list: true,
+                                need_mask: isSensitive ? 1 : 0,  // 敏感字段默认强制脱敏
+                                mask_type: colNameLower.includes('phone') || colNameLower.includes('tel') || colNameLower.includes('mobile') ? 'phone' : 
+                                           colNameLower.includes('card') || colNameLower.includes('bank') ? 'card' :
+                                           colNameLower.includes('idcard') || colNameLower.includes('identity') || colNameLower.includes('sfz') ? 'idcard' :
+                                           colNameLower.includes('name') ? 'name' : 'none'
                             });
                         }
                     });
