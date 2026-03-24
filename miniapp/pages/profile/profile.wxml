@@ -25,105 +25,16 @@
     </view>
   </view>
 
-  <!-- 统计数据（可点击查看详情） -->
+  <!-- 统计数据 -->
   <view class="stats-card glass-card" wx:if="{{userInfo}}">
-    <view class="stats-item" bindtap="showSchoolList">
+    <view class="stats-item">
       <text class="stats-value">{{stats.queryCount}}</text>
       <text class="stats-label">查询次数</text>
     </view>
     <view class="stats-divider"></view>
-    <view class="stats-item clickable" bindtap="showSchoolList">
+    <view class="stats-item">
       <text class="stats-value">{{stats.schoolCount}}</text>
       <text class="stats-label">可查询学校</text>
-      <text class="stats-arrow">›</text>
-    </view>
-    <view class="stats-divider"></view>
-    <view class="stats-item clickable" bindtap="showTemplateList">
-      <text class="stats-value">{{stats.templateCount}}</text>
-      <text class="stats-label">可查询模板</text>
-      <text class="stats-arrow">›</text>
-    </view>
-  </view>
-
-  <!-- 学校详情弹窗 -->
-  <view class="detail-modal-mask" wx:if="{{showSchoolModal}}" bindtap="hideSchoolModal">
-    <view class="detail-modal glass-card" catchtap="">
-      <view class="modal-header">
-        <text class="modal-title">可查询学校 ({{schools.length}})</text>
-        <view class="modal-close" bindtap="hideSchoolModal">✕</view>
-      </view>
-      <view class="modal-list">
-        <view class="modal-item" wx:for="{{schools}}" wx:key="id">
-          <text class="modal-item-icon">🏛️</text>
-          <view class="modal-item-info">
-            <text class="modal-item-name">{{item.name}}</text>
-            <text class="modal-item-code">{{item.code || ''}}</text>
-          </view>
-        </view>
-        <view class="modal-empty" wx:if="{{schools.length === 0}}">
-          <text>暂无授权学校</text>
-        </view>
-      </view>
-    </view>
-  </view>
-
-  <!-- 模板详情弹窗 -->
-  <view class="detail-modal-mask" wx:if="{{showTemplateModal}}" bindtap="hideTemplateModal">
-    <view class="detail-modal glass-card" catchtap="">
-      <view class="modal-header">
-        <text class="modal-title">可查询模板 ({{templateList.length}})</text>
-        <view class="modal-close" bindtap="hideTemplateModal">✕</view>
-      </view>
-      <view class="modal-list">
-        <view class="modal-item" wx:for="{{templateList}}" wx:key="id">
-          <text class="modal-item-icon">📋</text>
-          <view class="modal-item-info">
-            <text class="modal-item-name">{{item.name}}</text>
-            <text class="modal-item-desc">{{item.category_name || ''}}</text>
-          </view>
-        </view>
-        <view class="modal-empty" wx:if="{{templateList.length === 0}}">
-          <text>暂无可查询模板</text>
-        </view>
-      </view>
-    </view>
-  </view>
-
-  <!-- 权限信息 -->
-  <view class="permission-card glass-card" wx:if="{{!isAdmin && schools.length > 0}}">
-    <view class="card-header">
-      <text class="card-title">我的权限</text>
-    </view>
-    
-    <!-- 学校权限 -->
-    <view class="permission-section">
-      <view class="section-title">学校权限</view>
-      <view class="school-list">
-        <view class="school-item" wx:for="{{schools}}" wx:key="id">
-          <view class="school-name">{{item.name}}</view>
-          <view class="permission-tags">
-            <text class="tag tag-query" wx:if="{{item.permissions && item.permissions.includes('query')}}">查询</text>
-            <text class="tag tag-export" wx:if="{{item.permissions && item.permissions.includes('export')}}">导出</text>
-          </view>
-        </view>
-      </view>
-    </view>
-    
-    <!-- 模板权限 -->
-    <view class="permission-section" wx:if="{{templatePermissions.length > 0}}">
-      <view class="section-title">模板权限（{{templatePermissions.length}}个）</view>
-      <view class="template-list">
-        <view class="template-item" wx:for="{{templatePermissions}}" wx:key="template_id">
-          <view class="template-name">{{item.template_name}}</view>
-          <view class="template-category">{{item.category}}</view>
-          <view class="permission-icons">
-            <text class="icon-yes" wx:if="{{item.can_query}}">✓ 查询</text>
-            <text class="icon-no" wx:else>✗ 查询</text>
-            <text class="icon-yes" wx:if="{{item.can_export}}">✓ 导出</text>
-            <text class="icon-no" wx:else>✗ 导出</text>
-          </view>
-        </view>
-      </view>
     </view>
   </view>
 

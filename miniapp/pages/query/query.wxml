@@ -18,15 +18,15 @@
       <view 
         class="category-card tech-card" 
         wx:for="{{categories}}" 
-        wx:key="category"
+        wx:key="id"
         data-category="{{item}}"
         bindtap="onCategoryTap"
       >
         <view class="category-main">
-          <text class="category-icon">{{item.category_icon}}</text>
+          <text class="category-icon">{{item.icon}}</text>
           <view class="category-info">
-            <text class="category-name">{{item.category_name}}</text>
-            <text class="category-count">{{item.functions.length}}个功能</text>
+            <text class="category-name">{{item.name}}</text>
+            <text class="category-count">{{item.count}}个查询</text>
           </view>
         </view>
         <view class="category-arrow">›</view>
@@ -39,27 +39,27 @@
     </view>
   </view>
 
-  <!-- 步骤2: 选择功能 -->
-  <view class="section" wx:if="{{selectedCategory && !selectedFunction}}">
+  <!-- 步骤2: 选择查询模板 -->
+  <view class="section" wx:if="{{selectedCategory && !selectedTemplate}}">
     <view class="section-header">
       <view class="back-btn" bindtap="goBack">
         <text>‹ 返回</text>
       </view>
-      <text class="section-title">{{selectedCategory.category_icon}} {{selectedCategory.category_name}}</text>
+      <text class="section-title">{{selectedCategory.icon}} {{selectedCategory.name}}</text>
     </view>
     
-    <view class="template-list" wx:if="{{selectedCategory.functions.length > 0}}">
+    <view class="template-list" wx:if="{{templates.length > 0}}">
       <view 
         class="template-card tech-card" 
-        wx:for="{{selectedCategory.functions}}" 
-        wx:key="binding_id"
-        data-func="{{item}}"
-        bindtap="onFunctionTap"
+        wx:for="{{templates}}" 
+        wx:key="id"
+        data-template="{{item}}"
+        bindtap="onTemplateTap"
       >
         <view class="template-info">
           <text class="template-name">{{item.name}}</text>
-          <text class="template-desc" wx:if="{{item.description}}">{{item.description}}</text>
-          <view class="template-fields" wx:if="{{item.fields.length > 0}}">
+          <text class="template-desc">{{item.description}}</text>
+          <view class="template-fields">
             <text class="field-tag" wx:for="{{item.fields}}" wx:for-item="field" wx:key="id">
               {{field.label}}
             </text>
@@ -69,32 +69,31 @@
       </view>
     </view>
 
-    <view class="empty-state" wx:if="{{selectedCategory.functions.length === 0}}">
+    <view class="empty-state" wx:if="{{templates.length === 0}}">
       <text class="empty-icon">📭</text>
-      <text class="empty-text">暂无功能</text>
+      <text class="empty-text">暂无查询模板</text>
     </view>
   </view>
 
   <!-- 步骤3: 输入查询条件 -->
-  <view class="section" wx:if="{{selectedFunction}}">
+  <view class="section" wx:if="{{selectedTemplate}}">
     <view class="section-header">
       <view class="back-btn" bindtap="goBack">
         <text>‹ 返回</text>
       </view>
-      <text class="section-title">{{selectedFunction.name}}</text>
+      <text class="section-title">{{selectedTemplate.name}}</text>
     </view>
     
     <!-- 查询条件表单 -->
     <view class="query-form glass-card">
       <view class="form-title">查询条件</view>
       
-      <!-- 有查询条件时显示输入框 -->
-      <view class="form-item" wx:for="{{conditions}}" wx:key="index" wx:for-index="idx" wx:for-item="cond" wx:if="{{conditions.length > 0}}">
-        <text class="form-label">{{cond.label || '字段' + (idx+1)}}</text>
+      <view class="form-item" wx:for="{{conditions}}" wx:key="index" wx:for-index="idx" wx:for-item="cond">
+        <text class="form-label">{{selectedTemplate.fields[idx].label}}</text>
         <view class="form-operator">{{cond.operator}}</view>
         <input 
           class="form-input" 
-          placeholder="请输入{{cond.label || '字段' + (idx+1)}}"
+          placeholder="请输入{{selectedTemplate.fields[idx].label}}"
           placeholder-class="placeholder"
           data-index="{{idx}}"
           bindinput="onConditionInput"
@@ -102,14 +101,8 @@
         />
       </view>
       
-      <!-- 没有查询条件时显示提示 -->
-      <view class="empty-state" wx:if="{{conditions.length === 0}}">
-        <text class="empty-icon">📭</text>
-        <text class="empty-text">该功能暂无可用查询条件</text>
-      </view>
-      
       <!-- 时间范围 -->
-      <block wx:if="{{selectedFunction.time_field}}">
+      <block wx:if="{{selectedTemplate.time_field}}">
         <view class="form-divider"></view>
         <text class="form-subtitle">⏰ 时间范围（可选）</text>
         
@@ -164,7 +157,7 @@
       <view class="result-header">
         <text class="result-title">查询结果</text>
         <view class="result-actions">
-          <text class="result-count" wx:if="{{result.length > 0}}">共{{totalCount}}条</text>
+          <text class="result-count" wx:if="{{result.length > 0}}">共{{result.length}}条</text>
           <view class="export-btn" wx:if="{{result.length > 0}}" bindtap="showExportOptions">
             <text wx:if="{{!exporting}}">📥 导出</text>
             <text wx:else>导出中...</text>
@@ -175,8 +168,8 @@
       <!-- 查询统计信息 -->
       <view class="query-info" wx:if="{{result.length > 0}}">
         <view class="info-item">
-          <text class="info-value">{{totalCount}}</text>
-          <text class="info-label">总条数</text>
+          <text class="info-value">{{result.length}}</text>
+          <text class="info-label">数据条数</text>
         </view>
         <view class="info-item">
           <text class="info-value">{{resultColumns.length}}</text>
@@ -185,35 +178,6 @@
         <view class="info-item">
           <text class="info-value">{{queryTime}}ms</text>
           <text class="info-label">查询耗时</text>
-        </view>
-      </view>
-
-      <!-- 分页控件 -->
-      <view class="pagination" wx:if="{{totalCount > 0}}">
-        <view class="pagination-info">
-          <text class="page-text">第{{pageIndex}}/{{totalPages}}页</text>
-        </view>
-        <view class="pagination-btns">
-          <view 
-            class="page-btn {{pageIndex <= 1 ? 'disabled' : ''}}" 
-            bindtap="loadPrevPage"
-            disabled="{{pageIndex <= 1 || loading}}"
-          >
-            <text>上一页</text>
-          </view>
-          <view 
-            class="page-btn refresh-btn" 
-            bindtap="refreshQuery"
-          >
-            <text>🔄 刷新</text>
-          </view>
-          <view 
-            class="page-btn {{!hasMore ? 'disabled' : ''}}" 
-            bindtap="loadNextPage"
-            disabled="{{!hasMore || loading}}"
-          >
-            <text>下一页</text>
-          </view>
         </view>
       </view>
 

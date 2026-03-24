@@ -1,6 +1,4 @@
 {
-  "navigationBarTitleText": "查询历史",
-  "usingComponents": {},
-  "enablePullDownRefresh": true,
-  "backgroundTextStyle": "light"
+  "navigationBarTitleText": "历史记录",
+  "usingComponents": {}
 }

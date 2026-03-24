@@ -1,122 +1,120 @@
-<!--pages/history/history.wxml-->
-<view class="history-page">
-  <!-- 顶部标题 -->
+<!-- pages/history/history.wxml -->
+<view class="container">
+  <!-- 顶部操作栏 -->
   <view class="header">
-    <text class="title">查询历史</text>
-    <text class="subtitle">查看您的查询记录</text>
+    <view class="filter-btn" bindtap="toggleFilter">
+      <text class="icon">🔍</text>
+      <text>筛选</text>
+    </view>
+    <view class="total" wx:if="{{historyList.length > 0}}">
+      共 {{total}} 条
+    </view>
+    <view class="clear-btn" bindtap="clearHistory">
+      <text class="icon">🗑️</text>
+      <text>清空</text>
+    </view>
   </view>
 
-  <!-- 历史列表 -->
-  <scroll-view 
-    class="history-list" 
-    scroll-y 
-    bindscrolltolower="loadMore"
-    lower-threshold="100"
-  >
-    <!-- 加载中 -->
-    <view wx:if="{{loading}}" class="loading-box">
-      <view class="loading-spinner"></view>
-      <text>加载中...</text>
+  <!-- 筛选面板 -->
+  <view class="filter-panel" wx:if="{{showFilter}}">
+    <view class="filter-item">
+      <text class="label">状态</text>
+      <picker mode="selector" range="{{['全部', '成功', '失败']}}" bindchange="onStatusChange">
+        <view class="picker">
+          <text>{{filterStatus === '' ? '全部' : (filterStatus === 'success' ? '成功' : '失败')}}</text>
+          <text class="arrow">▼</text>
+        </view>
+      </picker>
     </view>
-
-    <!-- 空状态 -->
-    <view wx:elif="{{historyList.length === 0}}" class="empty-box">
-      <text class="empty-icon">📋</text>
-      <text class="empty-text">暂无查询历史</text>
-      <text class="empty-hint">开始查询后，记录将显示在这里</text>
+    
+    <view class="filter-item">
+      <text class="label">学校</text>
+      <picker mode="selector" range="{{schools}}" range-key="name" bindchange="onSchoolChange">
+        <view class="picker">
+          <text>{{filterSchoolName || '全部学校'}}</text>
+          <text class="arrow">▼</text>
+        </view>
+      </picker>
     </view>
-
-    <!-- 列表 -->
-    <block wx:else>
-      <view 
-        class="history-item glass-card" 
-        wx:for="{{historyList}}" 
-        wx:key="id"
-        bindtap="showDetail"
-        data-id="{{item.id}}"
-      >
-        <view class="item-header">
-          <text class="item-name">{{item.query_name || '查询'}}</text>
-          <text class="item-time">{{item.timeText}}</text>
+    
+    <view class="filter-item">
+      <text class="label">开始日期</text>
+      <picker mode="date" bindchange="onStartDateChange" value="{{startDate}}">
+        <view class="picker">
+          <text>{{startDate || '选择日期'}}</text>
+          <text class="arrow">▼</text>
         </view>
-        
-        <view class="item-body">
-          <text class="item-school">{{item.school_name || '-'}}</text>
-          <text class="item-count">{{item.result_count || 0}}条</text>
+      </picker>
+    </view>
+    
+    <view class="filter-item">
+      <text class="label">结束日期</text>
+      <picker mode="date" bindchange="onEndDateChange" value="{{endDate}}">
+        <view class="picker">
+          <text>{{endDate || '选择日期'}}</text>
+          <text class="arrow">▼</text>
         </view>
-        
-        <view class="item-footer">
-          <text class="item-status {{item.status === 'success' ? 'success' : 'failed'}}">
-            {{item.status === 'success' ? '成功' : '失败'}}
-          </text>
-          <text class="item-duration" wx:if="{{item.query_time}}">
-            {{item.query_time}}ms
-          </text>
-        </view>
-        
-        <!-- 操作按钮 -->
-        <view class="item-actions" catchtap="stopPropagation">
-          <view 
-            class="action-btn requery" 
-            bindtap="reQuery"
-            data-record="{{item}}"
-          >
-            重新查询
-          </view>
-          <view 
-            class="action-btn delete" 
-            bindtap="deleteRecord"
-            data-id="{{item.id}}"
-          >
-            删除
-          </view>
-        </view>
-      </view>
-
-      <!-- 加载更多 -->
-      <view wx:if="{{loadingMore}}" class="loading-more">
-        <view class="loading-spinner small"></view>
-        <text>加载中...</text>
-      </view>
-      
-      <!-- 没有更多 -->
-      <view wx:if="{{!hasMore && historyList.length > 0}}" class="no-more">
-        <text>没有更多了</text>
-      </view>
-    </block>
-  </scroll-view>
-
-  <!-- 底部清空按钮 -->
-  <view class="bottom-bar" wx:if="{{historyList.length > 0}}">
-    <view class="clear-btn" bindtap="clearAll">清空全部历史</view>
+      </picker>
+    </view>
+    
+    <view class="filter-actions">
+      <button size="small" bindtap="resetFilter">重置</button>
+      <button type="primary" size="small" bindtap="applyFilter">应用</button>
+    </view>
   </view>
 
-  <!-- 详情弹窗 -->
-  <view class="detail-modal" wx:if="{{showDetailModal}}" bindtap="hideDetailModal">
-    <view class="modal-content glass-card" catchtap="stopPropagation">
-      <view class="modal-header">
-        <text class="modal-title">查询详情</text>
-        <text class="modal-close" bindtap="hideDetailModal">×</text>
+  <!-- 列表内容 -->
+  <view class="history-list" wx:if="{{historyList.length > 0}}">
+    <view 
+      class="history-item {{item.statusClass}}" 
+      wx:for="{{historyList}}" 
+      wx:key="id"
+      bindtap="onHistoryTap"
+      data-item="{{item}}"
+    >
+      <view class="item-header">
+        <view class="query-name">{{item.query_name || 'SQL查询'}}</view>
+        <view class="status-badge {{item.statusClass}}">
+          <text>{{item.statusText}}</text>
+        </view>
       </view>
       
-      <scroll-view class="modal-body" scroll-y>
-        <view class="detail-item" wx:for="{{detailData}}" wx:key="label">
-          <text class="detail-label">{{item.label}}</text>
-          <text class="detail-value">{{item.value}}</text>
+      <view class="item-body">
+        <view class="info-row">
+          <text class="label">学校：</text>
+          <text class="value">{{item.school_name || '-'}}</text>
         </view>
-      </scroll-view>
+        <view class="info-row">
+          <text class="label">结果：</text>
+          <text class="value">{{item.result_count || 0}} 条</text>
+        </view>
+        <view class="info-row">
+          <text class="label">耗时：</text>
+          <text class="value">{{item.query_time || 0}} ms</text>
+        </view>
+      </view>
       
-      <view class="modal-footer">
-        <view class="modal-btn primary" bindtap="reQuery" data-record="{{selectedRecord}}">
-          重新查询
-        </view>
-        <view class="modal-btn" bindtap="hideDetailModal">
-          关闭
-        </view>
+      <view class="item-footer">
+        <text class="time">{{item.timeText}}</text>
+        <text class="detail-hint">查看详情 ></text>
       </view>
     </view>
   </view>
 
-  <!-- 阻止事件冒泡 -->
-  <view catchtap="stopPropagation" class="stopPropagation"></view>
+  <!-- 加载更多 -->
+  <view class="load-more" wx:if="{{historyList.length > 0}}">
+    <text wx:if="{{loading && page > 1}}">加载中...</text>
+    <text wx:elif="{{!hasMore && page > 1}}">没有更多了</text>
+  </view>
+
+  <!-- 空状态 -->
+  <view class="empty" wx:if="{{!loading && historyList.length === 0}}">
+    <text class="icon">📭</text>
+    <text class="text">暂无查询历史</text>
+  </view>
+
+  <!-- 加载中 -->
+  <view class="loading" wx:if="{{loading && page === 1}}">
+    <text>加载中...</text>
+  </view>
 </view>

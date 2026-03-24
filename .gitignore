@@ -1,0 +1,18 @@
+# Data files
+backend/data/*.db-shm
+backend/data/*.db-wal
+backend/data/*.db
+
+# Logs
+backend/logs/*.log
+
+# Exports
+backend/exports/*.xlsx
+
+# Local backup
+backend_local_backup/
+
+# Python cache
+__pycache__/
+*/__pycache__/
+*.pyc

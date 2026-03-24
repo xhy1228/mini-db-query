@@ -1337,8 +1337,13 @@ WHERE 1=1
         <el-dialog v-model="templateDialogVisible" :title="templateForm.id ? '✏️ 编辑模板' : '➕ 新增模板'" width="700px">
             <el-form :model="templateForm" :rules="templateRules" ref="templateFormRef" label-width="100px">
                 <el-form-item label="学校" prop="school_id">
-                    <el-select v-model="templateForm.school_id" placeholder="选择学校" style="width: 100%">
+                    <el-select v-model="templateForm.school_id" placeholder="选择学校" style="width: 100%" @change="onSchoolChange">
                         <el-option v-for="school in schools" :key="school.id" :label="school.name" :value="school.id"></el-option>
+                    </el-select>
+                </el-form-item>
+                <el-form-item label="使用数据库" prop="database_id">
+                    <el-select v-model="templateForm.database_id" placeholder="选择数据库（用于智能配置和测试）" style="width: 100%" filterable>
+                        <el-option v-for="db in filteredDatabases" :key="db.id" :label="db.name + ' (' + db.db_type + ')'" :value="db.id"></el-option>
                     </el-select>
                 </el-form-item>
                 <el-row :gutter="20">
@@ -1369,15 +1374,15 @@ WHERE 1=1
                     </el-input>
                 </el-form-item>
                 
-                <!-- 智能配置：表选择 -->
-                <el-form-item v-if="tableList.length > 0" label="选择表">
+                <!-~-表选择 -->
+                <el-form-item v-if="tableList && tableList.length > 0" label="选择表">
                     <el-select v-model="templateForm.table_name" placeholder="选择表" style="width: 100%" @change="onTableSelect">
                         <el-option v-for="t in tableList" :key="t.name" :label="t.name + (t.comment ? ' - ' + t.comment : '')" :value="t.name"></el-option>
                     </el-select>
                 </el-form-item>
                 
-                <!-- 智能配置：字段选择 -->
-                <el-form-item v-if="columnList.length > 0" label="选择字段">
+                <!-~-字段选择 -->
+                <el-form-item v-if="columnList && columnList.length > 0" label="选择字段">
                     <el-button @click="importAllColumns" type="success" size="small" style="margin-bottom: 8px;">导入所有字段</el-button>
                     <el-table :data="columnList" border size="small" max-height="300" @selection-change="handleColumnSelection">
                         <el-table-column type="selection" width="40"></el-table-column>
@@ -1385,6 +1390,10 @@ WHERE 1=1
                         <el-table-column prop="type" label="类型" width="120"></el-table-column>
                         <el-table-column prop="comment" label="注释"></el-table-column>
                     </el-table>
+                </el-form-item>
+                <el-form-item v-if="templateForm.fields && templateForm.fields.length > 0" label="智能操作">
+                    <el-button @click="generateSqlTemplate" type="primary" size="small">🔧 生成SQL模板</el-button>
+                    <el-button @click="clearFields" type="info" size="small" style="margin-left: 10px;">清空字段</el-button>
                 </el-form-item>
                 
                 <el-form-item label="SQL模板" prop="sql_template">
@@ -1395,7 +1404,7 @@ WHERE 1=1
                     </el-input>
                 </el-form-item>
                 
-                <!-- SQL测试结果 -->
+                <!-~-SQL测试结果 -->
                 <el-alert v-if="testQueryResult" :title="testQueryResult.title" :type="testQueryResult.type" show-icon style="margin-bottom: 10px;">
                     <div v-html="testQueryResult.message"></div>
                 </el-alert>
@@ -1416,7 +1425,7 @@ WHERE 1=1
                 <el-divider content-position="left">查询字段配置</el-divider>
                 <div class="field-config-container">
                     <el-button type="primary" size="small" @click="addTemplateField" style="margin-bottom: 12px;">➕ 添加字段</el-button>
-                    <el-table :data="templateForm.fields" border size="small" v-if="templateForm.fields && templateForm.fields.length > 0">
+                    <el-table :data="templateForm.fields" border size="small" v-if="templateForm.fields.length > 0">
                         <el-table-column label="字段ID" width="120">
                             <template #default="{ row }">
                                 <el-input v-model="row.id" size="small" placeholder="如: name"></el-input>
@@ -1685,24 +1694,25 @@ WHERE 1=1
                 const isLoggedIn = ref(!!localStorage.getItem('token'));
                 
                 // 版本号
-                const appVersion = ref('1.0.0.30');
+                const appVersion = ref('v1.2.2.10');
                 
                 // 统计数据
                 const dashboardStats = ref({});
                 const queryTrend = ref([]);
                 const topQueries = ref([]);
                 
-                // 获取版本号
+                // 获取版本号（暂时禁用API调用，直接用默认值）
                 const loadVersion = async () => {
-                    try {
-                        const res = await fetch(API_BASE + '/version');
-                        const data = await res.json();
-                        if (data.code === 200 && data.data.version) {
-                            appVersion.value = data.data.version;
-                        }
-                    } catch (e) {
-                        console.error('获取版本失败:', e);
-                    }
+                    // 直接使用默认值 v1.2.2.06，不调用API
+                    // try {
+                    //     const res = await fetch(API_BASE + '/version');
+                    //     const data = await res.json();
+                    //     if (data.code === 200 && data.data.version) {
+                    //         appVersion.value = data.data.version;
+                    //     }
+                    // } catch (e) {
+                    //     console.error('获取版本失败:', e);
+                    // }
                 };
                 
                 // 登录
@@ -1901,16 +1911,22 @@ WHERE 1=1
                     id: null,
                     school_id: null,
                     database_id: null,
+                    category_id: null,
                     category: '',
                     category_name: '',
                     category_icon: '',
                     name: '',
                     table_name: '',
+                    description: '',
                     sql_template: '',
                     fields: [],
                     time_field: '',
-                    default_limit: 500
+                    default_limit: 500,
+                    version: 'v1.0.0',
+                    supported_db_types: ['MySQL', 'Oracle'],
+                    status: 'active'
                 });
+                
                 const templateRules = {
                     school_id: [{ required: true, message: '请选择学校', trigger: 'change' }],
                     category: [{ required: true, message: '请输入业务大类', trigger: 'blur' }],
@@ -1930,6 +1946,12 @@ WHERE 1=1
                 const testQueryResult = ref(null);
 
                 // 智能配置方法
+                const onSchoolChange = () => {
+                    templateForm.database_id = null;
+                    tableList.value = [];
+                    columnList.value = [];
+                };
+                
                 const fetchTables = async () => {
                     if (!templateForm.database_id) {
                         ElMessage.warning('请先选择使用数据库');
@@ -1988,6 +2010,10 @@ WHERE 1=1
                                 id: col.name,
                                 label: col.comment || col.name,
                                 column: col.name,
+                                display_name: col.comment || '',  // 显示名称
+                                show_in_list: true,  // 默认在列表显示
+                                need_mask: col.name.includes('password') || col.name.includes('phone') || col.name.includes('card') ? 1 : 0,  // 敏感字段自动脱敏
+                                mask_type: col.name.includes('phone') ? 'phone' : (col.name.includes('card') ? 'card' : (col.name.includes('password') ? 'password' : 'none')),
                                 type: col.type && col.type.toLowerCase().includes('int') ? 'number' : 'text',
                                 operator: '=',
                                 required: col.key === 'PRI',
@@ -1996,6 +2022,40 @@ WHERE 1=1
                         }
                     });
                     ElMessage.success(`已导入 ${selectedColumns.value.length} 个字段`);
+                };
+                
+                // 生成SQL模板
+                const generateSqlTemplate = () => {
+                    if (!templateForm.fields || templateForm.fields.length === 0) {
+                        ElMessage.warning('请先导入字段');
+                        return;
+                    }
+                    if (!templateForm.table_name) {
+                        ElMessage.warning('请填写查询表名');
+                        return;
+                    }
+                    // 生成SELECT语句
+                    const selectFields = templateForm.fields
+                        .filter(f => f.show_in_list !== false)  // 默认显示
+                        .map(f => {
+                            let field = f.column || f.id;
+                            // 如果有显示名称，添加别名
+                            if (f.display_name && f.display_name !== f.column) {
+                                field += ` as "${f.display_name}"`;
+                            }
+                            return field;
+                        })
+                        .join(', ');
+                    
+                    const sql = `SELECT ${selectFields || '*'} \nFROM ${templateForm.table_name} \nWHERE 1=1`;
+                    templateForm.sql_template = sql;
+                    ElMessage.success('SQL模板已生成');
+                };
+                
+                // 清空已选字段
+                const clearFields = () => {
+                    templateForm.fields = [];
+                    ElMessage.info('字段已清空');
                 };
                 
                 const testSqlQuery = async () => {
@@ -2829,35 +2889,48 @@ WHERE 1=1
                 };
 
                 const showTemplateDialog = (template) => {
-                    if (template) {
+                    console.log('showTemplateDialog called', template);
+                    // 清空表单
+                    templateForm.id = null;
+                    templateForm.school_id = null;
+                    templateForm.database_id = null;
+                    templateForm.category_id = null;
+                    templateForm.category = '';
+                    templateForm.category_name = '';
+                    templateForm.category_icon = '';
+                    templateForm.name = '';
+                    templateForm.table_name = '';
+                    templateForm.description = '';
+                    templateForm.sql_template = '';
+                    templateForm.fields = [];
+                    templateForm.time_field = '';
+                    templateForm.default_limit = 500;
+                    templateForm.version = 'v1.0.0';
+                    templateForm.supported_db_types = ['MySQL', 'Oracle'];
+                    templateForm.status = 'active';
+                    
+                    // 如果有传入模板数据，则填充
+                    if (template && template.id) {
                         templateForm.id = template.id;
                         templateForm.school_id = template.school_id;
                         templateForm.database_id = template.database_id;
                         templateForm.category_id = template.category_id;
                         templateForm.version = template.version || 'v1.0.0';
-                        templateForm.category = template.category;
-                        templateForm.category_name = template.category_name;
-                        templateForm.category_icon = template.category_icon;
-                        templateForm.name = template.name;
+                        templateForm.category = template.category || '';
+                        templateForm.category_name = template.category_name || '';
+                        templateForm.category_icon = template.category_icon || '';
+                        templateForm.name = template.name || '';
                         templateForm.table_name = template.table_name || '';
-                        templateForm.sql_template = template.sql_template;
-                        templateForm.fields = template.fields || [];
-                        templateForm.time_field = template.time_field;
+                        templateForm.description = template.description || '';
+                        templateForm.sql_template = template.sql_template || '';
+                        templateForm.fields = template.fields ? JSON.parse(JSON.stringify(template.fields)) : [];
+                        templateForm.time_field = template.time_field || '';
                         templateForm.default_limit = template.default_limit || 500;
-                    } else {
-                        templateForm.id = null;
-                        templateForm.school_id = null;
-                        templateForm.database_id = null;
-                        templateForm.category = '';
-                        templateForm.category_name = '';
-                        templateForm.category_icon = '';
-                        templateForm.name = '';
-                        templateForm.table_name = '';
-                        templateForm.sql_template = '';
-                        templateForm.fields = [];
-                        templateForm.time_field = '';
-                        templateForm.default_limit = 500;
+                        templateForm.supported_db_types = template.supported_db_types || ['MySQL', 'Oracle'];
+                        templateForm.status = template.status || 'active';
                     }
+                    
+                    // 打开对话框
                     templateDialogVisible.value = true;
                 };
                 
@@ -3062,6 +3135,7 @@ WHERE 1=1
                     handleLogout,
                     userInfo,
                     activeMenu,
+                    activeHelpTab,
                     menuItems,
                     currentMenuName,
                     users,
@@ -3142,6 +3216,21 @@ WHERE 1=1
                     templateForm,
                     templateRules,
                     templateFormRef,
+                    tableList,
+                    columnList,
+                    loadingTables,
+                    loadingColumns,
+                    selectedColumns,
+                    testingQuery,
+                    testQueryResult,
+                    fetchTables,
+                    onSchoolChange,
+                    onTableSelect,
+                    importAllColumns,
+                    handleColumnSelection,
+                    generateSqlTemplate,
+                    clearFields,
+                    testSqlQuery,
                     loadCategories,
                     loadTemplates,
                     showCategoryDialog,

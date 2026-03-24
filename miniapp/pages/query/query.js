@@ -1,11 +1,8 @@
 // pages/query/query.js
-// 查询页面 - v1.2.0 使用 binding API
+// 查询页面
 
 const app = getApp()
 const { get, post } = require('../../utils/request')
-
-// 默认每页条数
-const DEFAULT_PAGE_SIZE = 50
 
 Page({
   data: {
@@ -16,8 +13,9 @@ Page({
     categories: [],
     selectedCategory: null,
     
-    // 选中的功能（v1.2.0 新增）
-    selectedFunction: null,
+    // 查询模板
+    templates: [],
+    selectedTemplate: null,
     
     // 查询条件
     conditions: [],
@@ -35,13 +33,6 @@ Page({
     queried: false,
     queryTime: 0,
     errorInfo: null,
-    
-    // 分页相关
-    pageIndex: 1,           // 当前页码
-    pageSize: DEFAULT_PAGE_SIZE,  // 每页条数
-    totalCount: 0,          // 总条数
-    totalPages: 0,          // 总页数
-    hasMore: false,         // 是否有更多数据
     
     // 导出相关
     exporting: false,
@@ -100,11 +91,10 @@ Page({
     }
     
     try {
-      // 使用新的 API 获取学校功能列表（v1.2.0）
-      const res = await get(`/schools/${school.id}/functions`)
+      const res = await get('/user/categories', { school_id: school.id })
       
-      if (res.code === 200 && res.data) {
-        this.setData({ categories: res.data.categories || [] })
+      if (res.code === 200) {
+        this.setData({ categories: res.data || [] })
       }
     } catch (error) {
       console.error('加载业务大类失败:', error)
@@ -129,12 +119,12 @@ Page({
     const category = e.currentTarget.dataset.category
     this.setData({ 
       selectedCategory: category,
-      // 新的API已经在category中包含了functions，不需要再加载
+      templates: [],
       selectedTemplate: null
     })
     
-    // 新API返回的categories已包含functions，直接使用
-    // 不需要再调用 loadTemplates
+    // 加载查询模板
+    await this.loadTemplates(category.id)
   },
 
   // 加载查询模板
@@ -201,29 +191,6 @@ Page({
       conditions: conditions,
       startTime: '',
       endTime: ''
-    })
-  },
-
-  // 选择功能（v1.2.0 新API）
-  onFunctionTap(e) {
-    const func = e.currentTarget.dataset.func
-    
-    // 初始化查询条件
-    const conditions = (func.fields || []).map(field => ({
-      field: field.column,
-      operator: field.operator || '=',
-      value: '',
-      label: field.label,
-      type: field.type,
-      options: field.options
-    }))
-    
-    this.setData({
-      selectedFunction: func,
-      conditions: conditions,
-      startTime: '',
-      endTime: '',
-      selectedQuickTime: ''
     })
   },
 
@@ -307,7 +274,7 @@ Page({
     try {
       const res = await post('/user/export', {
         school_id: this.data.selectedSchool.id,
-        binding_id: this.data.selectedFunction.binding_id,
+        template_id: this.data.selectedTemplate.id,
         conditions: this.data.conditions.filter(c => c.value.trim()),
         start_time: this.data.startTime ? `${this.data.startTime} 00:00:00` : null,
         end_time: this.data.endTime ? `${this.data.endTime} 23:59:59` : null
@@ -453,18 +420,17 @@ Page({
     })
   },
 
-  // 执行查询（v1.2.0 使用 binding_id）
-  async doQuery(resetPage = true) {
-    const { selectedSchool, selectedFunction, conditions, startTime, endTime, 
-            pageIndex, pageSize, result } = this.data
+  // 执行查询
+  async doQuery() {
+    const { selectedSchool, selectedTemplate, conditions, startTime, endTime } = this.data
     
     if (!selectedSchool) {
       wx.showToast({ title: '请先选择学校', icon: 'none' })
       return
     }
     
-    if (!selectedFunction) {
-      wx.showToast({ title: '请先选择查询功能', icon: 'none' })
+    if (!selectedTemplate) {
+      wx.showToast({ title: '请先选择查询模板', icon: 'none' })
       return
     }
     
@@ -475,60 +441,36 @@ Page({
       return
     }
     
-    // 重置页码时清空结果
-    if (resetPage) {
-      this.setData({
-        pageIndex: 1,
-        result: [],
-        resultColumns: [],
-        queried: false
-      })
-    }
-    
     this.setData({ 
       loading: true, 
+      queried: false,
       errorInfo: null 
     })
     
-    // 计算偏移量
-    const offset = (this.data.pageIndex - 1) * pageSize
-    
     try {
-      // 使用新的 binding_id 查询 API（带分页参数）
-      const res = await post('/user/query/binding', {
-        binding_id: selectedFunction.binding_id,
+      const res = await post('/user/query', {
+        school_id: selectedSchool.id,
+        template_id: selectedTemplate.id,
         conditions: conditions.filter(c => c.value.trim()),
         start_time: startTime ? `${startTime} 00:00:00` : null,
         end_time: endTime ? `${endTime} 23:59:59` : null,
-        limit: pageSize,
-        offset: offset
+        limit: 500
       })
       
       if (res.code === 200) {
-        const newResult = res.data.rows || []
-        const columns = newResult.length > 0 ? Object.keys(newResult[0]) : []
-        const totalCount = res.data.total || 0
-        const hasMore = res.data.has_more !== undefined ? res.data.has_more : (newResult.length >= pageSize)
-        
-        // 合并结果（第一页直接替换，后续页追加）
-        const mergedResult = resetPage ? newResult : [...result, ...newResult]
+        const result = res.data.rows || []
+        const columns = result.length > 0 ? Object.keys(result[0]) : []
         
         this.setData({
-          result: mergedResult,
+          result: result,
           resultColumns: columns,
           queried: true,
           queryTime: res.data.query_time || 0,
-          totalCount: totalCount,
-          totalPages: Math.ceil(totalCount / pageSize),
-          hasMore: hasMore,
           errorInfo: null
         })
         
-        const msg = resetPage 
-          ? `查询成功，共${totalCount}条` 
-          : `加载第${this.data.pageIndex}页成功`
         wx.showToast({
-          title: msg,
+          title: `查询成功，共${result.length}条`,
           icon: 'success'
         })
       } else {
@@ -576,78 +518,17 @@ Page({
 
   // 返回重新选择
   goBack() {
-    if (this.data.selectedFunction) {
-      // 从功能页面返回到分类页面
-      this.setData({
-        selectedFunction: null,
-        result: [],
-        resultColumns: [],
-        queried: false,
-        queryTime: 0,
-        errorInfo: null,
-        sortColumn: '',
-        sortOrder: '',
-        pageIndex: 1,
-        totalCount: 0,
-        totalPages: 0,
-        hasMore: false
-      })
-    } else if (this.data.selectedCategory) {
-      // 从分类页面返回
-      this.setData({
-        selectedCategory: null,
-        selectedFunction: null,
-        result: [],
-        resultColumns: [],
-        queried: false,
-        queryTime: 0,
-        errorInfo: null,
-        sortColumn: '',
-        sortOrder: '',
-        pageIndex: 1,
-        totalCount: 0,
-        totalPages: 0,
-        hasMore: false
-      })
-    }
-  },
-  
-  // ========== 分页相关功能 ==========
-  
-  // 加载下一页
-  loadNextPage() {
-    if (!this.data.hasMore || this.data.loading) {
-      return
-    }
-    
-    const nextPage = this.data.pageIndex + 1
-    if (nextPage > this.data.totalPages) {
-      wx.showToast({ title: '没有更多数据了', icon: 'none' })
-      return
-    }
-    
-    this.setData({ pageIndex: nextPage })
-    this.doQuery(false)  // false 表示追加数据
-  },
-  
-  // 加载上一页
-  loadPrevPage() {
-    if (this.data.pageIndex <= 1 || this.data.loading) {
-      return
-    }
-    
-    const prevPage = this.data.pageIndex - 1
-    this.setData({ pageIndex: prevPage })
-    this.doQuery(false)
-  },
-  
-  // 重新查询（清空分页）
-  refreshQuery() {
     this.setData({
-      pageIndex: 1,
-      result: []
+      selectedTemplate: null,
+      selectedCategory: null,
+      result: [],
+      resultColumns: [],
+      queried: false,
+      queryTime: 0,
+      errorInfo: null,
+      sortColumn: '',
+      sortOrder: ''
     })
-    this.doQuery(true)
   },
   
   // ========== 新增优化功能 ==========

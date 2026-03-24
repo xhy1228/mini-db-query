@@ -1,51 +1,52 @@
 {
   "pages": [
+    "pages/login/login",
     "pages/index/index",
     "pages/query/query",
+    "pages/sql/sql",
     "pages/history/history",
+    "pages/history-detail/history-detail",
     "pages/profile/profile"
   ],
   "window": {
-    "backgroundTextStyle": "light",
-    "navigationBarBackgroundColor": "#1a1a2e",
+    "backgroundTextStyle": "dark",
+    "navigationBarBackgroundColor": "#1890ff",
     "navigationBarTitleText": "多源数据查询",
     "navigationBarTextStyle": "white",
-    "backgroundColor": "#1a1a2e"
+    "backgroundColor": "#0a1628"
   },
   "tabBar": {
-    "color": "rgba(255,255,255,0.5)",
-    "selectedColor": "#4fc3f7",
-    "backgroundColor": "#1a1a2e",
+    "color": "#999999",
+    "selectedColor": "#1890ff",
+    "backgroundColor": "#0a1628",
     "borderStyle": "white",
     "list": [
       {
         "pagePath": "pages/index/index",
-        "text": "首页"
+        "text": "首页",
+        "iconPath": "images/home.png",
+        "selectedIconPath": "images/home-active.png"
       },
       {
         "pagePath": "pages/query/query",
-        "text": "查询"
+        "text": "查询",
+        "iconPath": "images/query.png",
+        "selectedIconPath": "images/query-active.png"
       },
       {
         "pagePath": "pages/history/history",
-        "text": "历史"
+        "text": "历史",
+        "iconPath": "images/history.png",
+        "selectedIconPath": "images/history-active.png"
       },
       {
         "pagePath": "pages/profile/profile",
-        "text": "我的"
+        "text": "我的",
+        "iconPath": "images/profile.png",
+        "selectedIconPath": "images/profile-active.png"
       }
     ]
   },
-  "permission": {
-    "scope.userLocation": {
-      "desc": "用于展示位置相关信息"
-    }
-  },
-  "networkTimeout": {
-    "request": 30000,
-    "connectSocket": 30000,
-    "uploadFile": 60000,
-    "downloadFile": 60000
-  },
-  "lazyCodeLoading": "requiredComponents"
+  "style": "v2",
+  "sitemapLocation": "sitemap.json"
 }

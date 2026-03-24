@@ -1,0 +1,85 @@
+<!-- pages/history-detail/history-detail.wxml -->
+<view class="container">
+  <view wx:if="{{loading}}" class="loading">
+    <text>加载中...</text>
+  </view>
+
+  <view wx:elif="{{logDetail}}" class="detail-content">
+    <!-- 状态卡片 -->
+    <view class="status-card {{logDetail.status === 'success' ? 'success' : 'failed'}}">
+      <view class="status-icon">
+        <text wx:if="{{logDetail.status === 'success'}}">✅</text>
+        <text wx:else>❌</text>
+      </view>
+      <view class="status-text">
+        <text class="title">{{logDetail.status === 'success' ? '查询成功' : '查询失败'}}</text>
+        <text class="name">{{logDetail.query_name || '未知查询'}}</text>
+      </view>
+    </view>
+
+    <!-- 基本信息 -->
+    <view class="info-section">
+      <view class="section-title">基本信息</view>
+      <view class="info-item">
+        <text class="label">学校</text>
+        <text class="value">{{logDetail.school_name || '-'}}</text>
+      </view>
+      <view class="info-item">
+        <text class="label">结果数量</text>
+        <text class="value">{{logDetail.result_count || 0}} 条</text>
+      </view>
+      <view class="info-item">
+        <text class="label">查询耗时</text>
+        <text class="value">{{logDetail.query_time || 0}} ms</text>
+      </view>
+      <view class="info-item">
+        <text class="label">查询时间</text>
+        <text class="value">{{logDetail.created_at}}</text>
+      </view>
+    </view>
+
+    <!-- SQL语句 -->
+    <view class="info-section">
+      <view class="section-header">
+        <text class="section-title">SQL语句</text>
+        <text class="copy-btn" bindtap="copySql">复制</text>
+      </view>
+      <view class="sql-content">
+        <text>{{logDetail.sql_executed || '-'}}</text>
+      </view>
+    </view>
+
+    <!-- 查询参数 -->
+    <view class="info-section" wx:if="{{logDetail.query_params}}">
+      <view class="section-header">
+        <text class="section-title">查询参数</text>
+        <text class="copy-btn" bindtap="copyParams">复制</text>
+      </view>
+      <view class="params-content">
+        <text>{{logDetail.query_params}}</text>
+      </view>
+    </view>
+
+    <!-- 错误信息 -->
+    <view class="info-section error-section" wx:if="{{logDetail.error_message}}">
+      <view class="section-title">错误信息</view>
+      <view class="error-content">
+        <text>{{logDetail.error_message}}</text>
+      </view>
+    </view>
+
+    <!-- 操作按钮 -->
+    <view class="action-buttons">
+      <button class="btn-primary" bindtap="reexecuteQuery" loading="{{reexecuteLoading}}">
+        重新执行
+      </button>
+      <button class="btn-danger" bindtap="deleteLog">
+        删除记录
+      </button>
+    </view>
+  </view>
+
+  <view wx:else class="empty">
+    <text>记录不存在</text>
+  </view>
+</view>

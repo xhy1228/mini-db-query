@@ -73,7 +73,7 @@
     </view>
   </view>
 
-  <!-- 学校选择（入口形式） -->
+  <!-- 学校选择 -->
   <view class="section school-section">
     <view class="section-header">
       <view class="section-title">
@@ -82,36 +82,24 @@
       </view>
     </view>
 
-    <!-- 学校选择入口 -->
-    <view class="school-entry glass-card" bindtap="showSchoolPicker">
-      <view class="school-entry-icon">
-        <text>🏛️</text>
-      </view>
-      <view class="school-entry-info">
-        <text class="school-entry-name">{{selectedSchool.name || '请选择学校'}}</text>
-        <text class="school-entry-hint">点击切换学校</text>
-      </view>
-      <view class="school-entry-arrow">▼</view>
-    </view>
-
-    <!-- 学校选择弹窗 -->
-    <view class="school-picker-mask" wx:if="{{showSchoolPicker}}" bindtap="hideSchoolPicker">
-      <view class="school-picker glass-card" catchtap="">
-        <view class="picker-header">
-          <text class="picker-title">选择学校</text>
-          <view class="picker-close" bindtap="hideSchoolPicker">✕</view>
+    <!-- 学校列表 -->
+    <view class="school-list" wx:if="{{!loading && schools.length > 0}}">
+      <view 
+        class="school-card tech-card {{selectedSchool.id === item.id ? 'selected' : ''}}" 
+        wx:for="{{schools}}" 
+        wx:key="id"
+        data-school="{{item}}"
+        bindtap="onSchoolTap"
+      >
+        <view class="school-icon">
+          <text>🏛️</text>
         </view>
-        <view class="picker-list">
-          <view 
-            class="picker-item {{selectedSchool.id === item.id ? 'selected' : ''}}" 
-            wx:for="{{schools}}" 
-            wx:key="id"
-            data-school="{{item}}"
-            bindtap="onSchoolSelect"
-          >
-            <text class="picker-item-name">{{item.name}}</text>
-            <text class="picker-item-check" wx:if="{{selectedSchool.id === item.id}}">✓</text>
-          </view>
+        <view class="school-info">
+          <text class="school-name">{{item.name}}</text>
+          <text class="school-code">{{item.code}}</text>
+        </view>
+        <view class="school-check" wx:if="{{selectedSchool.id === item.id}}">
+          <text>✓</text>
         </view>
       </view>
     </view>
@@ -124,54 +112,33 @@
     </view>
   </view>
 
-  <!-- 业务大类（下拉选择） -->
+  <!-- 业务大类 -->
   <view class="section category-section" wx:if="{{selectedSchool}}">
     <view class="section-header">
       <view class="section-title">
         <text class="title-icon">📂</text>
-        <text>业务大类</text>
+        <text>{{selectedSchool.name}} - 业务大类</text>
       </view>
     </view>
 
-    <!-- 业务大类选择入口 -->
-    <view class="category-entry glass-card" bindtap="showCategoryPicker">
-      <view class="category-entry-icon">
-        <text>{{selectedCategory.category_icon || '📋'}}</text>
-      </view>
-      <view class="category-entry-info">
-        <text class="category-entry-name">{{selectedCategory.category_name || '请选择业务大类'}}</text>
-        <text class="category-entry-count">共 {{categories.length}} 个大类</text>
-      </view>
-      <view class="category-entry-arrow">▼</view>
-    </view>
-
-    <!-- 业务大类选择弹窗 -->
-    <view class="category-picker-mask" wx:if="{{showCategoryPicker}}" bindtap="hideCategoryPicker">
-      <view class="category-picker glass-card" catchtap="">
-        <view class="picker-header">
-          <text class="picker-title">选择业务大类</text>
-          <view class="picker-close" bindtap="hideCategoryPicker">✕</view>
-        </view>
-        <view class="picker-list">
-          <view 
-            class="picker-item {{selectedCategory.category === item.category ? 'selected' : ''}}" 
-            wx:for="{{categories}}" 
-            wx:key="category"
-            data-category="{{item}}"
-            bindtap="onCategorySelect"
-          >
-            <text class="picker-item-icon">{{item.category_icon}}</text>
-            <text class="picker-item-name">{{item.category_name}}</text>
-            <text class="picker-item-count">{{item.functions.length}}个功能</text>
-            <text class="picker-item-check" wx:if="{{selectedCategory.category === item.category}}">✓</text>
+    <!-- 业务大类列表 -->
+    <view class="category-list" wx:if="{{categories.length > 0}}">
+      <view 
+        class="category-card tech-card" 
+        wx:for="{{categories}}" 
+        wx:key="id"
+        data-category="{{item}}"
+        bindtap="onCategoryTap"
+      >
+        <view class="category-main">
+          <text class="category-icon">{{item.icon}}</text>
+          <view class="category-info">
+            <text class="category-name">{{item.name}}</text>
+            <text class="category-count">{{item.count}}个查询</text>
           </view>
         </view>
+        <view class="category-arrow">›</view>
       </view>
-    </view>
-
-    <!-- 开始查询按钮 -->
-    <view class="start-query-btn" wx:if="{{selectedCategory}}" bindtap="startQuery">
-      <text>开始查询</text>
     </view>
   </view>
 
@@ -190,17 +157,23 @@
         </view>
         <text class="quick-name">开始查询</text>
       </view>
-      <view class="quick-item glass-card" bindtap="goToHistory">
+      <view class="quick-item glass-card" bindtap="goToQuery">
         <view class="quick-icon" style="background: rgba(82, 196, 26, 0.2); border-color: rgba(82, 196, 26, 0.5);">
           <text>📋</text>
         </view>
         <text class="quick-name">查询历史</text>
       </view>
-      <view class="quick-item glass-card" bindtap="goToProfile">
-        <view class="quick-icon" style="background: rgba(114, 46, 209, 0.2); border-color: rgba(114, 46, 209, 0.5);">
-          <text>👤</text>
+      <view class="quick-item glass-card" bindtap="goToQuery">
+        <view class="quick-icon" style="background: rgba(250, 173, 20, 0.2); border-color: rgba(250, 173, 20, 0.5);">
+          <text>📥</text>
         </view>
-        <text class="quick-name">我的</text>
+        <text class="quick-name">导出记录</text>
+      </view>
+      <view class="quick-item glass-card" bindtap="goToQuery">
+        <view class="quick-icon" style="background: rgba(114, 46, 209, 0.2); border-color: rgba(114, 46, 209, 0.5);">
+          <text>⚙️</text>
+        </view>
+        <text class="quick-name">设置</text>
       </view>
     </view>
   </view>

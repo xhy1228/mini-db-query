@@ -1,27 +1,24 @@
 // pages/history/history.js
-// 查询历史页面
+// 历史记录页面
 
 const app = getApp()
-const { get, del } = require('../../utils/request')
+const { get } = require('../../utils/request')
 
 Page({
   data: {
-    // 历史记录列表
     historyList: [],
-    
-    // 加载状态
     loading: true,
-    loadingMore: false,
-    
-    // 分页
     page: 1,
-    pageSize: 20,
     hasMore: true,
-    
-    // 当前选中的记录
-    selectedRecord: null,
-    showDetailModal: false,
-    detailData: []
+    total: 0,
+    // 筛选条件
+    showFilter: false,
+    filterStatus: '',
+    filterSchoolId: null,
+    filterSchoolName: '全部学校',  // 新增：学校名称
+    schools: [],
+    startDate: '',
+    endDate: ''
   },
 
   onLoad() {
@@ -31,233 +28,180 @@ Page({
       return
     }
     
+    this.loadSchools()
     this.loadHistory()
+  },
+
+  onShow() {
+    // 刷新数据
+    if (app.isLoggedIn()) {
+      this.setData({ page: 1, hasMore: true })
+      this.loadHistory()
+    }
+  },
+
+  // 加载学校列表（用于筛选）
+  async loadSchools() {
+    try {
+      const res = await get('/user/schools')
+      if (res.code === 200) {
+        this.setData({ schools: res.data || [] })
+      }
+    } catch (error) {
+      console.error('加载学校失败:', error)
+    }
   },
 
   // 加载历史记录
   async loadHistory() {
+    if (!this.data.hasMore && this.data.page > 1) return
+    
     this.setData({ loading: true })
     
     try {
-      const res = await get('/user/history', {
-        page: 1,
-        page_size: this.data.pageSize
-      })
+      let url = `/user/history?skip=${(this.data.page - 1) * 30}&limit=30`
+      
+      // 添加筛选条件
+      if (this.data.filterStatus) {
+        url += `&status=${this.data.filterStatus}`
+      }
+      if (this.data.filterSchoolId) {
+        url += `&school_id=${this.data.filterSchoolId}`
+      }
+      if (this.data.startDate) {
+        url += `&start_date=${this.data.startDate}`
+      }
+      if (this.data.endDate) {
+        url += `&end_date=${this.data.endDate}`
+      }
+      
+      const res = await get(url)
       
       if (res.code === 200) {
-        const historyList = (res.data || []).map(item => ({
+        const list = res.data || []
+        
+        // 格式化数据
+        const formattedList = list.map(item => ({
           ...item,
-          timeText: this.formatTime(item.created_at)
+          timeText: this.formatTime(item.created_at),
+          statusText: item.status === 'success' ? '成功' : '失败',
+          statusClass: item.status === 'success' ? 'success' : 'failed'
         }))
         
+        if (this.data.page === 1) {
+          this.setData({ 
+            historyList: formattedList,
+            total: res.total || list.length
+          })
+        } else {
+          this.setData({ 
+            historyList: [...this.data.historyList, ...formattedList]
+          })
+        }
+        
         this.setData({
-          historyList,
-          page: 1,
-          hasMore: res.data.length >= this.data.pageSize,
+          hasMore: list.length === 30,
           loading: false
         })
-      } else {
-        this.setData({ loading: false })
-        wx.showToast({ title: res.message || '加载失败', icon: 'none' })
       }
     } catch (error) {
-      console.error('加载历史失败:', error)
-      this.setData({ loading: false })
-      wx.showToast({ title: '加载失败', icon: 'none' })
+      console.error('加载历史记录失败:', error)
+      
+      // 使用本地存储作为备用
+      const localHistory = wx.getStorageSync('queryHistory') || []
+      this.setData({ 
+        historyList: localHistory,
+        loading: false,
+        hasMore: false
+      })
     }
   },
 
   // 格式化时间
   formatTime(timeStr) {
     if (!timeStr) return ''
+    
     const date = new Date(timeStr)
     const now = new Date()
     const diff = now - date
     
-    if (diff < 60000) return '刚刚'
-    if (diff < 3600000) return `${Math.floor(diff/60000)}分钟前`
-    if (diff < 86400000) return `${Math.floor(diff/3600000)}小时前`
+    // 今天
+    if (diff < 86400000) {
+      return `今天 ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`
+    }
     
-    // 超过1天显示具体日期
-    const month = date.getMonth() + 1
-    const day = date.getDate()
-    const hour = date.getHours().toString().padStart(2, '0')
-    const minute = date.getMinutes().toString().padStart(2, '0')
+    // 昨天
+    if (diff < 172800000) {
+      return `昨天 ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`
+    }
     
-    return `${month}月${day}日 ${hour}:${minute}`
+    // 其他
+    return `${date.getMonth() + 1}/${date.getDate()} ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`
   },
 
-  // 加载更多
-  async loadMore() {
-    if (this.data.loadingMore || !this.data.hasMore) return
+  // 点击历史记录 - 查看详情
+  onHistoryTap(e) {
+    const item = e.currentTarget.dataset.item
     
-    this.setData({ loadingMore: true })
-    
-    try {
-      const nextPage = this.data.page + 1
-      const res = await get('/user/history', {
-        page: nextPage,
-        page_size: this.data.pageSize
-      })
-      
-      if (res.code === 200) {
-        const newList = (res.data || []).map(item => ({
-          ...item,
-          timeText: this.formatTime(item.created_at)
-        }))
-        
-        this.setData({
-          historyList: [...this.data.historyList, ...newList],
-          page: nextPage,
-          hasMore: res.data.length >= this.data.pageSize,
-          loadingMore: false
-        })
-      } else {
-        this.setData({ loadingMore: false })
-      }
-    } catch (error) {
-      console.error('加载更多失败:', error)
-      this.setData({ loadingMore: false })
+    wx.navigateTo({
+      url: `/pages/history-detail/history-detail?id=${item.id}`
+    })
+  },
+
+  // 切换筛选面板
+  toggleFilter() {
+    this.setData({ showFilter: !this.data.showFilter })
+  },
+
+  // 状态筛选
+  onStatusChange(e) {
+    this.setData({ filterStatus: e.detail.value })
+  },
+
+  // 学校筛选
+  onSchoolChange(e) {
+    const index = e.detail.value
+    if (index === '0' || index === 0) {
+      this.setData({ filterSchoolId: null, filterSchoolName: '全部学校' })
+    } else {
+      const school = this.data.schools[index - 1]
+      this.setData({ filterSchoolId: school.id, filterSchoolName: school.name })
     }
   },
 
-  // 查看详情
-  async showDetail(e) {
-    const logId = e.currentTarget.dataset.id
-    
-    try {
-      const res = await get(`/user/history/${logId}`)
-      
-      if (res.code === 200 && res.data) {
-        const data = res.data
-        
-        // 转换为详情格式
-        const detailData = [
-          { label: '查询名称', value: data.query_name || '-' },
-          { label: '学校', value: data.school_name || '-' },
-          { label: '查询时间', value: data.created_at || '-' },
-          { label: '查询条件', value: this.formatConditions(data.conditions) },
-          { label: '结果数量', value: data.result_count !== null ? `${data.result_count}条` : '-' },
-          { label: '执行时间', value: data.query_time ? `${data.query_time}ms` : '-' },
-          { label: '状态', value: data.status === 'success' ? '成功' : '失败' }
-        ]
-        
-        // 如果有错误信息
-        if (data.error_message) {
-          detailData.push({ label: '错误信息', value: data.error_message })
-        }
-        
-        // 如果有SQL
-        if (data.sql) {
-          detailData.push({ label: 'SQL', value: data.sql })
-        }
-        
-        this.setData({
-          selectedRecord: data,
-          showDetailModal: true,
-          detailData: detailData
-        })
-      }
-    } catch (error) {
-      console.error('获取详情失败:', error)
-      wx.showToast({ title: '获取详情失败', icon: 'none' })
-    }
+  // 日期筛选
+  onStartDateChange(e) {
+    this.setData({ startDate: e.detail.value })
   },
 
-  // 格式化查询条件
-  formatConditions(conditions) {
-    if (!conditions) return '-'
-    if (typeof conditions === 'string') {
-      try {
-        conditions = JSON.parse(conditions)
-      } catch {
-        return conditions
-      }
-    }
-    if (Array.isArray(conditions)) {
-      return conditions.map(c => `${c.label || c.field} ${c.operator || '='} ${c.value}`).join(', ')
-    }
-    return '-'
+  onEndDateChange(e) {
+    this.setData({ endDate: e.detail.value })
   },
 
-  // 隐藏详情弹窗
-  hideDetailModal() {
+  // 应用筛选
+  applyFilter() {
+    this.setData({ 
+      page: 1, 
+      hasMore: true,
+      showFilter: false
+    })
+    this.loadHistory()
+  },
+
+  // 重置筛选
+  resetFilter() {
     this.setData({
-      showDetailModal: false,
-      selectedRecord: null,
-      detailData: []
-    })
-  },
-
-  // 重新查询
-  reQuery(e) {
-    const record = e.currentTarget.dataset.record
-    if (!record) return
-    
-    // 跳转到查询页面
-    wx.switchTab({
-      url: `/pages/query/query?school_id=${record.school_id}`
-    })
-  },
-
-  // 删除记录
-  async deleteRecord(e) {
-    const logId = e.currentTarget.dataset.id
-    
-    wx.showModal({
-      title: '确认删除',
-      content: '确定要删除这条查询记录吗？',
-      success: async (res) => {
-        if (res.confirm) {
-          try {
-            const result = await del(`/user/history/${logId}`)
-            
-            if (result.code === 200) {
-              wx.showToast({ title: '删除成功', icon: 'success' })
-              // 刷新列表
-              this.loadHistory()
-            } else {
-              wx.showToast({ title: result.message || '删除失败', icon: 'none' })
-            }
-          } catch (error) {
-            console.error('删除失败:', error)
-            wx.showToast({ title: '删除失败', icon: 'none' })
-          }
-        }
-      }
-    })
-  },
-
-  // 清空全部历史
-  clearAll() {
-    wx.showModal({
-      title: '清空历史',
-      content: '确定要清空所有查询历史吗？此操作不可恢复。',
-      success: async (res) => {
-        if (res.confirm) {
-          try {
-            // 逐条删除
-            const list = this.data.historyList
-            for (const item of list) {
-              await del(`/user/history/${item.id}`)
-            }
-            
-            wx.showToast({ title: '已清空', icon: 'success' })
-            this.setData({
-              historyList: [],
-              hasMore: false
-            })
-          } catch (error) {
-            console.error('清空失败:', error)
-            wx.showToast({ title: '清空失败', icon: 'none' })
-          }
-        }
-      }
+      filterStatus: '',
+      filterSchoolId: null,
+      filterSchoolName: '全部学校',
+      startDate: '',
+      endDate: ''
     })
   },
 
   // 下拉刷新
   onPullDownRefresh() {
+    this.setData({ page: 1, hasMore: true })
     this.loadHistory().finally(() => {
       wx.stopPullDownRefresh()
     })
@@ -265,6 +209,27 @@ Page({
 
   // 上拉加载更多
   onReachBottom() {
-    this.loadMore()
+    if (this.data.hasMore && !this.data.loading) {
+      this.setData({ page: this.data.page + 1 })
+      this.loadHistory()
+    }
+  },
+
+  // 清空历史
+  clearHistory() {
+    wx.showModal({
+      title: '确认清空',
+      content: '确定要清空所有查询历史吗？',
+      success: (res) => {
+        if (res.confirm) {
+          wx.setStorageSync('queryHistory', [])
+          this.setData({ historyList: [], total: 0 })
+          wx.showToast({
+            title: '已清空',
+            icon: 'success'
+          })
+        }
+      }
+    })
   }
 })

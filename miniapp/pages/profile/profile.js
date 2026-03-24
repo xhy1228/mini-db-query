@@ -13,17 +13,8 @@ Page({
     // 统计数据
     stats: {
       queryCount: 0,
-      schoolCount: 0,
-      templateCount: 0
-    },
-    // 权限信息
-    schools: [],
-    templatePermissions: [],
-    // 弹窗状态
-    showSchoolModal: false,
-    showTemplateModal: false,
-    // 模板列表
-    templateList: []
+      schoolCount: 0
+    }
   },
 
   onLoad() {
@@ -51,23 +42,19 @@ Page({
   // 加载统计数据
   async loadStats() {
     try {
-      // 获取用户完整信息（包含权限）
-      const meRes = await get('/me')
-      if (meRes.code === 200) {
-        const data = meRes.data
-        this.setData({
-          schools: data.schools || [],
-          templatePermissions: data.template_permissions || [],
-          'stats.schoolCount': (data.schools || []).length,
-          'stats.templateCount': Array.isArray(data.template_permissions) ? data.template_permissions.length : 0
-        })
-      }
-      
       // 获取查询历史数量
       const historyRes = await get('/user/history?limit=1')
       if (historyRes.code === 200) {
         this.setData({
           'stats.queryCount': historyRes.total || 0
+        })
+      }
+      
+      // 获取学校数量
+      const schoolsRes = await get('/user/schools')
+      if (schoolsRes.code === 200) {
+        this.setData({
+          'stats.schoolCount': (schoolsRes.data || []).length
         })
       }
     } catch (error) {
@@ -93,57 +80,6 @@ Page({
     } catch (error) {
       console.error('获取版本失败:', error)
     }
-  },
-
-  // 显示学校列表弹窗
-  showSchoolList() {
-    this.setData({ showSchoolModal: true })
-  },
-
-  // 隐藏学校列表弹窗
-  hideSchoolModal() {
-    this.setData({ showSchoolModal: false })
-  },
-
-  // 显示模板列表弹窗
-  async showTemplateList() {
-    // 加载模板列表
-    try {
-      const schoolsRes = await get('/user/schools')
-      if (schoolsRes.code === 200 && schoolsRes.data.length > 0) {
-        const schoolId = schoolsRes.data[0].id
-        const res = await get(`/schools/${schoolId}/functions`)
-        if (res.code === 200 && res.data && res.data.categories) {
-          // 收集所有模板
-          const templates = []
-          res.data.categories.forEach(cat => {
-            if (cat.functions) {
-              cat.functions.forEach(func => {
-                templates.push({
-                  id: func.binding_id,
-                  name: func.name,
-                  category_name: cat.category_name
-                })
-              })
-            }
-          })
-          this.setData({ 
-            templateList: templates,
-            showTemplateModal: true 
-          })
-          return
-        }
-      }
-      this.setData({ templateList: [], showTemplateModal: true })
-    } catch (error) {
-      console.error('加载模板列表失败:', error)
-      this.setData({ templateList: [], showTemplateModal: true })
-    }
-  },
-
-  // 隐藏模板列表弹窗
-  hideTemplateModal() {
-    this.setData({ showTemplateModal: false })
   },
 
   // 退出登录
@@ -221,7 +157,7 @@ Page({
 • 数据导出Excel
 • 查询历史详情
 
-© 2026 实事求是`,
+© 2026 飞书百万`,
       showCancel: false
     })
   },

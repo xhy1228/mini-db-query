@@ -1,0 +1,33 @@
+# 数据库连接配置示例
+# 请复制此文件为 databases.yaml 并填写实际连接信息
+
+# MySQL 示例
+wechat_mysql:
+  db_type: MySQL
+  host: localhost
+  port: 3306
+  username: root
+  password: "your_password"
+  database: wechat_db
+  description: "微信系统数据库"
+
+# Oracle 示例 (使用 thin 模式，无需 Oracle Client)
+ccard_oracle:
+  db_type: Oracle
+  host: localhost
+  port: 1521
+  username: system
+  password: "your_password"
+  service_name: ORCL
+  description: "一卡通系统数据库"
+
+# SQL Server 示例
+sqlserver_demo:
+  db_type: SQLServer
+  host: localhost
+  port: 1433
+  username: sa
+  password: "your_password"
+  database: test_db
+  driver: "ODBC Driver 17 for SQL Server"
+  description: "SQL Server 示例数据库"
