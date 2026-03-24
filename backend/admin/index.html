@@ -1349,7 +1349,11 @@ WHERE 1=1
                 <el-row :gutter="20">
                     <el-col :span="8">
                         <el-form-item label="业务大类" prop="category">
-                            <el-input v-model="templateForm.category" placeholder="如: consume"></el-input>
+                            <el-select v-model="templateForm.category" placeholder="选择业务大类" style="width: 100%" filterable @change="onCategoryChange">
+                                <el-option v-for="cat in filteredCategories" :key="cat.id" :label="(cat.icon || '📄') + ' ' + (cat.name || cat.code)" :value="cat.code">
+                                    <span>{{ cat.icon || '📄' }} {{ cat.name || cat.code }}</span>
+                                </el-option>
+                            </el-select>
                         </el-form-item>
                     </el-col>
                     <el-col :span="8">
@@ -1982,8 +1986,20 @@ WHERE 1=1
                 // 智能配置方法
                 const onSchoolChange = () => {
                     templateForm.database_id = null;
+                    templateForm.category = '';
+                    templateForm.category_name = '';
+                    templateForm.category_icon = '';
                     tableList.value = [];
                     columnList.value = [];
+                };
+                
+                // 选择业务大类后自动填充名称和图标
+                const onCategoryChange = (categoryCode) => {
+                    const cat = categories.value.find(c => c.code === categoryCode);
+                    if (cat) {
+                        templateForm.category_name = cat.name || '';
+                        templateForm.category_icon = cat.icon || '';
+                    }
                 };
                 
                 const fetchTables = async () => {
@@ -3332,6 +3348,7 @@ WHERE 1=1
                     testQueryResult,
                     fetchTables,
                     onSchoolChange,
+                    onCategoryChange,
                     onTableSelect,
                     importAllColumns,
                     handleColumnSelection,
