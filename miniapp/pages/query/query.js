@@ -461,9 +461,13 @@ Page({
         const result = res.data.rows || []
         const columns = result.length > 0 ? Object.keys(result[0]) : []
         
+        // 计算每列的宽度，确保表头和内容对齐
+        const columnWidths = this.calculateColumnWidths(columns, result)
+        
         this.setData({
           result: result,
           resultColumns: columns,
+          columnWidths: columnWidths,
           queried: true,
           queryTime: res.data.query_time || 0,
           errorInfo: null
@@ -669,5 +673,36 @@ Page({
       isNumeric: false,
       count: values.length
     }
+  },
+  
+  // 计算每列的宽度，确保表头和内容对齐
+  calculateColumnWidths(columns, result) {
+    const widths = {}
+    const minWidth = 120  // 最小宽度 rpx
+    const maxWidth = 300  // 最大宽度 rpx
+    const charWidth = 30  // 每个字符的宽度 rpx
+    
+    columns.forEach(col => {
+      // 考虑表头宽度
+      let maxLen = String(col).length
+      
+      // 考虑每行数据的宽度
+      result.slice(0, 100).forEach(row => {
+        const val = row[col]
+        if (val != null) {
+          const len = String(val).length
+          if (len > maxLen) maxLen = len
+        }
+      })
+      
+      // 计算需要的宽度
+      let width = maxLen * charWidth
+      if (width < minWidth) width = minWidth
+      if (width > maxWidth) width = maxWidth
+      
+      widths[col] = width + 'rpx'
+    })
+    
+    return widths
   }
 })

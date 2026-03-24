@@ -199,6 +199,7 @@
                 wx:key="*this"
                 data-column="{{item}}"
                 bindtap="onHeaderTap"
+                style="width: {{columnWidths[item] || '160rpx'}}; min-width: {{columnWidths[item] || '160rpx'}}; max-width: {{columnWidths[item] || '160rpx'}};"
               >
                 <view class="th-content">
                   <text>{{item}}</text>
@@ -225,6 +226,7 @@
                   wx:key="*this"
                   data-value="{{row[col]}}"
                   catchlongpress="onCellLongPress"
+                  style="width: {{columnWidths[col] || '160rpx'}}; min-width: {{columnWidths[col] || '160rpx'}}; max-width: {{columnWidths[col] || '160rpx'}};"
                 >
                   {{row[col] !== null && row[col] !== undefined ? row[col] : '-'}}
                 </view>
