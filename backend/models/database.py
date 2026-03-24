@@ -159,6 +159,7 @@ class QueryTemplate(Base):
     table_name = Column(String(100), comment='查询表名')
     description = Column(Text, comment='描述')
     sql_template = Column(Text, nullable=False, comment='SQL模板')
+    select_columns = Column(JSON, comment='返回字段配置 [{"column": "CUSTNAME", "alias": "姓名"}, ...]')
     fields = Column(JSON, comment='查询字段配置(兼容旧版)')
     time_field = Column(String(100), comment='时间字段')
     default_limit = Column(Integer, default=500, comment='默认条数限制')

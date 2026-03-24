@@ -79,6 +79,7 @@ class TemplateCreate(BaseModel):
     table_name: Optional[str] = None
     description: Optional[str] = None
     sql_template: str
+    select_columns: Optional[List[dict]] = None
     fields: Optional[List[dict]] = None
     time_field: Optional[str] = None
     default_limit: Optional[int] = 500
@@ -94,6 +95,7 @@ class TemplateUpdate(BaseModel):
     table_name: Optional[str] = None
     description: Optional[str] = None
     sql_template: Optional[str] = None
+    select_columns: Optional[List[dict]] = None
     fields: Optional[List[dict]] = None
     time_field: Optional[str] = None
     default_limit: Optional[int] = None
@@ -614,6 +616,7 @@ async def create_template(
         table_name=request.table_name,
         description=request.description,
         sql_template=request.sql_template,
+        select_columns=request.select_columns,
         fields=request.fields,
         time_field=request.time_field,
         default_limit=request.default_limit or 500

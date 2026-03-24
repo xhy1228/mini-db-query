@@ -281,7 +281,39 @@ def generate_sql_from_template(template: QueryTemplate, conditions: List[dict],
                                start_time: str = None, end_time: str = None,
                                limit: int = None, offset: int = 0) -> str:
     """从模板生成SQL - 防SQL注入版本"""
+    
+    # ========== 处理 select_columns 返回字段 ==========
     sql = template.sql_template
+    
+    # 检查模板是否有 select_columns 配置
+    select_columns = None
+    if hasattr(template, 'select_columns') and template.select_columns:
+        select_columns = template.select_columns
+    elif hasattr(template, 'result_fields') and template.result_fields:
+        select_columns = template.result_fields
+    
+    # 如果有 select_columns，替换 SQL 中的 SELECT * 
+    if select_columns and isinstance(select_columns, list) and len(select_columns) > 0:
+        # 格式: [{"column": "CUSTNAME", "alias": "姓名"}, ...]
+        col_parts = []
+        for col in select_columns:
+            if isinstance(col, dict):
+                col_name = col.get('column', '')
+                col_alias = col.get('alias', '')
+                if col_name:
+                    if col_alias:
+                        col_parts.append(f"{col_name} as '{col_alias}'")
+                    else:
+                        col_parts.append(col_name)
+            elif isinstance(col, str):
+                col_parts.append(col)
+        
+        if col_parts:
+            # 替换 SELECT * 为实际字段
+            import re
+            sql = re.sub(r'SELECT\s+\*', 'SELECT ' + ', '.join(col_parts), sql, flags=re.IGNORECASE)
+    
+    # ========== 原有的安全检查逻辑 ==========
     
     # ========== 安全检查 ==========
     # 获取模板允许的字段白名单

@@ -1422,9 +1422,10 @@ WHERE 1=1
                 </el-row>
                 
                 <!-- 字段配置可视化 -->
-                <el-divider content-position="left">查询字段配置</el-divider>
+                <el-divider content-position="left">查询字段配置（条件）</el-divider>
                 <div class="field-config-container">
                     <el-button type="primary" size="small" @click="addTemplateField" style="margin-bottom: 12px;">➕ 添加字段</el-button>
+                    <el-button type="success" size="small" style="margin-bottom: 12px; margin-left: 8px;" @click="importFieldsFromColumns">📥 从表字段导入</el-button>
                     <el-table :data="templateForm.fields" border size="small" v-if="templateForm.fields.length > 0">
                         <el-table-column label="字段ID" width="120">
                             <template #default="{ row }">
@@ -1476,6 +1477,39 @@ WHERE 1=1
                         </el-table-column>
                     </el-table>
                     <el-empty v-else description="暂无字段配置，点击上方按钮添加" :image-size="60"></el-empty>
+                </div>
+                
+                <!-- 返回字段配置 -->
+                <el-divider content-position="left">返回字段配置（查询结果）</el-divider>
+                <div class="field-config-container">
+                    <el-button type="primary" size="small" @click="addSelectColumn" style="margin-bottom: 12px;">➕ 添加返回字段</el-button>
+                    <el-button type="success" size="small" style="margin-bottom: 12px; margin-left: 8px;" @click="importSelectColumnsFromTable">📥 从表字段导入</el-button>
+                    <el-table :data="templateForm.select_columns" border size="small" v-if="templateForm.select_columns && templateForm.select_columns.length > 0">
+                        <el-table-column label="数据库列" width="150">
+                            <template #default="{ row }">
+                                <el-input v-model="row.column" size="small" placeholder="如: CUSTNAME"></el-input>
+                            </template>
+                        </el-table-column>
+                        <el-table-column label="显示别名" width="150">
+                            <template #default="{ row }">
+                                <el-input v-model="row.alias" size="small" placeholder="如: 姓名"></el-input>
+                            </template>
+                        </el-table-column>
+                        <el-table-column label="排序" width="80">
+                            <template #default="{ $index }">
+                                <el-button-group>
+                                    <el-button size="small" @click="moveSelectColumn($index, -1)" :disabled="$index === 0">↑</el-button>
+                                    <el-button size="small" @click="moveSelectColumn($index, 1)" :disabled="$index === templateForm.select_columns.length - 1">↓</el-button>
+                                </el-button-group>
+                            </template>
+                        </el-table-column>
+                        <el-table-column label="操作" width="80">
+                            <template #default="{ $index }">
+                                <el-button type="danger" size="small" @click="removeSelectColumn($index)">🗑️</el-button>
+                            </template>
+                        </el-table-column>
+                    </el-table>
+                    <el-empty v-else description="暂无返回字段配置，将返回所有字段（SELECT *）" :image-size="60"></el-empty>
                 </div>
             </el-form>
             <template #footer>
@@ -2953,6 +2987,79 @@ WHERE 1=1
                 const removeTemplateField = (index) => {
                     templateForm.fields.splice(index, 1);
                 };
+                
+                // 导入字段（从已获取的列）
+                const importFieldsFromColumns = () => {
+                    if (!columnList || columnList.length === 0) {
+                        ElMessage.warning('请先获取表字段');
+                        return;
+                    }
+                    if (!templateForm.fields) {
+                        templateForm.fields = [];
+                    }
+                    columnList.forEach(col => {
+                        // 检查是否已存在
+                        const exists = templateForm.fields.some(f => f.column === col.name);
+                        if (!exists) {
+                            templateForm.fields.push({
+                                id: col.name.toLowerCase(),
+                                label: col.comment || col.name,
+                                column: col.name,
+                                type: col.type.includes('int') || col.type.includes('decimal') ? 'number' : 'text',
+                                operator: '=',
+                                required: false
+                            });
+                        }
+                    });
+                    ElMessage.success(`已导入 ${columnList.length} 个字段`);
+                };
+                
+                // 添加返回字段
+                const addSelectColumn = () => {
+                    if (!templateForm.select_columns) {
+                        templateForm.select_columns = [];
+                    }
+                    templateForm.select_columns.push({
+                        column: '',
+                        alias: ''
+                    });
+                };
+                
+                // 移除返回字段
+                const removeSelectColumn = (index) => {
+                    templateForm.select_columns.splice(index, 1);
+                };
+                
+                // 移动返回字段顺序
+                const moveSelectColumn = (index, direction) => {
+                    const newIndex = index + direction;
+                    if (newIndex < 0 || newIndex >= templateForm.select_columns.length) return;
+                    const temp = templateForm.select_columns[index];
+                    templateForm.select_columns[index] = templateForm.select_columns[newIndex];
+                    templateForm.select_columns[newIndex] = temp;
+                };
+                
+                // 导入返回字段（从已获取的列）
+                const importSelectColumnsFromTable = () => {
+                    if (!columnList || columnList.length === 0) {
+                        ElMessage.warning('请先获取表字段');
+                        return;
+                    }
+                    if (!templateForm.select_columns) {
+                        templateForm.select_columns = [];
+                    }
+                    columnList.forEach(col => {
+                        // 检查是否已存在
+                        const exists = templateForm.select_columns.some(f => f.column === col.name);
+                        if (!exists) {
+                            templateForm.select_columns.push({
+                                column: col.name,
+                                alias: col.comment || ''
+                            });
+                        }
+                    });
+                    ElMessage.success(`已导入 ${columnList.length} 个返回字段`);
+                };
 
                 const handleSaveTemplate = async () => {
                     try {
@@ -3237,6 +3344,11 @@ WHERE 1=1
                     showTemplateDialog,
                     addTemplateField,
                     removeTemplateField,
+                    importFieldsFromColumns,
+                    addSelectColumn,
+                    removeSelectColumn,
+                    moveSelectColumn,
+                    importSelectColumnsFromTable,
                     handleSaveCategory,
                     handleSaveTemplate,
                     handleDeleteCategory,

@@ -301,11 +301,19 @@ class QueryTemplateManager:
             if end_time:
                 conditions.append(f"{time_field} <= '{end_time.strftime('%Y-%m-%d %H:%M:%S')}'")
         
-        # 构建SQL
+        # 构建SQL - 支持 select_columns 配置返回字段
         where_clause = " AND ".join(conditions) if conditions else "1=1"
         limit = template.get("default_limit", 1000)
         
-        sql = f"SELECT * FROM {template['table']} WHERE {where_clause} ORDER BY {time_field or '1'} DESC LIMIT {limit}"
+        # 使用 select_columns 配置返回字段，如果没有配置则使用 *
+        select_cols = template.get("select_columns")
+        if select_cols:
+            # format: ["CUSTNAME as 姓名", "STUDENTID as 学号"]
+            columns_str = ", ".join(select_cols)
+        else:
+            columns_str = "*"
+        
+        sql = f"SELECT {columns_str} FROM {template['table']} WHERE {where_clause} ORDER BY {time_field or '1'} DESC LIMIT {limit}"
         
         return sql
     
