@@ -2112,7 +2112,7 @@ WHERE 1=1
                         }
                     }
                     // 将选中的字段添加到fields
-                    selectedColumns.value.forEach(col => {
+                    columnsToImport.forEach(col => {
                         // 检查是否已存在
                         const exists = templateForm.fields.some(f => f.id === col.name);
                         if (!exists) {
@@ -2122,8 +2122,8 @@ WHERE 1=1
                                 column: col.name,
                                 display_name: col.comment || '',  // 显示名称
                                 show_in_list: true,  // 默认在列表显示
-                                need_mask: col.name.includes('password') || col.name.includes('phone') || col.name.includes('card') ? 1 : 0,  // 敏感字段自动脱敏
-                                mask_type: col.name.includes('phone') ? 'phone' : (col.name.includes('card') ? 'card' : (col.name.includes('password') ? 'password' : 'none')),
+                                need_mask: 2,  // 默认不脱敏
+                                mask_type: 'none',
                                 type: col.type && col.type.toLowerCase().includes('int') ? 'number' : 'text',
                                 operator: '=',
                                 required: col.key === 'PRI',
@@ -2131,7 +2131,7 @@ WHERE 1=1
                             });
                         }
                     });
-                    ElMessage.success(`已导入 ${selectedColumns.value.length} 个字段`);
+                    ElMessage.success(`已导入 ${columnsToImport.length} 个字段`);
                 };
                 
                 // 生成SQL模板
@@ -3145,23 +3145,17 @@ WHERE 1=1
                     if (!templateForm.select_columns) {
                         templateForm.select_columns = [];
                     }
-                    // 敏感字段关键词
-                    const sensitiveKeywords = ['password', 'passwd', 'pwd', 'phone', 'tel', 'mobile', 'card', 'bank', 'idcard', 'identity', 'sfz', 'name'];
                     columnList.forEach(col => {
                         // 检查是否已存在
                         const exists = templateForm.select_columns.some(f => f.column === col.name);
                         if (!exists) {
                             const colNameLower = col.name.toLowerCase();
-                            const isSensitive = sensitiveKeywords.some(kw => colNameLower.includes(kw));
                             templateForm.select_columns.push({
                                 column: col.name,
                                 alias: col.comment || '',
                                 show_in_list: true,
-                                need_mask: isSensitive ? 1 : 0,  // 敏感字段默认强制脱敏
-                                mask_type: colNameLower.includes('phone') || colNameLower.includes('tel') || colNameLower.includes('mobile') ? 'phone' : 
-                                           colNameLower.includes('card') || colNameLower.includes('bank') ? 'card' :
-                                           colNameLower.includes('idcard') || colNameLower.includes('identity') || colNameLower.includes('sfz') ? 'idcard' :
-                                           colNameLower.includes('name') ? 'name' : 'none'
+                                need_mask: 2,  // 默认不脱敏
+                                mask_type: 'none'
                             });
                         }
                     });
