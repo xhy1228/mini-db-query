@@ -1,0 +1,122 @@
+<!--pages/history/history.wxml-->
+<view class="history-page">
+  <!-- 顶部标题 -->
+  <view class="header">
+    <text class="title">查询历史</text>
+    <text class="subtitle">查看您的查询记录</text>
+  </view>
+
+  <!-- 历史列表 -->
+  <scroll-view 
+    class="history-list" 
+    scroll-y 
+    bindscrolltolower="loadMore"
+    lower-threshold="100"
+  >
+    <!-- 加载中 -->
+    <view wx:if="{{loading}}" class="loading-box">
+      <view class="loading-spinner"></view>
+      <text>加载中...</text>
+    </view>
+
+    <!-- 空状态 -->
+    <view wx:elif="{{historyList.length === 0}}" class="empty-box">
+      <text class="empty-icon">📋</text>
+      <text class="empty-text">暂无查询历史</text>
+      <text class="empty-hint">开始查询后，记录将显示在这里</text>
+    </view>
+
+    <!-- 列表 -->
+    <block wx:else>
+      <view 
+        class="history-item glass-card" 
+        wx:for="{{historyList}}" 
+        wx:key="id"
+        bindtap="showDetail"
+        data-id="{{item.id}}"
+      >
+        <view class="item-header">
+          <text class="item-name">{{item.query_name || '查询'}}</text>
+          <text class="item-time">{{item.timeText}}</text>
+        </view>
+        
+        <view class="item-body">
+          <text class="item-school">{{item.school_name || '-'}}</text>
+          <text class="item-count">{{item.result_count || 0}}条</text>
+        </view>
+        
+        <view class="item-footer">
+          <text class="item-status {{item.status === 'success' ? 'success' : 'failed'}}">
+            {{item.status === 'success' ? '成功' : '失败'}}
+          </text>
+          <text class="item-duration" wx:if="{{item.query_time}}">
+            {{item.query_time}}ms
+          </text>
+        </view>
+        
+        <!-- 操作按钮 -->
+        <view class="item-actions" catchtap="stopPropagation">
+          <view 
+            class="action-btn requery" 
+            bindtap="reQuery"
+            data-record="{{item}}"
+          >
+            重新查询
+          </view>
+          <view 
+            class="action-btn delete" 
+            bindtap="deleteRecord"
+            data-id="{{item.id}}"
+          >
+            删除
+          </view>
+        </view>
+      </view>
+
+      <!-- 加载更多 -->
+      <view wx:if="{{loadingMore}}" class="loading-more">
+        <view class="loading-spinner small"></view>
+        <text>加载中...</text>
+      </view>
+      
+      <!-- 没有更多 -->
+      <view wx:if="{{!hasMore && historyList.length > 0}}" class="no-more">
+        <text>没有更多了</text>
+      </view>
+    </block>
+  </scroll-view>
+
+  <!-- 底部清空按钮 -->
+  <view class="bottom-bar" wx:if="{{historyList.length > 0}}">
+    <view class="clear-btn" bindtap="clearAll">清空全部历史</view>
+  </view>
+
+  <!-- 详情弹窗 -->
+  <view class="detail-modal" wx:if="{{showDetailModal}}" bindtap="hideDetailModal">
+    <view class="modal-content glass-card" catchtap="stopPropagation">
+      <view class="modal-header">
+        <text class="modal-title">查询详情</text>
+        <text class="modal-close" bindtap="hideDetailModal">×</text>
+      </view>
+      
+      <scroll-view class="modal-body" scroll-y>
+        <view class="detail-item" wx:for="{{detailData}}" wx:key="label">
+          <text class="detail-label">{{item.label}}</text>
+          <text class="detail-value">{{item.value}}</text>
+        </view>
+      </scroll-view>
+      
+      <view class="modal-footer">
+        <view class="modal-btn primary" bindtap="reQuery" data-record="{{selectedRecord}}">
+          重新查询
+        </view>
+        <view class="modal-btn" bindtap="hideDetailModal">
+          关闭
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 阻止事件冒泡 -->
+  <view catchtap="stopPropagation" class="stopPropagation"></view>
+</view>
