@@ -1732,25 +1732,24 @@ WHERE 1=1
                 const isLoggedIn = ref(!!localStorage.getItem('token'));
                 
                 // 版本号
-                const appVersion = ref('v1.2.2.10');
+                const appVersion = ref('v1.0.0');
                 
                 // 统计数据
                 const dashboardStats = ref({});
                 const queryTrend = ref([]);
                 const topQueries = ref([]);
                 
-                // 获取版本号（暂时禁用API调用，直接用默认值）
+                // 获取版本号
                 const loadVersion = async () => {
-                    // 直接使用默认值 v1.2.2.06，不调用API
-                    // try {
-                    //     const res = await fetch(API_BASE + '/version');
-                    //     const data = await res.json();
-                    //     if (data.code === 200 && data.data.version) {
-                    //         appVersion.value = data.data.version;
-                    //     }
-                    // } catch (e) {
-                    //     console.error('获取版本失败:', e);
-                    // }
+                    try {
+                        const res = await fetch(API_BASE + '/version');
+                        const data = await res.json();
+                        if (data.code === 200 && data.data.version) {
+                            appVersion.value = 'v' + data.data.version;
+                        }
+                    } catch (e) {
+                        console.error('获取版本失败:', e);
+                    }
                 };
                 
                 // 登录

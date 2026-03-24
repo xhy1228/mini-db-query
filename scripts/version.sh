@@ -35,8 +35,24 @@ sync_remote() {
 # 更新版本号
 update_version() {
     local new_version=$1
+    local changes=$2
     echo "📝 更新版本号到 $new_version ..."
     echo "$new_version" > $VERSION_FILE
+    
+    # 更新 CHANGELOG
+    if [ -n "$changes" ]; then
+        local date=$(date "+%Y-%m-%d")
+        local changelog="CHANGELOG.md"
+        local existing=$(cat $changelog 2>/dev/null || echo "")
+        local entry="## v$new_version ($date)
+
+### $changes
+
+---
+
+$existing"
+        echo -e "$entry" > $changelog
+    fi
 }
 
 # 提交并推送
@@ -48,7 +64,8 @@ commit_and_push() {
         message="chore: 版本更新到 v$version"
     fi
     
-    git add $VERSION_FILE
+    # 添加所有修改的文件（version.py 和可能的 CHANGELOG.md）
+    git add $VERSION_FILE CHANGELOG.md 2>/dev/null || git add $VERSION_FILE
     git commit -m "$message"
     git push $REMOTE $BRANCH
     
@@ -82,18 +99,27 @@ main() {
     
     if [ "$1" = "status" ]; then
         show_version
+        echo ""
+        echo "--- 未跟踪文件 ---"
         git status --short
         exit 0
     fi
     
+    # 解析参数：新版本号 和 更新内容
     NEW_VERSION=$1
-    COMMIT_MSG=$2
+    CHANGES=$2
+    
+    # 如果第二个参数包含 "feat" 或 "fix" 或 "chore"，当作消息处理
+    if [[ "$2" == feat* ]] || [[ "$2" == fix* ]] || [[ "$2" == chore* ]]; then
+        COMMIT_MSG="$2"
+        CHANGES=""
+    fi
     
     # 执行流程
     check_clean
     sync_remote
-    update_version $NEW_VERSION
-    commit_and_push $NEW_VERSION "$COMMIT_MSG"
+    update_version "$NEW_VERSION" "$CHANGES"
+    commit_and_push "$NEW_VERSION" "$COMMIT_MSG"
     
     echo ""
     echo "✅ 完成！版本已更新到 v$NEW_VERSION"
