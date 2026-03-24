@@ -1,0 +1,57 @@
+================================================================================
+升级包：v1.2.1.07 → v1.2.2.01
+================================================================================
+
+【升级内容】
+
+1. 管理后台修改密码功能修复
+   - 修复 "修改失败: 请求的资源不存在" 问题
+   - 文件：backend/api/auth.py
+
+2. 智能模板配置功能（v1.2.2.01 完整实现）
+   - ✅ 获取数据库表列表
+   - ✅ 获取表字段列表
+   - ✅ 批量导入字段到查询配置
+   - ✅ 字段别名显示
+   - ✅ 脱敏配置
+   - ✅ SQL测试功能
+   - 文件：scripts/upgrade_smart_template_v1.2.2.00.sql
+
+【后端API新增】
+- GET  /manage/databases/{db_id}/tables - 获取数据库表列表
+- GET  /manage/databases/{db_id}/tables/{table_name}/columns - 获取表字段列表
+- POST /manage/databases/test-query - 测试SQL查询
+
+【管理后台更新】
+- 模板配置页面新增"获取表"按钮
+- 选择表后自动获取字段列表
+- 支持批量导入字段到查询配置
+
+【升级步骤】
+
+1. 数据库升级
+   执行 SQL 升级脚本：
+   scripts/upgrade_smart_template_v1.2.2.00.sql
+
+2. 替换后端文件
+   - backend/version.py
+   - backend/admin/index.html
+   - backend/api/auth.py
+   - backend/api/manage.py
+   - backend/api/query.py
+   - backend/models/database.py
+   - backend/services/log_service.py
+
+3. 替换小程序文件（如需更新）
+   - miniapp/pages/query/query.js
+   - miniapp/pages/query/query.wxml
+   - miniapp/pages/query/query.wxss
+
+4. 重启后端服务
+
+【注意事项】
+- 升级前建议备份数据库
+- 先执行 SQL 脚本，再替换文件
+- 重启后端服务使更改生效
+
+================================================================================
