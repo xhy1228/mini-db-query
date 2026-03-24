@@ -1362,8 +1362,31 @@ WHERE 1=1
                     <el-input v-model="templateForm.name" placeholder="请输入模板名称"></el-input>
                 </el-form-item>
                 <el-form-item label="查询表名" prop="table_name">
-                    <el-input v-model="templateForm.table_name" placeholder="如: user_access_record (必填)"></el-input>
+                    <el-input v-model="templateForm.table_name" placeholder="如: user_access_record (必填)">
+                        <template #append>
+                            <el-button @click="fetchTables" :loading="loadingTables">获取表</el-button>
+                        </template>
+                    </el-input>
                 </el-form-item>
+                
+                <!-- 智能配置：表选择 -->
+                <el-form-item v-if="tableList.length > 0" label="选择表">
+                    <el-select v-model="templateForm.table_name" placeholder="选择表" style="width: 100%" @change="onTableSelect">
+                        <el-option v-for="t in tableList" :key="t.name" :label="t.name + (t.comment ? ' - ' + t.comment : '')" :value="t.name"></el-option>
+                    </el-select>
+                </el-form-item>
+                
+                <!-- 智能配置：字段选择 -->
+                <el-form-item v-if="columnList.length > 0" label="选择字段">
+                    <el-button @click="importAllColumns" type="success" size="small" style="margin-bottom: 8px;">导入所有字段</el-button>
+                    <el-table :data="columnList" border size="small" max-height="300" @selection-change="handleColumnSelection">
+                        <el-table-column type="selection" width="40"></el-table-column>
+                        <el-table-column prop="name" label="字段名" width="150"></el-table-column>
+                        <el-table-column prop="type" label="类型" width="120"></el-table-column>
+                        <el-table-column prop="comment" label="注释"></el-table-column>
+                    </el-table>
+                </el-form-item>
+                
                 <el-form-item label="SQL模板" prop="sql_template">
                     <el-input v-model="templateForm.sql_template" type="textarea" :rows="4" placeholder="SELECT * FROM table WHERE 1=1"></el-input>
                 </el-form-item>
@@ -1886,6 +1909,82 @@ WHERE 1=1
                     sql_template: [{ required: true, message: '请输入SQL模板', trigger: 'blur' }]
                 };
                 const templateFormRef = ref(null);
+                
+                // 智能配置相关变量
+                const tableList = ref([]);
+                const columnList = ref([]);
+                const loadingTables = ref(false);
+                const loadingColumns = ref(false);
+                const selectedColumns = ref([]);
+
+                // 智能配置方法
+                const fetchTables = async () => {
+                    if (!templateForm.database_id) {
+                        ElMessage.warning('请先选择使用数据库');
+                        return;
+                    }
+                    loadingTables.value = true;
+                    try {
+                        const res = await request(`/manage/databases/${templateForm.database_id}/tables`);
+                        if (res.code === 200) {
+                            tableList.value = res.data || [];
+                            ElMessage.success(`获取到 ${tableList.value.length} 个表`);
+                        } else {
+                            ElMessage.error(res.message || '获取表失败');
+                        }
+                    } catch (e) {
+                        ElMessage.error('获取表失败: ' + e.message);
+                    } finally {
+                        loadingTables.value = false;
+                    }
+                };
+                
+                const onTableSelect = async (tableName) => {
+                    if (!tableName || !templateForm.database_id) return;
+                    loadingColumns.value = true;
+                    columnList.value = [];
+                    try {
+                        const res = await request(`/manage/databases/${templateForm.database_id}/tables/${tableName}/columns`);
+                        if (res.code === 200) {
+                            columnList.value = res.data || [];
+                            ElMessage.success(`获取到 ${columnList.value.length} 个字段`);
+                        } else {
+                            ElMessage.error(res.message || '获取字段失败');
+                        }
+                    } catch (e) {
+                        ElMessage.error('获取字段失败: ' + e.message);
+                    } finally {
+                        loadingColumns.value = false;
+                    }
+                };
+                
+                const handleColumnSelection = (selection) => {
+                    selectedColumns.value = selection;
+                };
+                
+                const importAllColumns = () => {
+                    if (selectedColumns.value.length === 0) {
+                        ElMessage.warning('请先选择要导入的字段');
+                        return;
+                    }
+                    // 将选中的字段添加到fields
+                    selectedColumns.value.forEach(col => {
+                        // 检查是否已存在
+                        const exists = templateForm.fields.some(f => f.id === col.name);
+                        if (!exists) {
+                            templateForm.fields.push({
+                                id: col.name,
+                                label: col.comment || col.name,
+                                column: col.name,
+                                type: col.type && col.type.toLowerCase().includes('int') ? 'number' : 'text',
+                                operator: '=',
+                                required: col.key === 'PRI',
+                                options: []
+                            });
+                        }
+                    });
+                    ElMessage.success(`已导入 ${selectedColumns.value.length} 个字段`);
+                };
 
                 // 系统配置
                 const systemConfigs = ref([]);

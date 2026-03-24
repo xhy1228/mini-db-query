@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 from typing import Optional, List
 from datetime import datetime
 from urllib.parse import quote_plus
+from sqlalchemy import create_engine, text
 
 from models import get_db_session
 from models.database import School, DatabaseConfig, QueryTemplate, UserSchool
@@ -1255,3 +1256,206 @@ async def clear_user_template_permissions(
     db.commit()
     
     return {"code": 200, "message": "清除成功", "data": {"deleted_count": count}}
+
+
+# ========== 智能模板配置 API ==========
+
+class TestQueryRequest(BaseModel):
+    """测试查询请求"""
+    db_id: int
+    sql: str
+
+
+def _get_db_connection_config(db_config: DatabaseConfig) -> dict:
+    """获取解密后的数据库连接配置"""
+    decrypted_password = decrypt_password(db_config.password)
+    return {
+        'db_type': db_config.db_type,
+        'host': db_config.host,
+        'port': db_config.port,
+        'username': db_config.username,
+        'password': decrypted_password,
+        'database': db_config.db_name or db_config.service_name
+    }
+
+
+def _create_db_engine(config: dict):
+    """创建数据库引擎"""
+    db_type = config.get('db_type', '').lower()
+    password = quote_plus(str(config.get('password', '')))
+    
+    if db_type == 'mysql':
+        conn_str = f"mysql+pymysql://{config.get('username')}:{password}@{config.get('host')}:{config.get('port')}/{config.get('database')}?charset=utf8mb4"
+    elif db_type == 'oracle':
+        # 检测Oracle驱动
+        try:
+            import oracledb
+            driver = "oracledb"
+        except ImportError:
+            try:
+                import cx_Oracle
+                driver = "cx_oracle"
+            except ImportError:
+                raise ImportError("请安装Oracle驱动: pip install oracledb")
+        dsn = f"{config.get('host')}:{config.get('port')}/{config.get('database')}"
+        conn_str = f"oracle+{driver}://{config.get('username')}:{password}@{dsn}"
+    elif db_type in ('sqlserver', 'sql server'):
+        conn_str = f"mssql+pyodbc://{config.get('username')}:{password}@{config.get('host')}:{config.get('port')}/{config.get('database')}?driver=ODBC+Driver+17+for+SQL+Server"
+    else:
+        raise ValueError(f"不支持的数据库类型: {db_type}")
+    
+    return create_engine(conn_str, pool_pre_ping=True)
+
+
+@router.get("/databases/{db_id}/tables")
+async def get_database_tables(
+    db_id: int,
+    current_user: TokenData = Depends(get_current_user),
+    db: Session = Depends(get_db_session)
+):
+    """
+    获取数据库表列表
+    
+    用于智能模板配置
+    """
+    if current_user.role != 'admin':
+        raise HTTPException(status_code=403, detail="需要管理员权限")
+    
+    db_config = db.query(DatabaseConfig).filter(DatabaseConfig.id == db_id).first()
+    if not db_config:
+        raise HTTPException(status_code=404, detail="数据库配置不存在")
+    
+    try:
+        config = _get_db_connection_config(db_config)
+        engine = _create_db_engine(config)
+        
+        db_type = config.get('db_type', '').lower()
+        
+        if db_type == 'mysql':
+            sql = "SELECT TABLE_NAME as name, TABLE_COMMENT as comment FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() ORDER BY TABLE_NAME"
+        elif db_type == 'oracle':
+            sql = "SELECT TABLE_NAME as name, COMMENTS as comment FROM USER_TABLES t LEFT JOIN USER_TAB_COMMENTS c ON t.TABLE_NAME = c.TABLE_NAME ORDER BY TABLE_NAME"
+        elif db_type in ('sqlserver', 'sql server'):
+            sql = "SELECT t.name as name, ep.value as comment FROM sys.tables t LEFT JOIN sys.extended_properties ep ON ep.major_id = t.object_id AND ep.minor_id = 0 ORDER BY t.name"
+        else:
+            raise ValueError(f"不支持的数据库类型: {db_type}")
+        
+        with engine.connect() as conn:
+            result = conn.execute(text(sql))
+            tables = [{"name": row[0], "comment": row[1] or ""} for row in result.fetchall()]
+        
+        return {"code": 200, "message": "获取成功", "data": tables}
+    except Exception as e:
+        return {"code": 500, "message": f"获取失败: {str(e)}", "data": None}
+
+
+@router.get("/databases/{db_id}/tables/{table_name}/columns")
+async def get_table_columns(
+    db_id: int,
+    table_name: str,
+    current_user: TokenData = Depends(get_current_user),
+    db: Session = Depends(get_db_session)
+):
+    """
+    获取表字段列表
+    
+    用于智能模板配置
+    """
+    if current_user.role != 'admin':
+        raise HTTPException(status_code=403, detail="需要管理员权限")
+    
+    db_config = db.query(DatabaseConfig).filter(DatabaseConfig.id == db_id).first()
+    if not db_config:
+        raise HTTPException(status_code=404, detail="数据库配置不存在")
+    
+    try:
+        config = _get_db_connection_config(db_config)
+        engine = _create_db_engine(config)
+        
+        db_type = config.get('db_type', '').lower()
+        
+        if db_type == 'mysql':
+            sql = f"""SELECT COLUMN_NAME as name, COLUMN_TYPE as type, IS_NULLABLE as nullable, 
+                     COLUMN_KEY as key_type, COLUMN_COMMENT as comment
+                     FROM information_schema.COLUMNS 
+                     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = '{table_name}'
+                     ORDER BY ORDINAL_POSITION"""
+        elif db_type == 'oracle':
+            sql = f"""SELECT c.COLUMN_NAME as name, c.DATA_TYPE as type, c.NULLABLE as nullable,
+                     CASE WHEN pk.COLUMN_NAME = c.COLUMN_NAME THEN 'PRI' ELSE '' END as key_type,
+                     cc.COMMENTS as comment
+                     FROM USER_TAB_COLUMNS c
+                     LEFT JOIN USER_COL_COMMENTS cc ON c.TABLE_NAME = cc.TABLE_NAME AND c.COLUMN_NAME = cc.COLUMN_NAME
+                     LEFT JOIN (SELECT cols.TABLE_NAME, cols.COLUMN_NAME FROM USER_CONSTRAINTS cons
+                     JOIN USER_CONS_COLUMNS cols ON cons.CONSTRAINT_NAME = cols.CONSTRAINT_NAME WHERE cons.CONSTRAINT_TYPE = 'P')
+                     pk ON c.TABLE_NAME = pk.TABLE_NAME AND c.COLUMN_NAME = pk.COLUMN_NAME
+                     WHERE c.TABLE_NAME = UPPER('{table_name}') ORDER BY c.COLUMN_ID"""
+        elif db_type in ('sqlserver', 'sql server'):
+            sql = f"""SELECT c.name as name, t.name as type, 
+                     CASE WHEN c.is_nullable = 1 THEN 'YES' ELSE 'NO' END as nullable,
+                     CASE WHEN pk.column_id IS NOT NULL THEN 'PRI' ELSE '' END as key_type,
+                     CAST(ep.value AS VARCHAR) as comment
+                     FROM sys.columns c JOIN sys.types t ON c.user_type_id = t.user_type_id
+                     LEFT JOIN sys.extended_properties ep ON ep.major_id = c.object_id AND ep.minor_id = c.column_id
+                     LEFT JOIN (SELECT i.object_id, ic.column_id FROM sys.indexes i
+                     JOIN sys.index_columns ic ON i.object_id = ic.object_id AND i.index_id = ic.index_id WHERE i.is_primary_key = 1)
+                     pk ON c.object_id = pk.object_id AND c.column_id = pk.column_id
+                     WHERE c.object_id = OBJECT_ID('{table_name}') ORDER BY c.column_id"""
+        else:
+            raise ValueError(f"不支持的数据库类型: {db_type}")
+        
+        with engine.connect() as conn:
+            result = conn.execute(text(sql))
+            columns = [{"name": row[0], "type": row[1], "nullable": row[2], "key": row[3], "comment": row[4] or ""} for row in result.fetchall()]
+        
+        return {"code": 200, "message": "获取成功", "data": columns}
+    except Exception as e:
+        return {"code": 500, "message": f"获取失败: {str(e)}", "data": None}
+
+
+@router.post("/databases/test-query")
+async def test_database_query(
+    request: TestQueryRequest,
+    current_user: TokenData = Depends(get_current_user),
+    db: Session = Depends(get_db_session)
+):
+    """
+    测试SQL查询
+    
+    执行SELECT查询并返回预览结果
+    """
+    if current_user.role != 'admin':
+        raise HTTPException(status_code=403, detail="需要管理员权限")
+    
+    db_config = db.query(DatabaseConfig).filter(DatabaseConfig.id == request.db_id).first()
+    if not db_config:
+        raise HTTPException(status_code=404, detail="数据库配置不存在")
+    
+    # 安全检查：只允许SELECT
+    sql = request.sql.strip()
+    if not sql.upper().startswith('SELECT'):
+        return {"code": 400, "message": "只允许执行SELECT查询", "data": None}
+    
+    try:
+        config = _get_db_connection_config(db_config)
+        engine = _create_db_engine(config)
+        
+        # 添加限制
+        db_type = config.get('db_type', '').lower()
+        if 'LIMIT' not in sql.upper() and db_type == 'mysql':
+            sql = f"{sql} LIMIT 10"
+        elif 'FETCH FIRST' not in sql.upper() and db_type in ('oracle', 'sqlserver', 'sql server'):
+            if db_type == 'oracle':
+                sql = f"SELECT * FROM ({sql}) WHERE ROWNUM <= 10"
+            else:
+                sql = f"{sql} OFFSET 0 ROWS FETCH FIRST 10 ROWS ONLY"
+        
+        with engine.connect() as conn:
+            result = conn.execute(text(sql))
+            columns = list(result.keys())
+            rows = result.fetchall()
+            data = [dict(zip(columns, row)) for row in rows[:10]]
+        
+        return {"code": 200, "message": f"查询成功，返回{len(data)}条记录", "data": {"columns": columns, "rows": data}}
+    except Exception as e:
+        return {"code": 500, "message": f"查询失败: {str(e)}", "data": None}

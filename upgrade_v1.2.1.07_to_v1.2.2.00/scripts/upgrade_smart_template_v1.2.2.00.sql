@@ -39,8 +39,8 @@ DROP PROCEDURE IF EXISTS add_column_if_not_exists;
 
 -- 2. 更新版本号
 -- ============================================
-INSERT INTO system_config (config_key, config_value, description) 
-VALUES ('version', 'v1.2.2.00', '智能模板配置版本')
+INSERT INTO system_configs (config_key, config_value, description) 
+VALUES ('version', 'v1.2.2.01', '智能模板配置版本')
 ON DUPLICATE KEY UPDATE config_value = 'v1.2.2.00';
 
 SELECT '智能模板配置升级完成!' as result;
