@@ -194,6 +194,7 @@ class QueryTemplate(Base):
             'name': self.name,
             'description': self.description,
             'sql_template': self.sql_template,  # 添加sql_template字段
+            'select_columns': self.select_columns,  # 返回字段配置
             'time_field': self.time_field,
             'default_limit': self.default_limit,
             'supported_db_types': self.supported_db_types or ['MySQL', 'Oracle'],
