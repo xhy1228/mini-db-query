@@ -1378,16 +1378,23 @@ WHERE 1=1
                     </el-input>
                 </el-form-item>
                 
-                <!-~-表选择 -->
+                <!-~-表选择（支持多表） -->
                 <el-form-item v-if="tableList && tableList.length > 0" label="选择表">
-                    <el-select v-model="templateForm.table_name" placeholder="选择表" style="width: 100%" @change="onTableSelect">
+                    <div style="margin-bottom: 8px; color: #888; font-size: 12px;">
+                        💡 单表查询：选择一个表后点击"获取字段"；多表联查：选择多个表，手动输入SQL
+                    </div>
+                    <el-select v-model="selectedTables" multiple placeholder="选择表（可多选）" style="width: 100%" @change="onTablesChange">
                         <el-option v-for="t in tableList" :key="t.name" :label="t.name + (t.comment ? ' - ' + t.comment : '')" :value="t.name"></el-option>
                     </el-select>
+                    <el-button v-if="selectedTables.length === 1" type="primary" size="small" style="margin-top: 8px;" @click="fetchColumnsForTable" :loading="loadingColumns">
+                        📋 获取字段
+                    </el-button>
                 </el-form-item>
                 
                 <!-~-字段选择 -->
                 <el-form-item v-if="columnList && columnList.length > 0" label="选择字段">
-                    <el-button @click="importAllColumns" type="success" size="small" style="margin-bottom: 8px;">导入所有字段</el-button>
+                    <el-button @click="importAllColumns" type="success" size="small" style="margin-bottom: 8px;">导入所选字段</el-button>
+                    <el-button @click="importAllColumns(true)" type="warning" size="small" style="margin-bottom: 8px; margin-left: 8px;">导入全部字段</el-button>
                     <el-table :data="columnList" border size="small" max-height="300" @selection-change="handleColumnSelection">
                         <el-table-column type="selection" width="40"></el-table-column>
                         <el-table-column prop="name" label="字段名" width="150"></el-table-column>
@@ -1975,6 +1982,7 @@ WHERE 1=1
                 
                 // 智能配置相关变量
                 const tableList = ref([]);
+                const selectedTables = ref([]);
                 const columnList = ref([]);
                 const loadingTables = ref(false);
                 const loadingColumns = ref(false);
@@ -2022,8 +2030,26 @@ WHERE 1=1
                     }
                 };
                 
-                const onTableSelect = async (tableName) => {
-                    if (!tableName || !templateForm.database_id) return;
+                const selectedTables = ref([]);
+                
+                const onTablesChange = async (tables) => {
+                    selectedTables.value = tables;
+                    // 清空字段列表
+                    columnList.value = [];
+                    // 清空表名
+                    templateForm.table_name = tables.length === 1 ? tables[0] : '';
+                };
+                
+                const fetchColumnsForTable = async () => {
+                    if (!selectedTables.value || selectedTables.value.length !== 1) {
+                        if (selectedTables.value.length === 0) {
+                            ElMessage.warning('请先选择一个表');
+                        } else {
+                            ElMessage.info('多表联查请手动输入SQL，可单独获取每个表的字段');
+                        }
+                        return;
+                    }
+                    const tableName = selectedTables.value[0];
                     loadingColumns.value = true;
                     columnList.value = [];
                     try {
@@ -2045,10 +2071,20 @@ WHERE 1=1
                     selectedColumns.value = selection;
                 };
                 
-                const importAllColumns = () => {
-                    if (selectedColumns.value.length === 0) {
-                        ElMessage.warning('请先选择要导入的字段');
-                        return;
+                const importAllColumns = (importAll = false) => {
+                    let columnsToImport = [];
+                    if (importAll) {
+                        columnsToImport = columnList.value;
+                        if (columnsToImport.length === 0) {
+                            ElMessage.warning('没有可导入的字段');
+                            return;
+                        }
+                    } else {
+                        columnsToImport = selectedColumns.value;
+                        if (columnsToImport.length === 0) {
+                            ElMessage.warning('请先选择要导入的字段');
+                            return;
+                        }
                     }
                     // 将选中的字段添加到fields
                     selectedColumns.value.forEach(col => {
@@ -3360,6 +3396,7 @@ WHERE 1=1
                     templateRules,
                     templateFormRef,
                     tableList,
+                    selectedTables,
                     columnList,
                     loadingTables,
                     loadingColumns,
@@ -3367,6 +3404,8 @@ WHERE 1=1
                     testingQuery,
                     testQueryResult,
                     fetchTables,
+                    onTablesChange,
+                    fetchColumnsForTable,
                     onSchoolChange,
                     onCategoryChange,
                     onTableSelect,
