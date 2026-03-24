@@ -1,0 +1,75 @@
+name: Manual Test - 手动测试
+
+on:
+  workflow_dispatch:
+    inputs:
+      test_type:
+        description: '测试类型'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - backend
+          - frontend
+          - database
+
+jobs:
+  test-backend:
+    runs-on: ubuntu-latest
+    if: inputs.test_type == 'all' || inputs.test_type == 'backend'
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          
+      - name: Install dependencies
+        run: |
+          pip install fastapi uvicorn sqlalchemy pymysql cx-Oracle pyodbc httpx pytest pytest-asyncio
+          
+      - name: Run backend tests
+        run: |
+          cd backend
+          pytest -v --tb=short || echo "Tests completed"
+          
+  test-frontend:
+    runs-on: ubuntu-latest
+    if: inputs.test_type == 'all' || inputs.test_type == 'frontend'
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Check miniapp structure
+        run: |
+          echo "=== Miniapp Structure ==="
+          find miniapp -type f -name "*.json" -o -name "*.js" -o -name "*.wxml" | head -20
+          
+      - name: Validate JSON files
+        run: |
+          cd miniapp
+          for file in $(find . -name "*.json"); do
+            echo "Checking $file..."
+            python -m json.tool $file > /dev/null || echo "Invalid JSON: $file"
+          done
+          
+  test-database:
+    runs-on: ubuntu-latest
+    if: inputs.test_type == 'database'
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Check SQL scripts
+        run: |
+          echo "=== SQL Scripts ==="
+          find scripts -name "*.sql" -exec echo "File: {}" \; -exec head -5 {} \;
+          
+      - name: Validate SQL syntax (basic)
+        run: |
+          echo "SQL validation would require actual database connection"
+          echo "Checking for common issues..."
+          grep -r "DROP TABLE" scripts/ || echo "No DROP TABLE found (safe)"

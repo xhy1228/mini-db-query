@@ -1,0 +1,102 @@
+name: CD - 自动化部署
+
+on:
+  push:
+    branches: [main]
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: '部署环境'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - production
+          - staging
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          
+      - name: Get version
+        id: version
+        run: |
+          VERSION=$(cat backend/version.py | grep VERSION | cut -d'"' -f2)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Current version: $VERSION"
+          
+      - name: Create deployment package
+        run: |
+          # Create deployment package
+          TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+          PACKAGE_NAME="mini-db-query-${{ steps.version.outputs.version }}-${TIMESTAMP}"
+          
+          mkdir -p dist/$PACKAGE_NAME
+          cp -r backend dist/$PACKAGE_NAME/
+          cp -r miniapp dist/$PACKAGE_NAME/
+          cp -r scripts dist/$PACKAGE_NAME/
+          
+          # Create deployment info
+          echo "{
+            \"version\": \"${{ steps.version.outputs.version }}\",
+            \"timestamp\": \"$TIMESTAMP\",
+            \"commit\": \"${{ github.sha }}\",
+            \"branch\": \"${{ github.ref_name }}\"
+          }" > dist/$PACKAGE_NAME/deploy_info.json
+          
+          cd dist
+          tar -czf $PACKAGE_NAME.tar.gz $PACKAGE_NAME
+          
+      - name: Upload deployment artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: deployment-package
+          path: dist/*.tar.gz
+          
+      - name: Create release tag
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          VERSION="${{ steps.version.outputs.version }}"
+          TAG_NAME="release-$VERSION-$(date +%Y%m%d%H%M%S)"
+          
+          git tag -a $TAG_NAME -m "Release $VERSION"
+          git push origin $TAG_NAME || echo "Tag already exists"
+          
+      - name: Notify deployment
+        run: |
+          echo "=== Deployment Summary ==="
+          echo "Version: ${{ steps.version.outputs.version }}"
+          echo "Environment: ${{ inputs.environment || 'production' }}"
+          echo "Commit: ${{ github.sha }}"
+          echo "Branch: ${{ github.ref_name }}"
+          echo ""
+          echo "Deployment package created successfully!"
+          echo "Download from: Actions -> Artifacts -> deployment-package"
+
+  # 可选：部署到服务器（需要配置SSH密钥）
+  # deploy-to-server:
+  #   runs-on: ubuntu-latest
+  #   needs: deploy
+  #   if: ${{ secrets.DEPLOY_HOST && secrets.DEPLOY_USER }}
+  #   steps:
+  #     - name: Deploy via SSH
+  #       uses: appleboy/ssh-action@v1
+  #       with:
+  #         host: ${{ secrets.DEPLOY_HOST }}
+  #         username: ${{ secrets.DEPLOY_USER }}
+  #         key: ${{ secrets.DEPLOY_KEY }}
+  #         script: |
+  #           cd /path/to/project
+  #           git pull
+  #           # Add restart commands here
