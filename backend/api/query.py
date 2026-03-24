@@ -1612,3 +1612,120 @@ async def export_query_result(
         }
 
 
+
+
+# ========== 收藏相关 API ==========
+
+class FavoriteRequest(BaseModel):
+    """收藏请求"""
+    binding_id: Optional[int] = None
+    template_id: Optional[int] = None
+    school_id: int
+    query_name: str
+    query_params: Optional[List[dict]] = Field(default_factory=list)
+    start_time: Optional[str] = None
+    end_time: Optional[str] = None
+    sort_fields: Optional[str] = None
+
+
+@router.get("/user/favorites", summary="获取收藏列表")
+async def get_favorites(
+    current_user: TokenData = Depends(get_current_user),
+    db: Session = Depends(get_db_session)
+):
+    """获取当前用户的收藏列表"""
+    user_id = int(current_user.user_id)
+    
+    from models.database import QueryFavorite
+    favorites = db.query(QueryFavorite).filter(
+        QueryFavorite.user_id == user_id
+    ).order_by(QueryFavorite.created_at.desc()).all()
+    
+    return {
+        "code": 200,
+        "data": [f.to_dict() for f in favorites]
+    }
+
+
+@router.post("/user/favorites", summary="添加收藏")
+async def add_favorite(
+    request: FavoriteRequest,
+    current_user: TokenData = Depends(get_current_user),
+    db: Session = Depends(get_db_session)
+):
+    """添加查询收藏"""
+    user_id = int(current_user.user_id)
+    
+    # 检查是否已存在相同收藏
+    from models.database import QueryFavorite
+    existing = db.query(QueryFavorite).filter(
+        QueryFavorite.user_id == user_id,
+        QueryFavorite.binding_id == request.binding_id,
+        QueryFavorite.template_id == request.template_id,
+        QueryFavorite.school_id == request.school_id
+    ).first()
+    
+    if existing:
+        # 更新现有收藏
+        existing.query_name = request.query_name
+        existing.query_params = request.query_params
+        existing.start_time = request.start_time
+        existing.end_time = request.end_time
+        existing.sort_fields = request.sort_fields
+        db.commit()
+        
+        return {
+            "code": 200,
+            "message": "收藏已更新",
+            "data": existing.to_dict()
+        }
+    
+    # 创建新收藏
+    favorite = QueryFavorite(
+        user_id=user_id,
+        school_id=request.school_id,
+        binding_id=request.binding_id,
+        template_id=request.template_id,
+        query_name=request.query_name,
+        query_params=request.query_params,
+        start_time=request.start_time,
+        end_time=request.end_time,
+        sort_fields=request.sort_fields
+    )
+    
+    db.add(favorite)
+    db.commit()
+    db.refresh(favorite)
+    
+    return {
+        "code": 200,
+        "message": "收藏成功",
+        "data": favorite.to_dict()
+    }
+
+
+@router.delete("/user/favorites/{favorite_id}", summary="删除收藏")
+async def delete_favorite(
+    favorite_id: int,
+    current_user: TokenData = Depends(get_current_user),
+    db: Session = Depends(get_db_session)
+):
+    """删除收藏"""
+    user_id = int(current_user.user_id)
+    
+    from models.database import QueryFavorite
+    favorite = db.query(QueryFavorite).filter(
+        QueryFavorite.id == favorite_id,
+        QueryFavorite.user_id == user_id
+    ).first()
+    
+    if not favorite:
+        raise HTTPException(status_code=404, detail="收藏不存在")
+    
+    db.delete(favorite)
+    db.commit()
+    
+    return {
+        "code": 200,
+        "message": "删除成功"
+    }

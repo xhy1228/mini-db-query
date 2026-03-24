@@ -387,6 +387,7 @@ class User(Base):
     # 关联
     school_permissions = relationship("UserSchool", back_populates="user", cascade="all, delete-orphan")
     query_logs = relationship("QueryLog", back_populates="user", cascade="all, delete-orphan")
+    query_favorites = relationship("QueryFavorite", back_populates="user", cascade="all, delete-orphan")
     operation_logs = relationship("OperationLog", back_populates="user", cascade="all, delete-orphan")
     template_permissions = relationship("TemplatePermission", back_populates="user", cascade="all, delete-orphan")
     
@@ -468,6 +469,44 @@ class QueryLog(Base):
             'error_message': self.error_message,
             'error_detail': self.error_detail,
             'created_at': self.created_at.isoformat() if self.created_at else None
+        }
+
+
+class QueryFavorite(Base):
+    """查询收藏表 - 用户收藏常用查询"""
+    __tablename__ = 'query_favorites'
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey('users.id'), nullable=False, comment='用户ID')
+    school_id = Column(Integer, ForeignKey('schools.id'), comment='学校ID')
+    binding_id = Column(Integer, ForeignKey('school_template_bindings.id'), comment='功能绑定ID')
+    template_id = Column(Integer, ForeignKey('query_templates.id'), comment='模板ID')
+    query_name = Column(String(200), comment='收藏名称')
+    query_params = Column(JSON, comment='查询参数(条件)')
+    start_time = Column(String(20), comment='开始时间')
+    end_time = Column(String(20), comment='结束时间')
+    sort_fields = Column(String(500), comment='排序字段')
+    created_at = Column(DateTime, default=datetime.now, comment='创建时间')
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now, comment='更新时间')
+    
+    # 关联
+    user = relationship("User", back_populates="query_favorites")
+    school = relationship("School")
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'user_id': self.user_id,
+            'school_id': self.school_id,
+            'binding_id': self.binding_id,
+            'template_id': self.template_id,
+            'query_name': self.query_name,
+            'query_params': self.query_params,
+            'start_time': self.start_time,
+            'end_time': self.end_time,
+            'sort_fields': self.sort_fields,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }
 
 

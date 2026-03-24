@@ -47,7 +47,13 @@ Page({
     sortOrder: '', // 'asc' or 'desc'
     
     // 表格显示优化
-    columnWidths: {}
+    columnWidths: {},
+    
+    // 收藏相关
+    showFavoriteModal: false,
+    favoriteName: '',
+    isFavorite: false,
+    favoriteId: null
   },
 
   onLoad(options) {
@@ -704,5 +710,134 @@ Page({
     })
     
     return widths
-  }
+  },
+  
+  // ========== 收藏功能 ==========
+  
+  // 显示收藏弹窗
+  showFavoriteDialog() {
+    const { selectedTemplate, selectedSchool } = this.data
+    if (!selectedTemplate || !selectedSchool) return
+    
+    this.setData({
+      showFavoriteModal: true,
+      favoriteName: selectedTemplate.name || '',
+      isFavorite: false,
+      favoriteId: null
+    })
+    
+    // 检查是否已收藏
+    this.checkFavorite()
+  },
+  
+  // 检查是否已收藏
+  async checkFavorite() {
+    const { selectedTemplate, selectedSchool } = this.data
+    if (!selectedTemplate) return
+    
+    try {
+      const res = await get('/user/favorites')
+      if (res.code === 200 && res.data) {
+        const favorite = res.data.find(f => 
+          f.template_id === selectedTemplate.id && 
+          f.school_id === selectedSchool.id
+        )
+        if (favorite) {
+          this.setData({
+            isFavorite: true,
+            favoriteId: favorite.id,
+            favoriteName: favorite.query_name
+          })
+        }
+      }
+    } catch (error) {
+      console.error('检查收藏失败:', error)
+    }
+  },
+  
+  // 隐藏收藏弹窗
+  hideFavoriteModal() {
+    this.setData({ showFavoriteModal: false })
+  },
+  
+  // 输入收藏名称
+  onFavoriteNameInput(e) {
+    this.setData({ favoriteName: e.detail.value })
+  },
+  
+  // 保存收藏
+  async saveFavorite() {
+    const { selectedTemplate, selectedSchool, favoriteName, conditions, startTime, endTime } = this.data
+    
+    if (!favoriteName || !favoriteName.trim()) {
+      wx.showToast({ title: '请输入收藏名称', icon: 'none' })
+      return
+    }
+    
+    if (!selectedSchool || !selectedTemplate) {
+      wx.showToast({ title: '请先选择学校和模板', icon: 'none' })
+      return
+    }
+    
+    try {
+      const res = await post('/user/favorites', {
+        school_id: selectedSchool.id,
+        template_id: selectedTemplate.id,
+        query_name: favoriteName.trim(),
+        query_params: conditions,
+        start_time: startTime,
+        end_time: endTime
+      })
+      
+      if (res.code === 200) {
+        wx.showToast({ 
+          title: res.message || '收藏成功', 
+          icon: 'success' 
+        })
+        this.setData({
+          isFavorite: true,
+          favoriteId: res.data?.id,
+          showFavoriteModal: false
+        })
+      } else {
+        wx.showToast({ title: res.message || '收藏失败', icon: 'none' })
+      }
+    } catch (error) {
+      console.error('收藏失败:', error)
+      wx.showToast({ title: '收藏失败', icon: 'none' })
+    }
+  },
+  
+  // 取消收藏
+  async removeFavorite() {
+    const { favoriteId } = this.data
+    if (!favoriteId) return
+    
+    wx.showModal({
+      title: '确认取消',
+      content: '确定要取消收藏吗？',
+      success: async (res) => {
+        if (res.confirm) {
+          try {
+            const result = await del(`/user/favorites/${favoriteId}`)
+            if (result.code === 200) {
+              wx.showToast({ title: '已取消收藏', icon: 'success' })
+              this.setData({
+                isFavorite: false,
+                favoriteId: null
+              })
+            } else {
+              wx.showToast({ title: result.message || '取消失败', icon: 'none' })
+            }
+          } catch (error) {
+            console.error('取消收藏失败:', error)
+            wx.showToast({ title: '取消失败', icon: 'none' })
+          }
+        }
+      }
+    })
+  },
+  
+  // 阻止事件冒泡
+  stopPropagation() {}
 })

@@ -142,15 +142,24 @@
     </view>
 
     <!-- 查询按钮 -->
-    <button 
-      class="query-btn" 
-      bindtap="doQuery"
-      loading="{{loading}}"
-      disabled="{{loading}}"
-    >
-      <text wx:if="{{!loading}}">🔍 开始查询</text>
-      <text wx:else>查询中...</text>
-    </button>
+    <view class="button-row">
+      <button 
+        class="query-btn favorite-btn {{isFavorite ? 'favorited' : ''}}" 
+        bindtap="showFavoriteDialog"
+      >
+        <text wx:if="{{isFavorite}}">⭐ 已收藏</text>
+        <text wx:else>☆ 收藏</text>
+      </button>
+      <button 
+        class="query-btn" 
+        bindtap="doQuery"
+        loading="{{loading}}"
+        disabled="{{loading}}"
+      >
+        <text wx:if="{{!loading}}">🔍 开始查询</text>
+        <text wx:else>查询中...</text>
+      </button>
+    </view>
 
     <!-- 查询结果 -->
     <view class="result-section" wx:if="{{queried}}">
@@ -253,6 +262,46 @@
     </view>
   </view>
 
+</view>
+
+<!-- 收藏弹窗 -->
+<view class="favorite-modal" wx:if="{{showFavoriteModal}}" bindtap="hideFavoriteModal">
+  <view class="favorite-dialog" catchtap="stopPropagation">
+    <view class="favorite-dialog-title">
+      <text wx:if="{{isFavorite}}">⭐ 更新收藏</text>
+      <text wx:else>☆ 添加收藏</text>
+    </view>
+    
+    <view class="favorite-input-wrap">
+      <input 
+        class="favorite-input" 
+        placeholder="请输入收藏名称"
+        placeholder-class="placeholder"
+        value="{{favoriteName}}"
+        bindinput="onFavoriteNameInput"
+        maxlength="50"
+      />
+    </view>
+    
+    <view class="favorite-hint">保存当前查询条件和模板，方便快速查询</view>
+    
+    <view class="favorite-buttons">
+      <view 
+        class="favorite-btn-cancel" 
+        bindtap="hideFavoriteModal"
+      >取消</view>
+      <view 
+        class="favorite-btn-save {{favoriteName ? '' : 'disabled'}}" 
+        bindtap="saveFavorite"
+      >保存</view>
+    </view>
+    
+    <view 
+      class="favorite-btn-remove" 
+      wx:if="{{isFavorite}}"
+      bindtap="removeFavorite"
+    >取消收藏</view>
+  </view>
 </view>
 
 <!-- 导出选项弹窗 -->
