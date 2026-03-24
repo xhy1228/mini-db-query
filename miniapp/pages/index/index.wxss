@@ -394,6 +394,40 @@
   color: #1890ff;
 }
 
+.history-entry {
+  display: flex;
+  align-items: center;
+  padding: 32rpx;
+}
+
+.entry-icon {
+  font-size: 48rpx;
+  margin-right: 24rpx;
+}
+
+.entry-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8rpx;
+}
+
+.entry-title {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #fff;
+}
+
+.entry-desc {
+  font-size: 24rpx;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.entry-arrow {
+  font-size: 40rpx;
+  color: rgba(255, 255, 255, 0.4);
+}
+
 .recent-list {
   display: flex;
   flex-direction: column;

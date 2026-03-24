@@ -45,31 +45,21 @@
     </view>
   </view>
 
-  <!-- 最近查询 -->
-  <view class="section recent-section" wx:if="{{recentQueries.length > 0}}">
+  <!-- 查询历史入口 -->
+  <view class="section recent-section">
     <view class="section-header">
       <view class="section-title">
         <text class="title-icon">🕐</text>
-        <text>最近查询</text>
-      </view>
-      <view class="section-more" bindtap="goToHistory">
-        <text>查看全部</text>
-        <text>›</text>
+        <text>查询历史</text>
       </view>
     </view>
-    <view class="recent-list">
-      <view class="recent-item glass-card" wx:for="{{recentQueries}}" wx:key="id">
-        <view class="recent-info">
-          <text class="recent-name">{{item.query_name || '查询'}}</text>
-          <text class="recent-time">{{item.timeText}}</text>
-        </view>
-        <view class="recent-meta">
-          <text class="recent-count">{{item.result_count || 0}}条</text>
-          <text class="recent-status {{item.status === 'success' ? 'success' : 'failed'}}">
-            {{item.status === 'success' ? '成功' : '失败'}}
-          </text>
-        </view>
+    <view class="history-entry glass-card" bindtap="goToHistory">
+      <view class="entry-icon">📋</view>
+      <view class="entry-info">
+        <text class="entry-title">查看查询历史</text>
+        <text class="entry-desc">查看历史查询记录和数据</text>
       </view>
+      <view class="entry-arrow">›</view>
     </view>
   </view>
 

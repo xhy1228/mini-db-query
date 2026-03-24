@@ -2127,10 +2127,31 @@ WHERE 1=1
                             })
                         });
                         if (res.code === 200) {
+                            // 构建表格显示结果
+                            let tableHtml = '<table style="width:100%;border-collapse:collapse;margin-top:10px;font-size:12px;">';
+                            // 表头
+                            tableHtml += '<tr style="background:#f5f5f5;">';
+                            res.data.columns.forEach(col => {
+                                tableHtml += `<th style="border:1px solid #ddd;padding:6px;text-align:left;">${col}</th>`;
+                            });
+                            tableHtml += '</tr>';
+                            // 数据行
+                            res.data.rows.slice(0, 5).forEach(row => {
+                                tableHtml += '<tr>';
+                                res.data.columns.forEach(col => {
+                                    const val = row[col] !== null && row[col] !== undefined ? row[col] : '-';
+                                    tableHtml += `<td style="border:1px solid #ddd;padding:6px;">${String(val).substring(0, 50)}</td>`;
+                                });
+                                tableHtml += '</tr>';
+                            });
+                            tableHtml += '</table>';
+                            if (res.data.rows.length > 5) {
+                                tableHtml += `<p style="margin-top:8px;color:#888;">...还有 ${res.data.rows.length - 5} 条记录</p>`;
+                            }
                             testQueryResult.value = {
                                 type: 'success',
                                 title: '✅ ' + res.message,
-                                message: `<p>列: ${res.data.columns.join(', ')}</p><p>预览${res.data.rows.length}条记录</p>`
+                                message: tableHtml
                             };
                         } else {
                             testQueryResult.value = {
