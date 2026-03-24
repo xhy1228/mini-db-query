@@ -1361,7 +1361,7 @@ async def export_query_result(
     
     # 支持 binding_id 方式导出（v1.2.0）
     if request.binding_id:
-        from models.database import SchoolTemplateBinding, QueryTemplate, DatabaseConfig
+        from models.database import SchoolTemplateBinding
         from sqlalchemy.orm import joinedload
         
         binding = db.query(SchoolTemplateBinding).options(
