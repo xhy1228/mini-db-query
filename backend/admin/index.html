@@ -2994,16 +2994,6 @@ WHERE 1=1
                     templateForm.category_id = null;
                 };
                 
-                // 分类变化时更新编码和名称（兼容）
-                const onCategoryChange = (categoryId) => {
-                    const cat = categories.value.find(c => c.id === categoryId);
-                    if (cat) {
-                        templateForm.category = cat.code;
-                        templateForm.category_name = cat.name;
-                        templateForm.category_icon = cat.icon;
-                    }
-                };
-
                 const loadTemplates = async () => {
                     try {
                         const params = new URLSearchParams();
